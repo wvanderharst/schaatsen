@@ -276,7 +276,8 @@ def ijk(df, elite, eerste_seizoen=2014, q=0.02):
     from scipy.stats import genpareto as gp
     from scipy.special import ndtri
     e = df[df['skater_id'].isin(elite) & np.isfinite(df['u']) & ~df['val'] & (df['n'] >= MIN_N) & ~df['verdacht']].copy()
-    e['g'] = np.digitize(e['gap'], GAP_GRENZEN) * 100 + np.digitize(e['n'], N_GRENZEN) * 10 + np.digitize(e['k'], K_GRENZEN)
+    e['g'] = (np.digitize(e['gap'], GAP_GRENZEN) * 100 + np.digitize(e['n'], N_GRENZEN) * 10 + np.digitize(e['k'], K_GRENZEN)
+              + 1000 * e['baan'].isin(HOOGLAND).astype(int))          # hoogland: eigen locatie en (grotere) spreiding
     e['p'] = np.nan
     def staart(y):
         xi, _, sg = gp.fit(y, floc=0.0)
@@ -412,6 +413,46 @@ def schat_ijs(df, tot_seizoen=2015, g_max=0.10):
     g = x['g'].clip(-0.05, 0.3).to_numpy()
     A = np.c_[x['dth'], g * x['dth'], x['hoog'], g * x['hoog']]
     return np.linalg.lstsq(A, x['e'].to_numpy(), rcond=None)[0]
+
+
+def ijs_rollend(df, jaren=4, g_max=0.10, eerste_seizoen=2010):
+    """IJs per niveau, meeschuivend: voor elk seizoen een regressie van de fout op [dth, g*dth, hoog, g*hoog] over de `jaren` seizoenen
+    ervoor (rijders tot g_max van de wereldtop, geen valpartijen); het geschatte effect wordt van de fout afgetrokken (u opnieuw).
+    Het hooglandvoordeel van de top is sinds ~2016 gegroeid, een vaste schatting loopt daarachter."""
+    df = df.copy()
+    g = df['g'].clip(-0.05, 0.3).to_numpy()
+    A = np.c_[df['dth'], g * df['dth'], df['hoog'], g * df['hoog']]
+    ok = np.isfinite(df['e'].to_numpy()) & (df['n'].to_numpy() >= 5) & ~df['val'].to_numpy() & (np.abs(df['e'].to_numpy()) < 0.1) & (g < g_max)
+    sz = df['seizoen'].to_numpy(); corr = np.zeros(len(df)); coefs = {}
+    for S in np.unique(sz):
+        if S < eerste_seizoen:
+            continue
+        r = ok & (sz < S) & (sz >= S - jaren)
+        if r.sum() < 5000:
+            continue
+        b = np.linalg.lstsq(A[r], df['e'].to_numpy()[r], rcond=None)[0]; coefs[int(S)] = b
+        t = sz == S; corr[t] = A[t] @ b
+    df['e'] = df['e'] - corr; df['u'] = df['e'] / df['s_tot']; df['ijs_corr'] = corr
+    return df, coefs
+
+
+def hoogland_niveau(e, jaren=4):
+    """Na de ijking: de top wint op het hoogland meer dan de rest van de elite. Per seizoen een meeschuivende regressie (vier seizoenen
+    ervoor) van z op hoogland x (1, rang), met rang = positie van het niveau binnen geslacht x afstand x seizoen (0 = beste, doorlopend);
+    de correctie wordt van z afgetrokken en p opnieuw berekend."""
+    from scipy.stats import norm
+    e = e.copy()
+    e['rang'] = e.groupby(['gender', 'afstand', 'seizoen'])['mu'].rank(pct=True)
+    h = e['baan'].isin(HOOGLAND).to_numpy().astype(float); r = e['rang'].to_numpy()
+    A = np.c_[h, h * r]; z = np.clip(e['z'].to_numpy(), -5, 5); sz = e['seizoen'].to_numpy(); corr = np.zeros(len(e))
+    for S in np.unique(sz):
+        ref = (sz < S) & (sz >= S - jaren)
+        if ref.sum() < 5000 or h[ref].sum() < 300:
+            continue
+        b = np.linalg.lstsq(np.c_[np.ones(ref.sum()), A[ref]], z[ref], rcond=None)[0][1:]
+        t = sz == S; corr[t] = A[t] @ b
+    e['z'] = e['z'] - corr; e['p'] = norm.cdf(e['z']); e['hoog_corr'] = corr
+    return e
 
 
 def toets(e, vanaf_seizoen=2016):

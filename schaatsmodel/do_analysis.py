@@ -2248,7 +2248,7 @@ def normaal_z_dag(model, vanaf_jaar=0):
     return z[m['jaar'] >= vanaf_jaar]
 
 
-def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(10, 50), q_traag=None, xi_max=0.9, veld_grenzen=(9, 16, 31)):
+def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(10, 50), q_traag=None, xi_max=0.9, veld_grenzen=(), xi_samen=True):
     """Geijkte normaal-equivalente dag-z voor de kans per rit op de pagina (de vormlaag gebruikt normaal_z_dag).
     Per kalendermaand en groep (afstand x niveau vooraf (niv_grenzen) x ervaring op de afstand (n_prior, erv_grenzen) x veldgrootte van de race
     (veld_grenzen; in kleine velden is het dag-effect onzeker: minder snelle, veel meer trage uitschieters)) wordt de verdeling van u = fout / sd (t.o.v. het veld)
@@ -2271,11 +2271,28 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
     nbanden = nb * ne * (len(veld_grenzen) + 1)
     ag = m['afstand_idx'].to_numpy() if per_afstand else GAS_GROEP[m['afstand_idx'].to_numpy()]     # per afstand: de 1000 m heeft een veel dikkere trage staart dan de 500 m
     q_traag = q if q_traag is None else q_traag       # trage kant: incidenten (uitglijders, 5-30% trager) liggen ver in de staart
-    def staart(y):
+    def staart(y, xi_vast=None):
+        if xi_vast is not None:                      # vorm vast (geschat op meer data), alleen de schaal per groep
+            return xi_vast, float(_gp.fit(y, f0=xi_vast, floc=0.0)[2]) if xi_vast > 0 else float(np.mean(y))
         xi, _, sg = _gp.fit(y, floc=0.0)
         if xi < 0:
             xi, sg = 0.0, float(np.mean(y))
         return float(min(xi, xi_max)), float(sg)
+    xi_cache = {}
+    def xi_band(b, d0, kant):
+        """Staartvorm per niveau x ervaring (alle afstanden samen, venster tot d0): de schatting van xi uit kleine groepen is te laag."""
+        k_ = (b, d0, kant)
+        if k_ not in xi_cache:
+            ref_ = referentie(('alle', b), d0)
+            if ref_ is None or len(ref_) < 2000:
+                xi_cache[k_] = None
+            else:
+                ref_ = np.sort(ref_)
+                if kant == 0:
+                    t_ = np.quantile(ref_, q); xi_cache[k_] = staart(t_ - ref_[ref_ < t_])[0]
+                else:
+                    t_ = np.quantile(ref_, 1 - q_traag); xi_cache[k_] = staart(ref_[ref_ > t_] - t_)[0]
+        return xi_cache[k_]
     groep = {}                                       # per (afstand of samengevoegde afstanden, band): dagen en u (gesorteerd op dag)
     ags = GAS_GROEP[m['afstand_idx'].to_numpy()]
     def _maak(sleutel, s_):
@@ -2320,7 +2337,8 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
                     continue
                 ref = np.sort(ref)
                 lo, hi = np.quantile(ref, q), np.quantile(ref, 1 - q_traag)
-                xl, sl = staart(lo - ref[ref < lo]); xh, sh = staart(ref[ref > hi] - hi)
+                xl, sl = staart(lo - ref[ref < lo], xi_band(b, d0, 0) if xi_samen else None)
+                xh, sh = staart(ref[ref > hi] - hi, xi_band(b, d0, 1) if xi_samen else None)
                 x = u[doel]
                 pp = np.searchsorted(ref, x, side='right') / len(ref)
                 pp = np.where(x < lo, q * _gp.sf(lo - x, xl, 0.0, sl), pp)

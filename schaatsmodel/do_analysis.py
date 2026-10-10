@@ -137,6 +137,8 @@ class Params:
     ijs_dag_par: tuple = (0.0,) * 12  # k op niveau 0/50/75/90/97/100, dan h (in % van de tijd) op dezelfde knopen
     piek_diepte: bool = False      # piekdiepte per rijder: in de piekzone wordt de afstand tot de drempel geschaald met tau_i (lang geheugen, gekrompen)
     piek_diepte_par: tuple = (1460.0, 20.0, 1.5)   # vervaltijd (dagen), krimp m (aantal piekraces), exponent kappa
+    staart_q: float = 0.0          # eerlijke log loss / dag-z: snelste fractie apart als GPD-staart (body en staart apart gefit); 0 = één twee-delige t
+    staart_niv: tuple = (90.0, 97.0)   # niveaugrenzen voor een eigen staart (breedte, toppers, elite)
     staart: bool = False           # snelle staart: piekdiepte tau ook naar niveau (top) en naar de eigen frequentie van extreme ritten (lang geheugen)
     staart_par: tuple = (0.0, 0.0, 1460.0, 300.0, -3.0)   # a_top, b (exponent eigen frequentie), vervaltijd (dagen), krimp m (ritten), drempel dag-z
     verm: bool = False             # vermoeidheid: verschuiving (sd) door eerder gereden meters dezelfde dag en de dag ervoor (vooraf absoluut, dag t.o.v. het veld)
@@ -1750,14 +1752,19 @@ def voorspelscore_eigen(model, vanaf_jaar=2014):
     return float(np.mean(-np.log(np.maximum(f, 1e-300))))
 
 
-def logloss_eerlijk(model, split_jaar=2019, vanaf_jaar=2010, n_fit=150000, seed=0, per_rij=False, dag=False):
+def logloss_eerlijk(model, split_jaar=2019, vanaf_jaar=2010, n_fit=150000, seed=0, per_rij=False, dag=False, staart_q=None, staart_niv=None):
     """Eerlijke log loss (gemiddelde NLL in log-tijd) voor het vergelijken van modelvarianten.
     Per afstandsgroep wordt de foutverdeling u = fout / sd geschat als twee-delige Student-t
     (kans p0 op een snellere tijd dan voorspeld, schaal en vrijheidsgraden voor elke kant apart) op de jaren <= split_jaar,
     en de NLL wordt gemeten op de jaren erna. Zo winnen varianten niet doordat hun sd of staart toevallig beter past bij een vaste
-    scoringsverdeling. Geeft (nll_test, nll_fit, dict met parameters per groep)."""
+    scoringsverdeling. Geeft (nll_test, nll_fit, dict met parameters per groep).
+    staart_q > 0 (standaard params.staart_q): body en snelle staart apart (peaks over threshold). De snelste staart_q van de fitrijen
+    per afstandsgroep x niveauband (grenzen staart_niv) krijgt een gegeneraliseerde Pareto-verdeling (GPD) op de overschrijding
+    voorbij de drempel u0; daarboven de Student-t van de body, herschaald naar massa 1 - staart_q."""
     from scipy.optimize import minimize
-    from scipy.stats import t as _t
+    from scipy.stats import t as _t, genpareto as _gp
+    staart_q = model.params.staart_q if staart_q is None else staart_q
+    staart_niv = tuple(model.params.staart_niv if staart_niv is None else staart_niv)
     _, err, var, m = voorspelscore(model, vanaf_jaar, dag=dag)     # dag=True: t.o.v. het geschatte dag-effect (relatieve voorspelling)
     u = err / np.sqrt(var)
     zmax = np.maximum(m['z'].to_numpy(), u)          # val: te traag volgens de race zelf (z na dag-correctie) of volgens de voorspelling vooraf
@@ -1789,6 +1796,24 @@ def logloss_eerlijk(model, split_jaar=2019, vanaf_jaar=2010, n_fit=150000, seed=
         lo = uu < 0
         f = np.where(lo, p0 * 2.0 * _t.pdf(uu / sL, nL) / sL, (1.0 - p0) * 2.0 * _t.pdf(uu / sU, nU) / sU)
         return -np.log(np.maximum(f, 1e-300))
+    def _Fb(par, x):                              # verdelingsfunctie van de body (twee-delige t)
+        p0 = 1.0 / (1.0 + np.exp(-par[0])); sL, nL, sU, nU = np.exp(par[1]), 1.5 + 28.5 / (1.0 + np.exp(-par[2])), np.exp(par[3]), 1.5 + 28.5 / (1.0 + np.exp(-par[4]))
+        x = np.asarray(x, float)
+        return np.where(x < 0, p0 * 2 * _t.cdf(x / sL, nL), p0 + (1 - p0) * (2 * _t.cdf(x / sU, nU) - 1))
+    def _gesplitst(par, gname, rij, uu_fit):
+        """(nll(x), F(x)) van body + GPD-staart, staart geschat op uu_fit (fitrijen van deze groep x niveauband)."""
+        u0 = float(np.quantile(uu_fit, staart_q)); y = u0 - uu_fit[uu_fit < u0]
+        xi, _, sg = _gp.fit(y, floc=0.0); xi = float(np.clip(xi, -0.45, 0.9))
+        Fb0 = float(_Fb(par, u0)); q = staart_q
+        def nll(x):
+            x = np.asarray(x, float); f = np.where(x >= u0, (1 - q) * np.exp(-nll_u(par, x)) / max(1 - Fb0, 1e-12), q * _gp.pdf(np.maximum(u0 - x, 0), xi, 0.0, sg))
+            return -np.log(np.maximum(f, 1e-300))
+        def F(x):
+            x = np.asarray(x, float)
+            return np.where(x < u0, q * _gp.sf(np.maximum(u0 - x, 0), xi, 0.0, sg), q + (1 - q) * (_Fb(par, x) - Fb0) / max(1 - Fb0, 1e-12))
+        pars[f'{gname}_staart{rij}'] = (u0, xi, sg)
+        return nll, F
+    nivb = np.digitize(_niv_pre(m), staart_niv) if staart_q and staart_q > 0 else np.zeros(len(m), int)
     rng = np.random.default_rng(seed)
     rij_ll = []
     tot_test, n_test, tot_fit, n_fit_tot, pars = 0.0, 0, 0.0, 0, {}
@@ -1807,14 +1832,31 @@ def logloss_eerlijk(model, split_jaar=2019, vanaf_jaar=2010, n_fit=150000, seed=
                 break
             r = r2
         pars[gname] = r.x
-        l_te = nll_u(r.x, u[test_i]) + lsd[test_i]
-        if pw is not None:
-            l_te = l_te - _piek_logw(r.x, u[test_i], pw[test_i], gname)
-            pars[gname + '_piek'] = True
+        if staart_q and staart_q > 0:
+            l_te = np.zeros(len(test_i)); l_fi = np.zeros(len(fit_i))
+            for k in np.unique(nivb[fit_i]):
+                fk = nivb[fit_i] == k; tk = nivb[test_i] == k
+                if fk.sum() < 2000:                  # te weinig voor een eigen staart: bij de lagere band voegen
+                    continue
+                nll_k, F_k = _gesplitst(r.x, gname, k, u[fit_i[fk]])
+                hoger = (nivb[fit_i] >= k); hoger_t = (nivb[test_i] >= k)      # kleine hogere banden erven deze staart
+                l_fi[hoger] = nll_k(u[fit_i[hoger]]); l_te[hoger_t] = nll_k(u[test_i[hoger_t]])
+                if pw is not None:
+                    lo, hi = model.piek_drempel[gidx[gname]]
+                    P = np.array([float(F_k(lo)), float(F_k(hi) - F_k(lo)), float(1 - F_k(hi))])
+                    uu = u[test_i[hoger_t]]; rr = np.where(uu < lo, 0, np.where(uu > hi, 2, 1))
+                    l_te[hoger_t] -= np.log(pw[test_i[hoger_t]][np.arange(len(uu)), rr] / P[rr])
+            l_te = l_te + lsd[test_i]; l_fi = l_fi + lsd[fit_i]
+        else:
+            l_te = nll_u(r.x, u[test_i]) + lsd[test_i]
+            if pw is not None:
+                l_te = l_te - _piek_logw(r.x, u[test_i], pw[test_i], gname)
+                pars[gname + '_piek'] = True
+            l_fi = nll_u(r.x, u[fit_i]) + lsd[fit_i]
         if per_rij:
             rij_ll.append(pd.Series(l_te, index=m.index[test_i]))
         tot_test += float(np.sum(l_te)); n_test += len(test_i)
-        tot_fit += float(np.sum(nll_u(r.x, u[fit_i]) + lsd[fit_i])); n_fit_tot += len(fit_i)
+        tot_fit += float(np.sum(l_fi)); n_fit_tot += len(fit_i)
     if per_rij:
         return tot_test / max(n_test, 1), tot_fit / max(n_fit_tot, 1), pars, pd.concat(rij_ll).sort_index()
     return tot_test / max(n_test, 1), tot_fit / max(n_fit_tot, 1), pars

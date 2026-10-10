@@ -2248,7 +2248,7 @@ def normaal_z_dag(model, vanaf_jaar=0):
     return z[m['jaar'] >= vanaf_jaar]
 
 
-def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(10, 50)):
+def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(10, 50), q_traag=None, xi_max=0.9):
     """Geijkte normaal-equivalente dag-z voor de kans per rit op de pagina (de vormlaag gebruikt normaal_z_dag).
     Per kalendermaand en groep (afstand x niveau vooraf (banden niv_grenzen) x ervaring op de afstand (n_prior, banden erv_grenzen)) wordt de verdeling van u = fout / sd (t.o.v. het veld)
     geschat op de ritten vóór die maand (alleen eerdere data, valpartijen niet): het venster begint bij `venster` dagen en verdubbelt
@@ -2266,11 +2266,12 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
     nb = len(niv_grenzen) + 1
     band = np.digitize(_niv_pre(m), niv_grenzen) + nb * np.digitize(m['n_prior'].to_numpy(), erv_grenzen)    # nieuwe profs: veel vaker extreem traag
     ag = m['afstand_idx'].to_numpy() if per_afstand else GAS_GROEP[m['afstand_idx'].to_numpy()]     # per afstand: de 1000 m heeft een veel dikkere trage staart dan de 500 m
+    q_traag = q if q_traag is None else q_traag       # trage kant: incidenten (uitglijders, 5-30% trager) liggen ver in de staart
     def staart(y):
         xi, _, sg = _gp.fit(y, floc=0.0)
         if xi < 0:
             xi, sg = 0.0, float(np.mean(y))
-        return float(min(xi, 0.9)), float(sg)
+        return float(min(xi, xi_max)), float(sg)
     groep = {}                                       # per (afstand of samengevoegde afstanden, band): dagen en u (gesorteerd op dag)
     ags = GAS_GROEP[m['afstand_idx'].to_numpy()]
     def _maak(sleutel, s_):
@@ -2314,12 +2315,12 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
                 if ref is None or len(ref) < 200:
                     continue
                 ref = np.sort(ref)
-                lo, hi = np.quantile(ref, q), np.quantile(ref, 1 - q)
+                lo, hi = np.quantile(ref, q), np.quantile(ref, 1 - q_traag)
                 xl, sl = staart(lo - ref[ref < lo]); xh, sh = staart(ref[ref > hi] - hi)
                 x = u[doel]
                 pp = np.searchsorted(ref, x, side='right') / len(ref)
                 pp = np.where(x < lo, q * _gp.sf(lo - x, xl, 0.0, sl), pp)
-                pp = np.where(x > hi, 1 - q * _gp.sf(x - hi, xh, 0.0, sh), pp)
+                pp = np.where(x > hi, 1 - q_traag * _gp.sf(x - hi, xh, 0.0, sh), pp)
                 pit[doel] = np.clip(pp, 1e-12, 1 - 1e-12)
     return pd.Series(ndtri(pit), index=m.index)
 

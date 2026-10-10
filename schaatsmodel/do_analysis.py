@@ -2248,9 +2248,10 @@ def normaal_z_dag(model, vanaf_jaar=0):
     return z[m['jaar'] >= vanaf_jaar]
 
 
-def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(10, 50), q_traag=None, xi_max=0.9):
+def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(10, 50), q_traag=None, xi_max=0.9, veld_grenzen=(9, 16, 31)):
     """Geijkte normaal-equivalente dag-z voor de kans per rit op de pagina (de vormlaag gebruikt normaal_z_dag).
-    Per kalendermaand en groep (afstand x niveau vooraf (banden niv_grenzen) x ervaring op de afstand (n_prior, banden erv_grenzen)) wordt de verdeling van u = fout / sd (t.o.v. het veld)
+    Per kalendermaand en groep (afstand x niveau vooraf (niv_grenzen) x ervaring op de afstand (n_prior, erv_grenzen) x veldgrootte van de race
+    (veld_grenzen; in kleine velden is het dag-effect onzeker: minder snelle, veel meer trage uitschieters)) wordt de verdeling van u = fout / sd (t.o.v. het veld)
     geschat op de ritten vóór die maand (alleen eerdere data, valpartijen niet): het venster begint bij `venster` dagen en verdubbelt
     (tot max_factor x) tot er min_n ritten in de groep zitten, zodat ook de elite per afstand een eigen staart houdt.
     Empirisch tussen het q- en (1-q)-kwantiel, daarbuiten aan elke kant een gegeneraliseerde Pareto-staart (xi >= 0).
@@ -2263,8 +2264,11 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
     val = ((err > 0) & (m['z'].to_numpy() > p.dip_val_z) & (p.dip_val_z > 0)) | ~np.isfinite(u)
     dg = m['dag'].to_numpy().astype(np.int64)
     dat = pd.to_datetime(dg, unit='D'); mnd = (dat.year * 12 + dat.month - 1).to_numpy()
-    nb = len(niv_grenzen) + 1
-    band = np.digitize(_niv_pre(m), niv_grenzen) + nb * np.digitize(m['n_prior'].to_numpy(), erv_grenzen)    # nieuwe profs: veel vaker extreem traag
+    nb = len(niv_grenzen) + 1; ne = len(erv_grenzen) + 1
+    nveld = m.groupby(['event_id', 'gender', 'afstand_idx'])['skater_id'].transform('size').to_numpy()       # klein veld: dag-effect onzeker
+    band = (np.digitize(_niv_pre(m), niv_grenzen) + nb * np.digitize(m['n_prior'].to_numpy(), erv_grenzen)     # nieuwe profs: vaker extreem traag
+            + nb * ne * np.digitize(nveld, veld_grenzen))
+    nbanden = nb * ne * (len(veld_grenzen) + 1)
     ag = m['afstand_idx'].to_numpy() if per_afstand else GAS_GROEP[m['afstand_idx'].to_numpy()]     # per afstand: de 1000 m heeft een veel dikkere trage staart dan de 500 m
     q_traag = q if q_traag is None else q_traag       # trage kant: incidenten (uitglijders, 5-30% trager) liggen ver in de staart
     def staart(y):
@@ -2276,7 +2280,7 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
     ags = GAS_GROEP[m['afstand_idx'].to_numpy()]
     def _maak(sleutel, s_):
         o_ = np.argsort(dg[s_], kind='stable'); groep[sleutel] = (dg[s_][o_], u[s_][o_])
-    for b in range(nb * (len(erv_grenzen) + 1)):
+    for b in range(nbanden):
         for g in np.unique(ag):
             _maak((g, b), (ag == g) & (band == b) & ~val)
         for g in np.unique(ags):
@@ -2296,7 +2300,7 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
     for M in np.unique(mnd):
         d0 = int((pd.Timestamp(year=int(M // 12), month=int(M % 12) + 1, day=1) - pd.Timestamp('1970-01-01')).days)
         for g in np.unique(ag[mnd == M]):
-            for b in range(nb * (len(erv_grenzen) + 1) - 1, -1, -1):
+            for b in range(nbanden - 1, -1, -1):
                 doel = (mnd == M) & (ag == g) & (band == b) & np.isfinite(u)
                 if not doel.any():
                     continue

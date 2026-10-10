@@ -2248,7 +2248,7 @@ def normaal_z_dag(model, vanaf_jaar=0):
     return z[m['jaar'] >= vanaf_jaar]
 
 
-def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(3, 10, 50), q_traag=None, xi_max=0.9, veld_grenzen=(), xi_samen=True):
+def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(3, 10, 50), q_traag=None, xi_max=0.9, veld_grenzen=(), xi_samen=True, traag_empirisch=True):
     """Geijkte normaal-equivalente dag-z voor de kans per rit op de pagina (de vormlaag gebruikt normaal_z_dag).
     Per kalendermaand en groep (afstand x niveau vooraf (niv_grenzen) x ervaring op de afstand (n_prior, erv_grenzen) x veldgrootte van de race
     (veld_grenzen; in kleine velden is het dag-effect onzeker: minder snelle, veel meer trage uitschieters)) wordt de verdeling van u = fout / sd (t.o.v. het veld)
@@ -2293,6 +2293,22 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
                 else:
                     t_ = np.quantile(ref_, 1 - q_traag); xi_cache[k_] = staart(ref_[ref_ > t_] - t_)[0]
         return xi_cache[k_]
+    emp_cache = {}
+    def traag_staart(b, d0):
+        """Empirische verdeling van de gestandaardiseerde overschrijdingen voorbij de (1-q_traag)-drempel, alle afstanden van deze band samen
+        (elke afstand gedeeld door zijn eigen gemiddelde overschrijding): incidenten maken een tweede bult ver in de trage staart die een GPD mist."""
+        k_ = (b, d0)
+        if k_ not in emp_cache:
+            ys = []
+            for g_ in np.unique(ag):
+                r_ = referentie((g_, b), d0)
+                if r_ is None or len(r_) < 300:
+                    continue
+                t_ = np.quantile(r_, 1 - q_traag); e_ = r_[r_ > t_] - t_
+                if len(e_) >= 5 and e_.mean() > 0:
+                    ys.append(e_ / e_.mean())
+            emp_cache[k_] = np.sort(np.concatenate(ys)) if ys and sum(len(y) for y in ys) >= 200 else None
+        return emp_cache[k_]
     groep = {}                                       # per (afstand of samengevoegde afstanden, band): dagen en u (gesorteerd op dag)
     ags = GAS_GROEP[m['afstand_idx'].to_numpy()]
     def _maak(sleutel, s_):
@@ -2342,7 +2358,17 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
                 x = u[doel]
                 pp = np.searchsorted(ref, x, side='right') / len(ref)
                 pp = np.where(x < lo, q * _gp.sf(lo - x, xl, 0.0, sl), pp)
-                pp = np.where(x > hi, 1 - q_traag * _gp.sf(x - hi, xh, 0.0, sh), pp)
+                Y = traag_staart(b, d0) if traag_empirisch else None
+                if Y is not None:
+                    eh = float(np.mean(ref[ref > hi] - hi)) if (ref > hi).sum() >= 5 else sh
+                    yy = (x - hi) / max(eh, 1e-9)
+                    sf_emp = 1.0 - np.searchsorted(Y, yy, side='right') / len(Y)
+                    ymax = Y[-1]; xg, sg_ = staart(Y[Y > np.quantile(Y, 0.9)] - np.quantile(Y, 0.9))
+                    voorbij = yy > ymax          # voorbij de verste waarneming: GPD op de verste 10% van de samengevoegde overschrijdingen
+                    sf_emp = np.where(voorbij, (1.0 / len(Y)) * _gp.sf(yy - ymax, xg, 0.0, sg_), np.maximum(sf_emp, 0.5 / len(Y)))
+                    pp = np.where(x > hi, 1 - q_traag * sf_emp, pp)
+                else:
+                    pp = np.where(x > hi, 1 - q_traag * _gp.sf(x - hi, xh, 0.0, sh), pp)
                 pit[doel] = np.clip(pp, 1e-12, 1 - 1e-12)
     return pd.Series(ndtri(pit), index=m.index)
 

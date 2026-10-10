@@ -23,13 +23,17 @@ M0 = 5.0           # krimp van de spreiding naar S0 (pseudo-ritten)
 VAL_SD, VAL_MIN = 6.0, 0.03
 GAMMA = 0.0        # vorm per rijder (alle afstanden samen): f += GAMMA * fout na elke rit
 HF = 60.0          # vervaltijd van de vorm (dagen)
+TAU = 0.015        # sd van het dag-effect rond het baaneffect (ln-tijd): het racepeil wordt naar het baaneffect getrokken (anker)
+ETA = 0.05         # leergewicht van het baaneffect
+VFLOOR = 0.01      # ondergrens van de onzekerheid van het veldpeil (gezamenlijke verschuiving van de niveaus van een groep rijders)
 
 
 @njit(cache=True)
-def _pass(rk, st, ltijd, dag, rid, nst, nr, min_n, alpha, snel_w, hub, beta, s0, m0, val_sd, val_min, gamma, hf,
+def _pass(rk, st, ltijd, dag, rid, baan, nb, tau, eta, vfloor, nst, nr, min_n, alpha, snel_w, hub, beta, s0, m0, val_sd, val_min, gamma, hf,
           o_par, o_mu, o_s, o_n, o_gap, o_e, o_val, o_goed, o_f, o_spar, o_k):
     mu = np.zeros(nst); s2 = np.full(nst, s0 * s0); n = np.zeros(nst)
     last = np.full(nr, -100000); f = np.zeros(nr); fdag = np.zeros(nr)
+    B = np.zeros(nb); nB = np.zeros(nb)              # baaneffect (anker van het racepeil)
     N = len(rk); i = 0
     buf = np.empty(4096); buf2 = np.empty(4096)
     while i < N:
@@ -52,8 +56,10 @@ def _pass(rk, st, ltijd, dag, rid, nst, nr, min_n, alpha, snel_w, hub, beta, s0,
             spar2 = 1.5708 * sv * sv / (k - 1)
         else:
             spar2 = np.nan
+        bb = baan[i]; Bb = B[bb]; tB2 = tau * tau if nB[bb] > 0 else 1.0      # onbekende baan: geen anker
         # terugval (alleen voor het bijwerken, niet voor de toets): rijders met enige historie, of aan het begin van de data peil 0
         par_terug = np.median(buf2[:k2]) if k2 >= 1 else 0.0
+        terug_ok = (k2 >= 3) or (dag[i] < dag[0] + 400)     # bijwerken met het terugvalpeil alleen met >= 3 rijders met historie (of bij de start van de data)
         for q in range(i, j):
             a = st[q]
             o_n[q] = n[a]; o_gap[q] = dag[q] - last[rid[q]]
@@ -79,7 +85,11 @@ def _pass(rk, st, ltijd, dag, rid, nst, nr, min_n, alpha, snel_w, hub, beta, s0,
             else:
                 m_ = kk // 2
                 par = srt[m_] if kk % 2 == 1 else 0.5 * (srt[m_ - 1] + srt[m_])
-            o_par[q] = par; o_spar[q] = math.sqrt(spar2) if spar2 == spar2 else np.nan; o_k[q] = kk
+            # anker: racepeil = gewogen gemiddelde van het veld (variantie spar2) en het baaneffect (variantie tau^2)
+            v_ = (spar2 if spar2 == spar2 else 0.02 ** 2) + vfloor * vfloor
+            w_ = tB2 / (tB2 + v_)
+            par = w_ * par + (1 - w_) * Bb
+            o_par[q] = par; o_spar[q] = math.sqrt(v_ * tB2 / (v_ + tB2)); o_k[q] = kk
             sp = math.sqrt((n[a] * s2[a] + m0 * s0 * s0) / (n[a] + m0))
             o_s[q] = sp; o_mu[q] = mu[a]
             if n[a] == 0:
@@ -87,10 +97,21 @@ def _pass(rk, st, ltijd, dag, rid, nst, nr, min_n, alpha, snel_w, hub, beta, s0,
             else:
                 e = ltijd[q] - par - mu[a] - o_f[q]; o_e[q] = e
                 o_val[q] = (e > val_sd * sp) and (e > val_min)
+        # baaneffect bijwerken met het (verankerde) peil van deze race
+        pr_ = np.nan
+        for q in range(i, j):
+            if o_goed[q]:
+                pr_ = o_par[q]; break
+        if pr_ == pr_:
+            if nB[bb] == 0:
+                B[bb] = pr_
+            else:
+                B[bb] += max(eta, 1.0 / (nB[bb] + 1.0)) * (pr_ - B[bb])
+            nB[bb] += 1.0
         # bijwerken na de race (alle rijders van de race tegelijk: de race zelf is in de voorspelling niet gebruikt)
         for q in range(i, j):
             a = st[q]
-            if o_val[q]:
+            if o_val[q] or not (o_goed[q] or terug_ok):
                 continue
             y = ltijd[q] - o_par[q]
             if n[a] == 0:
@@ -102,24 +123,100 @@ def _pass(rk, st, ltijd, dag, rid, nst, nr, min_n, alpha, snel_w, hub, beta, s0,
                     w = min(w * snel_w, 0.6)
                 ec = min(max(e, -hub * sp), hub * sp)
                 mu[a] += w * ec
+                if o_goed[q]:                               # spreiding alleen bij een goed racepeil
+                    b = max(1.0 / (n[a] + 1.0), beta)
+                    s2[a] = (1 - b) * s2[a] + b * min(e * e, (hub * sp) ** 2)
                 if gamma > 0 and n[a] >= min_n:
                     r_ = rid[q]; f[r_] = o_f[q] + gamma * ec; fdag[r_] = dag[q]
-                b = max(1.0 / (n[a] + 1.0), beta)
-                s2[a] = (1 - b) * s2[a] + b * min(e * e, (hub * sp) ** 2)
                 n[a] += 1.0
             last[rid[q]] = dag[q]
         i = j
     return 0
 
 
-def draai(df, alpha=ALPHA, snel_w=SNEL_W, gamma=GAMMA, hf=HF, beta=BETA, m0=M0, s0=S0, hub=HUB):
+@njit(cache=True)
+def _pass_ext(st, ltijd, dag, rid, par, spar, rk, nst, nr, alpha, snel_w, hub, beta, s0, m0, val_sd, val_min, gamma, hf, tweezijdig,
+              o_mu, o_s, o_n, o_gap, o_e, o_val, o_f, o_sf, o_ss):
+    """Zoals _pass, maar met een extern racepeil (bijv. het dag-effect theta van do_analysis): geen schaalverschuiving tussen groepen."""
+    mu = np.zeros(nst); s2 = np.full(nst, s0 * s0); n = np.zeros(nst)
+    s2f = np.full(nst, s0 * s0); s2s = np.full(nst, s0 * s0); nf = np.zeros(nst); ns = np.zeros(nst)    # spreiding per kant
+    last = np.full(nr, -100000); f = np.zeros(nr); fdag = np.zeros(nr)
+    N = len(st); i = 0
+    while i < N:
+        j = i
+        while j < N and rk[j] == rk[i]:
+            j += 1
+        for q in range(i, j):
+            a = st[q]; r_ = rid[q]
+            fc = f[r_] * math.exp(-(dag[q] - fdag[r_]) / hf) if gamma > 0 else 0.0
+            o_f[q] = fc; o_n[q] = n[a]; o_gap[q] = dag[q] - last[r_]; o_mu[q] = mu[a]
+            sp = math.sqrt((n[a] * s2[a] + m0 * s0 * s0) / (n[a] + m0)); o_s[q] = sp
+            o_sf[q] = math.sqrt((nf[a] * s2f[a] + m0 * sp * sp) / (nf[a] + m0)); o_ss[q] = math.sqrt((ns[a] * s2s[a] + m0 * sp * sp) / (ns[a] + m0))
+            if n[a] == 0 or par[q] != par[q]:
+                o_e[q] = np.nan; o_val[q] = False
+            else:
+                e = ltijd[q] - par[q] - mu[a] - fc; o_e[q] = e
+                o_val[q] = (e > val_sd * math.sqrt(sp * sp + spar[q] * spar[q])) and (e > val_min)
+        for q in range(i, j):
+            a = st[q]
+            if o_val[q] or par[q] != par[q]:
+                continue
+            y = ltijd[q] - par[q]
+            if n[a] == 0:
+                mu[a] = y; n[a] = 1.0
+            else:
+                sp = o_s[q]; e = y - mu[a] - o_f[q]
+                w = max(1.0 / (n[a] + 1.0), alpha)
+                if e < 0:
+                    w = min(w * snel_w, 0.6)
+                ec = min(max(e, -hub * sp), hub * sp)
+                mu[a] += w * ec
+                b = max(1.0 / (n[a] + 1.0), beta)
+                s2[a] = (1 - b) * s2[a] + b * min(e * e, (hub * sp) ** 2)
+                if tweezijdig:                              # per kant, ruimer geknipt: juist de grote uitschieters bepalen de staart van die rijder
+                    if e < 0:
+                        bf = max(1.0 / (nf[a] + 1.0), beta); s2f[a] = (1 - bf) * s2f[a] + bf * min(e * e, 0.05 ** 2); nf[a] += 1.0
+                    else:
+                        bs = max(1.0 / (ns[a] + 1.0), beta); s2s[a] = (1 - bs) * s2s[a] + bs * min(e * e, 0.05 ** 2); ns[a] += 1.0
+                if gamma > 0:
+                    f[rid[q]] = o_f[q] + gamma * ec; fdag[rid[q]] = dag[q]
+                n[a] += 1.0
+            last[rid[q]] = dag[q]
+        i = j
+    return 0
+
+
+def draai_ext(df, alpha=ALPHA, snel_w=SNEL_W, gamma=GAMMA, hf=HF, beta=BETA, m0=M0, s0=S0, hub=HUB, par_kol='theta', var_kol='v_theta', tweezijdig=False):
+    """Nieuwe niveaus, spreiding en vorm met een extern racepeil (kolom par_kol, variantie var_kol)."""
+    df = df.sort_values(['dag', 'event_id', 'gender', 'afstand_idx'], kind='stable').reset_index(drop=True)
+    rk = df.groupby(['dag', 'event_id', 'gender', 'afstand_idx'], sort=False).ngroup().to_numpy().astype(np.int64)
+    st = (df['skater_id'].astype(np.int64) * 8 + df['afstand_idx'].astype(np.int64))
+    st_codes, st_u = pd.factorize(st); rid_codes, _ = pd.factorize(df['skater_id'])
+    N = len(df); out = {k: np.zeros(N) for k in ('mu', 's', 'n', 'gap', 'e', 'f', 'sf', 'ss')}; val = np.zeros(N, bool)
+    par = df[par_kol].to_numpy(dtype=float); spar = np.sqrt(df[var_kol].to_numpy(dtype=float))
+    _pass_ext(st_codes.astype(np.int64), np.log(df['tijd'].to_numpy()), df['dag'].to_numpy().astype(np.int64), rid_codes.astype(np.int64),
+              par, spar, rk, len(st_u), rid_codes.max() + 1, alpha, snel_w, hub, beta, s0, m0, VAL_SD, VAL_MIN, gamma, hf, tweezijdig,
+              out['mu'], out['s'], out['n'], out['gap'], out['e'], val, out['f'], out['sf'], out['ss'])
+    for k, v in out.items():
+        df[k] = v
+    df['par'] = par; df['spar'] = spar; df['val'] = val; df['goed'] = np.isfinite(par)
+    df['k'] = df.groupby(['dag', 'event_id', 'gender', 'afstand_idx'])['skater_id'].transform('size').astype(float)    # veldgrootte
+    s_kant = np.where(df['e'] < 0, df['sf'], df['ss']) if tweezijdig else df['s'].to_numpy()
+    df['s_tot'] = np.sqrt(s_kant ** 2 + df['spar'] ** 2)
+    df['u'] = df['e'] / df['s_tot']
+    return df
+
+
+def draai(df, alpha=ALPHA, snel_w=SNEL_W, gamma=GAMMA, hf=HF, beta=BETA, m0=M0, s0=S0, hub=HUB, tau=TAU, eta=ETA, vfloor=VFLOOR):
     df = df.sort_values(['dag', 'event_id', 'gender', 'afstand_idx'], kind='stable').reset_index(drop=True)
     rk = df.groupby(['dag', 'event_id', 'gender', 'afstand_idx'], sort=False).ngroup().to_numpy().astype(np.int64)
     st = (df['skater_id'].astype(np.int64) * 8 + df['afstand_idx'].astype(np.int64))
     st_codes, st_u = pd.factorize(st); rid_codes, _ = pd.factorize(df['skater_id'])
     N = len(df)
     out = {k: np.zeros(N) for k in ('par', 'mu', 's', 'n', 'gap', 'e', 'f', 'spar', 'k')}; val = np.zeros(N, bool); goed = np.zeros(N, bool)
+    bcode, bu = pd.factorize(df['baan'].astype(str) + '|' + df['afstand'].astype(str) + '|' + df['gender'].astype(str))   # baaneffect per baan x afstand x geslacht
     _pass(rk, st_codes.astype(np.int64), np.log(df['tijd'].to_numpy()), df['dag'].to_numpy().astype(np.int64), rid_codes.astype(np.int64),
+          bcode.astype(np.int64), len(bu), tau, eta, vfloor,
           len(st_u), rid_codes.max() + 1, MIN_N, alpha, snel_w, hub, beta, s0, m0, VAL_SD, VAL_MIN, gamma, hf,
           out['par'], out['mu'], out['s'], out['n'], out['gap'], out['e'], val, goed, out['f'], out['spar'], out['k'])
     for k, v in out.items():

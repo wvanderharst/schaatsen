@@ -1,0 +1,10 @@
+import sys; sys.path.insert(0,'/home/user/work/C')
+import warnings; warnings.filterwarnings('ignore')
+import numpy as np, pandas as pd, do_analysis as da
+m=da.laad_volledig('/home/user/work/C/model_full_tuned.pkl', extra=False)
+o=m.obs[['event_id','skater_id','afstand','tijd','theta','v_theta']].copy(); o['afstand']=o.afstand.astype(str); o['tijd']=o.tijd.round(3)
+R=pd.read_parquet('ritten.parquet'); R['afstand']=R.afstand.astype(str); R['tijd_r']=R.tijd.round(3)
+o=o.drop_duplicates(['event_id','skater_id','afstand','tijd'])
+X=R.merge(o.rename(columns={'tijd':'tijd_r'}),on=['event_id','skater_id','afstand','tijd_r'],how='left').drop(columns=['tijd_r'])
+print('gekoppeld', round(X.theta.notna().mean(),4), len(X), len(R))
+X.to_parquet('ritten_theta.parquet')

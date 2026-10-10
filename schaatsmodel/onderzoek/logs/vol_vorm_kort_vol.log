@@ -1,0 +1,10 @@
+verm_coef vooraf {'vm_s': np.float64(0.129), 'vm_m': np.float64(0.132), 'vm_l': np.float64(0.29), 'vg_s': np.float64(-0.031), 'vg_m': np.float64(-0.009), 'vg_l': np.float64(0.014)} dag {'vm_s': np.float64(0.0), 'vm_m': np.float64(0.0), 'vm_l': np.float64(0.0), 'vg_s': np.float64(0.0), 'vg_m': np.float64(0.0), 'vg_l': np.float64(0.0)}
+start (met verm)               vooraf -2.11581 dag -2.22379 | toppers -2.87298 / -3.03978 | elite -3.00569 / -3.18174 | fitjaren -2.27492 / -2.41077  (523 s)
+vooraf LS aK0, aK1 = [ 0.00364 -0.11992] (oud -0.02175 0.11491 )
+dag LS aK0, aK1 = [ 0.00869 -0.00446] (oud -0.02175 0.11491 )
+LS vooraf (0.0036, -0.1199)    vooraf -2.11633 dag -2.22286 | toppers -2.87691 / -3.03950 | elite -3.01313 / -3.17943 | fitjaren -2.27541 / -2.41018  (1000 s)
+  verschil LS vooraf t.o.v. start: vooraf -0.00053 (se 0.00003; toppers -0.00394, elite -0.00744) | dag +0.00094 (se 0.00007; toppers +0.00020, elite +0.00220)
+LS dag (0.0087, -0.0045)       vooraf -2.11621 dag -2.22262 | toppers -2.87556 / -3.04205 | elite -3.01043 / -3.18391 | fitjaren -2.27516 / -2.40997  (1369 s)
+  verschil LS dag t.o.v. start: vooraf -0.00041 (se 0.00002; toppers -0.00259, elite -0.00474) | dag +0.00118 (se 0.00007; toppers -0.00226, elite -0.00228)
+LS gemiddeld (0.0062, -0.0622) vooraf -2.11631 dag -2.22414 | toppers -2.87661 / -3.04058 | elite -3.01240 / -3.18182 | fitjaren -2.27533 / -2.41091  (1785 s)
+  verschil LS gemiddeld t.o.v. start: vooraf -0.00051 (se 0.00002; toppers -0.00364, elite -0.00671) | dag -0.00034 (se 0.00003; toppers -0.00079, elite -0.00019)

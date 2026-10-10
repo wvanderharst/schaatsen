@@ -1,0 +1,25 @@
+model klaar 1
+basis (geen verm)            vooraf -2.35711  dag -2.50537  | toppers vooraf -3.11511 dag -3.34325  | elite vooraf -3.22645 dag -3.44364  (104 s)
+verm_coef vooraf {'vm_s': np.float64(0.12), 'vm_m': np.float64(0.215), 'vm_l': np.float64(0.39), 'vg_s': np.float64(-0.002), 'vg_m': np.float64(0.041), 'vg_l': np.float64(0.148)} dag {'vm_s': np.float64(0.085), 'vm_m': np.float64(0.038), 'vm_l': np.float64(-0.066), 'vg_s': np.float64(0.039), 'vg_m': np.float64(0.008), 'vg_l': np.float64(-0.005)}
+verm                         vooraf -2.35882  dag -2.50535  | toppers vooraf -3.11521 dag -3.34307  | elite vooraf -3.22600 dag -3.44326  (208 s)
+  verschil verm t.o.v. basis: vooraf -0.00204 (se 0.00021; toppers -0.00034, elite -0.00022) | dag +0.00002 (se 0.00005; toppers +0.00018, elite +0.00038)
+verm alleen vooraf           vooraf -2.35882  dag -2.50537  | toppers vooraf -3.11520 dag -3.34325  | elite vooraf -3.22599 dag -3.44364  (309 s)
+  verschil verm alleen vooraf t.o.v. basis: vooraf -0.00205 (se 0.00021; toppers -0.00033, elite -0.00021) | dag +0.00000 (se 0.00000; toppers +0.00000, elite +0.00000)
+verm + plateau 0 d, aK x0.5  vooraf -2.35925  dag -2.50580  | toppers vooraf -3.11651 dag -3.34485  | elite vooraf -3.22880 dag -3.44758  (438 s)
+    fit-jaren nll -2.35663
+  verschil plateau 0/x0.5 t.o.v. verm: vooraf -0.00043 (se 0.00004; toppers -0.00131, elite -0.00281) | dag -0.00043 (se 0.00008; toppers -0.00160, elite -0.00393)
+verm + plateau 0 d, aK x0.35 vooraf -2.35936  dag -2.50584  | toppers vooraf -3.11684 dag -3.34480  | elite vooraf -3.22965 dag -3.44751  (599 s)
+    fit-jaren nll -2.35661
+  verschil plateau 0/x0.35 t.o.v. verm: vooraf -0.00053 (se 0.00005; toppers -0.00163, elite -0.00366) | dag -0.00047 (se 0.00007; toppers -0.00155, elite -0.00387)
+verm + plateau 2 d, aK x0.5  vooraf -2.35917  dag -2.50567  | toppers vooraf -3.11621 dag -3.34424  | elite vooraf -3.22820 dag -3.44617  (759 s)
+    fit-jaren nll -2.35661
+  verschil plateau 2/x0.5 t.o.v. verm: vooraf -0.00034 (se 0.00003; toppers -0.00100, elite -0.00221) | dag -0.00030 (se 0.00006; toppers -0.00099, elite -0.00252)
+verm + plateau 2 d, aK x0.35 vooraf -2.35932  dag -2.50577  | toppers vooraf -3.11668 dag -3.34460  | elite vooraf -3.22923 dag -3.44702  (915 s)
+    fit-jaren nll -2.35660
+  verschil plateau 2/x0.35 t.o.v. verm: vooraf -0.00050 (se 0.00004; toppers -0.00148, elite -0.00324) | dag -0.00040 (se 0.00007; toppers -0.00134, elite -0.00338)
+verm + plateau 3 d, aK x0.5  vooraf -2.35915  dag -2.50627  | toppers vooraf -3.11606 dag -3.34496  | elite vooraf -3.22792 dag -3.44686  (1095 s)
+    fit-jaren nll -2.35661
+  verschil plateau 3/x0.5 t.o.v. verm: vooraf -0.00032 (se 0.00003; toppers -0.00086, elite -0.00193) | dag -0.00090 (se 0.00014; toppers -0.00171, elite -0.00321)
+verm + plateau 3 d, aK x0.35 vooraf -2.35930  dag -2.50580  | toppers vooraf -3.11659 dag -3.34465  | elite vooraf -3.22902 dag -3.44717  (1263 s)
+    fit-jaren nll -2.35663
+  verschil plateau 3/x0.35 t.o.v. verm: vooraf -0.00048 (se 0.00004; toppers -0.00139, elite -0.00303) | dag -0.00043 (se 0.00007; toppers -0.00139, elite -0.00353)

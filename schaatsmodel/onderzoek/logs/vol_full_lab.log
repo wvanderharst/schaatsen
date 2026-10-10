@@ -1,0 +1,14 @@
+geladen 20
+basis (bouw A)             vooraf -2.11526 dag -2.22379 | toppers -2.87345 / -3.03978 | elite -3.00694 / -3.18174 | fitjaren -2.27457 / -2.41077  (354 s)
+verm_coef vooraf {'vm_s': np.float64(0.099), 'vm_m': np.float64(0.135), 'vm_l': np.float64(0.294), 'vg_s': np.float64(-0.025), 'vg_m': np.float64(-0.007), 'vg_l': np.float64(0.009)} dag {'vm_s': np.float64(0.0), 'vm_m': np.float64(0.0), 'vm_l': np.float64(0.0), 'vg_s': np.float64(0.0), 'vg_m': np.float64(0.0), 'vg_l': np.float64(0.0)}
+verm (vooraf)              vooraf -2.11571 dag -2.22379 | toppers -2.87285 / -3.03978 | elite -3.00520 / -3.18174 | fitjaren -2.27485 / -2.41077  (740 s)
+  verschil verm t.o.v. basis: vooraf -0.00051 (se 0.00006; toppers +0.00056, elite +0.00163) | dag +0.00000 (se 0.00000; toppers +0.00000, elite +0.00000)
+verm + aK x0.5             vooraf -2.11596 dag -2.22361 | toppers -2.87437 / -3.04154 | elite -3.00803 / -3.18383 | fitjaren -2.27503 / -2.41054  (1130 s)
+  verschil aK x0.5 t.o.v. verm: vooraf -0.00026 (se 0.00001; toppers -0.00152, elite -0.00282) | dag +0.00018 (se 0.00003; toppers -0.00176, elite -0.00221)
+  verschil aK x0.5 t.o.v. basis: vooraf -0.00077 (se 0.00006; toppers -0.00095, elite -0.00120) | dag +0.00018 (se 0.00003; toppers -0.00176, elite -0.00221)
+verm + aK x0.25            vooraf -2.11604 dag -2.22368 | toppers -2.87500 / -3.04155 | elite -3.00917 / -3.18361 | fitjaren -2.27510 / -2.41041  (1424 s)
+  verschil aK x0.25 t.o.v. verm: vooraf -0.00034 (se 0.00001; toppers -0.00215, elite -0.00396) | dag +0.00012 (se 0.00004; toppers -0.00176, elite -0.00198)
+  verschil aK x0.25 t.o.v. basis: vooraf -0.00085 (se 0.00007; toppers -0.00159, elite -0.00233) | dag +0.00012 (se 0.00004; toppers -0.00176, elite -0.00198)
+verm + aK x0               vooraf -2.11612 dag -2.22308 | toppers -2.87553 / -3.04144 | elite -3.01011 / -3.18347 | fitjaren -2.27515 / -2.41037  (1752 s)
+  verschil aK x0 t.o.v. verm: vooraf -0.00041 (se 0.00002; toppers -0.00268, elite -0.00491) | dag +0.00073 (se 0.00006; toppers -0.00165, elite -0.00184)
+  verschil aK x0 t.o.v. basis: vooraf -0.00092 (se 0.00007; toppers -0.00211, elite -0.00328) | dag +0.00073 (se 0.00006; toppers -0.00165, elite -0.00184)

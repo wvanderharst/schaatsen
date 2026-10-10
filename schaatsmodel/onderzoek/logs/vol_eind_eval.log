@@ -1,0 +1,9 @@
+verm_coef vooraf {'vm_s': np.float64(0.129), 'vm_m': np.float64(0.132), 'vm_l': np.float64(0.29), 'vg_s': np.float64(-0.031), 'vg_m': np.float64(-0.009), 'vg_l': np.float64(0.014)} dag {'vm_s': np.float64(0.0), 'vm_m': np.float64(0.0), 'vm_l': np.float64(0.0), 'vg_s': np.float64(0.0), 'vg_m': np.float64(0.0), 'vg_l': np.float64(0.0)}
+vooraf: A -2.11526 -> -2.11631 (fitjaren -2.27457 -> -2.27533)
+   alle     -0.00111 (se 0.00007) | zonder verm-kenmerk +0.00120 (n=632341) | met -0.00288 (n=824291)
+   toppers  -0.00317 (se 0.00025) | zonder verm-kenmerk -0.00135 (n=79904) | met -0.00534 (n=66710)
+   elite    -0.00546 (se 0.00050) | zonder verm-kenmerk -0.00149 (n=27289) | met -0.01051 (n=21473)
+dag: A -2.22379 -> -2.22414 (fitjaren -2.41077 -> -2.41091)
+   alle     -0.00034 (se 0.00003) | zonder verm-kenmerk +0.00007 (n=632432) | met -0.00066 (n=824381)
+   toppers  -0.00079 (se 0.00024) | zonder verm-kenmerk -0.00052 (n=79906) | met -0.00112 (n=66709)
+   elite    -0.00019 (se 0.00056) | zonder verm-kenmerk +0.00089 (n=27290) | met -0.00156 (n=21470)

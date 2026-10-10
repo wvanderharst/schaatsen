@@ -1,0 +1,11 @@
+geladen 28
+basis (bouw A)             vooraf -2.11526 dag -2.22379 | toppers -2.87345 / -3.03978 | elite -3.00694 / -3.18174 | fitjaren -2.27457 / -2.41077  (352 s)
+verm_coef vooraf {'vm_s': np.float64(0.14), 'vm_m': np.float64(0.124), 'vm_l': np.float64(0.275), 'vg_s': np.float64(-0.032), 'vg_m': np.float64(-0.01), 'vg_l': np.float64(0.018), 'vm_s_top': np.float64(-0.477), 'vm_m_top': np.float64(0.239), 'vm_l_top': np.float64(0.296), 'vg_s_top': np.float64(0.069), 'vg_m_top': np.float64(0.014), 'vg_l_top': np.float64(-0.094)} dag {'vm_s': np.float64(0.0), 'vm_m': np.float64(0.0), 'vm_l': np.float64(0.0), 'vg_s': np.float64(0.0), 'vg_m': np.float64(0.0), 'vg_l': np.float64(0.0), 'vm_s_top': np.float64(0.0), 'vm_m_top': np.float64(0.0), 'vm_l_top': np.float64(0.0), 'vg_s_top': np.float64(0.0), 'vg_m_top': np.float64(0.0), 'vg_l_top': np.float64(0.0)}
+verm (vooraf)              vooraf -2.11585 dag -2.22379 | toppers -2.87291 / -3.03978 | elite -3.00550 / -3.18174 | fitjaren -2.27517 / -2.41077  (748 s)
+  verschil verm t.o.v. basis: vooraf -0.00065 (se 0.00007; toppers +0.00042, elite +0.00121) | dag +0.00000 (se 0.00000; toppers +0.00000, elite +0.00000)
+verm + aK0 x1 aK1 x0.25    vooraf -2.11614 dag -2.22255 | toppers -2.87555 / -3.04222 | elite -3.01001 / -3.18443 | fitjaren -2.27550 / -2.41012  (1075 s)
+  verschil aK0 x1 aK1 x0.25 t.o.v. verm: vooraf -0.00029 (se 0.00001; toppers -0.00260, elite -0.00451) | dag +0.00124 (se 0.00006; toppers -0.00243, elite -0.00280)
+  verschil aK0 x1 aK1 x0.25 t.o.v. basis: vooraf -0.00094 (se 0.00007; toppers -0.00218, elite -0.00331) | dag +0.00124 (se 0.00006; toppers -0.00243, elite -0.00280)
+verm + aK0 x1 aK1 x0       vooraf -2.11622 dag -2.22244 | toppers -2.87612 / -3.04237 | elite -3.01112 / -3.18436 | fitjaren -2.27558 / -2.40998  (1448 s)
+  verschil aK0 x1 aK1 x0 t.o.v. verm: vooraf -0.00037 (se 0.00002; toppers -0.00317, elite -0.00562) | dag +0.00136 (se 0.00007; toppers -0.00258, elite -0.00273)
+  verschil aK0 x1 aK1 x0 t.o.v. basis: vooraf -0.00102 (se 0.00007; toppers -0.00275, elite -0.00441) | dag +0.00136 (se 0.00007; toppers -0.00258, elite -0.00273)

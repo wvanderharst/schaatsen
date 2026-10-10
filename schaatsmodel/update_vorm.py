@@ -3,7 +3,7 @@ import sys, json, gc, time, numpy as np, pandas as pd, do_analysis as da
 t = time.time()
 m = da.laad_volledig('model_full_tuned.pkl')
 m.params = da.Params(**json.load(open('params_getuned.json')))
-for a in ('_z_emp', '_z_emp_sorted', 'historie_ruw', 'vorm_f', 'vorm_dag', 'gas_vorm_dag', 'diepte_f', 'diepte_dag', 'verm_f', 'verm_reeks', 'verm_coef'):
+for a in ('_z_emp', '_z_emp_sorted', 'historie_ruw', 'vorm_f', 'vorm_dag', 'gas_vorm_dag', 'diepte_f', 'diepte_dag', 'verm_f', 'verm_reeks', 'verm_coef', 'staart_f', 'staart_dag'):
     if hasattr(m, a): setattr(m, a, None)
 gc.collect()
 import dataclasses as _dc

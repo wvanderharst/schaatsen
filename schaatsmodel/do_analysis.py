@@ -139,6 +139,8 @@ class Params:
     piek_diepte_par: tuple = (1460.0, 20.0, 1.5)   # vervaltijd (dagen), krimp m (aantal piekraces), exponent kappa
     staart_q: float = 0.0          # eerlijke log loss / dag-z: snelste fractie apart als GPD-staart (body en staart apart gefit); 0 = één twee-delige t
     staart_niv: tuple = (90.0, 97.0)   # niveaugrenzen voor een eigen staart (breedte, toppers, elite)
+    schaal: bool = False           # eigen schaal per rijder met lang geheugen, per kant: vervallen gemiddelde dag-z^2 van eerdere dagen (snel / traag)
+    schaal_par: tuple = (0.0, 0.0, 1460.0, 30.0)   # gamma_snel, gamma_traag (exponent op de gekrompen ratio), vervaltijd (dagen), krimp m (ritten)
     staart: bool = False           # snelle staart: piekdiepte tau ook naar niveau (top) en naar de eigen frequentie van extreme ritten (lang geheugen)
     staart_par: tuple = (0.0, 0.0, 1460.0, 300.0, -3.0)   # a_top, b (exponent eigen frequentie), vervaltijd (dagen), krimp m (ritten), drempel dag-z
     verm: bool = False             # vermoeidheid: verschuiving (sd) door eerder gereden meters dezelfde dag en de dag ervoor (vooraf absoluut, dag t.o.v. het veld)
@@ -270,7 +272,7 @@ def vind_inconsistente_resultaten(df, rij_adult=0.85, rij_jeugd=0.82, veld_dremp
 
 
 EXTRA_ATTR = ('trend_f', 'piek_f', 'gas_f', 'gas_dag', 'trend_reeks', 'piek_reeks', 'vorm_f', 'vorm_dag', 'diepte_f', 'diepte_dag', 'verm_f', 'verm_reeks',
-              'staart_f', 'staart_dag')
+              'staart_f', 'staart_dag', 'schaal_f', 'schaal_dag')
 
 
 def bewaar_veilig(model, pad):
@@ -1452,6 +1454,9 @@ class SchaatsModel:
         _vm, _kf, _ks = vorm_toestand(self, skater_id, dag, _niv_fwd(self, st.gender, j, x))
         if _vm != 0.0 or _ks != 1.0 or _kf != 1.0:
             x = _trend_x(x, t_lim, sd, _vm); sd = sd * _ks; _sf = _sf * _kf / _ks
+        _qf, _qs = schaal_toestand(self, skater_id, dag)
+        if _qf != 1.0 or _qs != 1.0:
+            sd = sd * _qs; _sf = _sf * _qf / _qs; _ks = _ks * _qs; _kf = _kf * _qf
         v = {'piek_diepte': diepte_toestand(self, skater_id, dag) * staart_toestand(self, skater_id, dag, _niv_fwd(self, st.gender, j, x)),
              'snel_fac': _sf, 'snel_fac_vol': _sf0, 'vorm_snel': _kf, 'vorm_traag': _ks, 'vorm_mu': _vm, 'mu_log': x, 'sigma_log': sd, 'sigma_niveau': math.sqrt(P),
              't_lim': t_lim, 'verwachte_tijd': (t_lim + math.exp(x)) * math.exp(self.anker_std),
@@ -2243,6 +2248,51 @@ def normaal_z_dag(model, vanaf_jaar=0):
     return z[m['jaar'] >= vanaf_jaar]
 
 
+def normaal_z_dag_kal(model, W=4, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000):
+    """Geijkte normaal-equivalente dag-z voor de kans per rit op de pagina (de vormlaag gebruikt normaal_z_dag).
+    Per seizoen en groep (afstandsgroep x niveau vooraf, banden niv_grenzen) wordt de verdeling van u = fout / sd (t.o.v. het veld)
+    geschat op de W seizoenen ervoor (alleen eerdere seizoenen, valpartijen niet): empirisch tussen het q- en (1-q)-kwantiel,
+    daarbuiten aan elke kant een gegeneraliseerde Pareto-staart (xi >= 0). Te kleine groepen erven de lagere niveauband."""
+    from scipy.stats import genpareto as _gp
+    from scipy.special import ndtri
+    p = model.params
+    _, err, var, m = voorspelscore(model, 0, dag=True)
+    u = err / np.sqrt(var)
+    val = ((err > 0) & (m['z'].to_numpy() > p.dip_val_z) & (p.dip_val_z > 0)) | ~np.isfinite(u)
+    dat = pd.to_datetime(m['dag'].to_numpy(), unit='D')
+    sz = np.where(dat.month >= 7, dat.year, dat.year - 1)
+    band = np.digitize(_niv_pre(m), niv_grenzen); ag = GAS_GROEP[m['afstand_idx'].to_numpy()]
+    def staart(y):
+        xi, _, sg = _gp.fit(y, floc=0.0)
+        if xi < 0:
+            xi, sg = 0.0, float(np.mean(y))
+        return float(min(xi, 0.9)), float(sg)
+    pit = np.full(len(u), np.nan)
+    for S in np.unique(sz):
+        ref_s = (sz >= S - W) & (sz < S) & ~val
+        if ref_s.sum() < min_n:                      # eerste seizoenen: neem de eerste W seizoenen die er wel zijn
+            ref_s = (sz >= sz.min()) & (sz < sz.min() + W) & ~val
+        for g in np.unique(ag):
+            for b in range(len(niv_grenzen), -1, -1):
+                doel = (sz == S) & (ag == g) & (band == b) & np.isfinite(u)
+                if not doel.any():
+                    continue
+                bb = b
+                while bb > 0 and (ref_s & (ag == g) & (band == bb)).sum() < min_n:
+                    bb -= 1
+                ref = np.sort(u[ref_s & (ag == g) & (band == bb)])
+                if len(ref) < 200:
+                    continue
+                lo, hi = np.quantile(ref, q), np.quantile(ref, 1 - q)
+                xl, sl = staart(lo - ref[ref < lo]); xh, sh = staart(ref[ref > hi] - hi)
+                x = u[doel]
+                pp = np.searchsorted(ref, x, side='right') / len(ref)
+                pp = np.where(x < lo, q * _gp.sf(lo - x, xl, 0.0, sl), pp)
+                pp = np.where(x > hi, 1 - q * _gp.sf(x - hi, xh, 0.0, sh), pp)
+                pit[doel] = np.clip(pp, 1e-12, 1 - 1e-12)
+    return pd.Series(ndtri(pit), index=m.index)
+
+
 def _ou_vooruit(p, f, v, d0, dag):
     """OU-vorm van dag d0 naar `dag` (zonder nieuwe races)."""
     if p.vorm_ou_sd <= 0.0:
@@ -2313,6 +2363,9 @@ def schat_vorm(model):
         dsk2, ddg2, dst2 = dsk2[:nd2], ddg2[:nd2].astype(np.int32), dst2[:nd2].astype(np.float32)
         s2 = np.flatnonzero(np.r_[True, dsk2[1:] != dsk2[:-1]]); e2 = np.r_[s2[1:], nd2]
         model.diepte_dag = {'dag': ddg2, 'st': dst2, 'pos': {int(dsk2[a]): (int(a), int(b)) for a, b in zip(s2, e2)}}
+    model.schaal_f = None; model.schaal_dag = None
+    if p.schaal:
+        schat_schaal_toestand(model, sk, dg, zz[o], val[o], o, m)
     model.staart_f = None; model.staart_dag = None
     if p.staart:
         schat_staart_toestand(model, sk, dg, zz[o], val[o], o, m)
@@ -2362,6 +2415,46 @@ def schat_staart_toestand(model, sk, dg, z, val, o, m):
                         'pos': {int(dsk[a]): (int(a), int(b)) for a, b in zip(s2, e2)}}
     jr = m['jaar'].to_numpy()[o]; fit = (jr >= 2010) & (jr <= p.split_jaar) & ~val
     model.staart_r0 = float(np.mean(z[fit] < zd))
+
+
+def schat_schaal_toestand(model, sk, dg, z, val, o, m):
+    """Per rijder (alle afstanden) vervallen sommen van dag-z^2 en aantallen, apart voor snelle (z < 0) en trage ritten, alleen eerdere dagen."""
+    from gas_lab import schaal_pass
+    H = float(model.params.schaal_par[2])
+    uit = np.zeros((len(sk), 4)); a_ = np.zeros(len(sk), np.int64); b_ = np.zeros(len(sk), np.int64); st = np.zeros((len(sk), 4))
+    nd = schaal_pass(sk, dg, np.clip(z, -5.0, 5.0), val, H, uit, a_, b_, st)
+    U = np.zeros((len(sk), 4)); U[o] = uit
+    model.schaal_f = pd.DataFrame(U.astype(np.float32), index=m.index, columns=['Sf', 'Nf', 'Ss', 'Ns'])
+    dsk, ddg = a_[:nd], b_[:nd].astype(np.int32)
+    s2 = np.flatnonzero(np.r_[True, dsk[1:] != dsk[:-1]]); e2 = np.r_[s2[1:], nd]
+    model.schaal_dag = {'dag': ddg, 'st': st[:nd].astype(np.float32), 'pos': {int(dsk[a]): (int(a), int(b)) for a, b in zip(s2, e2)}}
+
+
+def _schaal_fac(model, Sf, Nf, Ss, Ns):
+    """(log-factor snelle kant, log-factor trage kant) op de sd: gamma * log((S + m) / (N + m)), d.w.z. de eigen gerealiseerde spreiding
+    (gemiddelde normaal-equivalente z^2 aan die kant, gekrompen naar 1) tot de macht gamma."""
+    gf, gs, H, mm = model.params.schaal_par
+    lf = gf * np.log((np.asarray(Sf, float) + mm) / (np.asarray(Nf, float) + mm))
+    ls = gs * np.log((np.asarray(Ss, float) + mm) / (np.asarray(Ns, float) + mm))
+    return lf, ls
+
+
+def schaal_toestand(model, skater_id, dag):
+    """(factor snelle kant, factor trage kant) op de sd voor een race op `dag`, alleen eerdere dagen; (1, 1) als de laag uit staat."""
+    p = model.params
+    r = getattr(model, 'schaal_dag', None)
+    if not p.schaal or r is None or dag is None:
+        return 1.0, 1.0
+    ab = r['pos'].get(int(skater_id))
+    if ab is None:
+        return 1.0, 1.0
+    a, b = ab
+    k = int(np.searchsorted(r['dag'][a:b], dag, side='left'))
+    if k == 0:
+        return 1.0, 1.0
+    f = math.exp(-(dag - int(r['dag'][a + k - 1])) / p.schaal_par[2]); S = r['st'][a + k - 1].astype(float) * f
+    lf, ls = _schaal_fac(model, S[0], S[1], S[2], S[3])
+    return float(math.exp(lf)), float(math.exp(ls))
 
 
 def _staart_fac(model, C, R, niv):
@@ -2651,6 +2744,11 @@ def voorspelscore(model, vanaf_jaar=2014, nu=4.0, trend=True, dag=False):
             model._vorm_u = (err / np.sqrt(var_d), V_, _vorm_w(_niv_pre(m)))
         err = err - mu_ * np.sqrt(var_d)
         lamf = 0.5 * np.log(np.maximum(1.0 + r_ * np.expm1(2.0 * lf_), 1e-4)); lams = 0.5 * np.log(np.maximum(1.0 + r_ * np.expm1(2.0 * ls_), 1e-4))
+    scf_ = getattr(model, 'schaal_f', None)
+    if model.params.schaal and scf_ is not None:
+        Q_ = scf_.reindex(m.index).fillna(0.0)
+        lf2, ls2 = _schaal_fac(model, Q_['Sf'].to_numpy(), Q_['Nf'].to_numpy(), Q_['Ss'].to_numpy(), Q_['Ns'].to_numpy())
+        lamf = lamf + lf2; lams = lams + ls2
     lam = np.where(err < 0, lamf, lams) + np.zeros(len(err))
     if model.params.vol_asym_bf != 0.0 and vr is not None and not dag:
         rel = 0.5 * np.log(var) - vr[m['afstand_idx'].to_numpy(), np.digitize(_niv_pre(m), VOL_BANDEN)]
@@ -3279,6 +3377,9 @@ class Historie:
         _vm, _kf, _ks = vorm_toestand(m, skater_id, dag, _niv_fwd(m, st.gender, j, x))
         if _vm != 0.0 or _ks != 1.0 or _kf != 1.0:
             x = _trend_x(x, t_lim, _sdx, _vm); _sdx = _sdx * _ks; _sf = _sf * _kf / _ks
+        _qf, _qs = schaal_toestand(m, skater_id, dag)
+        if _qf != 1.0 or _qs != 1.0:
+            _sdx = _sdx * _qs; _sf = _sf * _qf / _qs; _ks = _ks * _qs; _kf = _kf * _qf
         v = {'piek_diepte': diepte_toestand(m, skater_id, dag) * staart_toestand(m, skater_id, dag, _niv_fwd(m, st.gender, j, x)),
              'snel_fac': _sf, 'snel_fac_vol': _sf0, 'vorm_snel': _kf, 'vorm_traag': _ks, 'vorm_mu': _vm, 'mu_log': x, 'sigma_log': _sdx, 'sigma_niveau': math.sqrt(P), 't_lim': t_lim,
              'verwachte_tijd': (t_lim + math.exp(x)) * math.exp(m.baan_effect(STANDAARD_BAAN, dag)[0]),

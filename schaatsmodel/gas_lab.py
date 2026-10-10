@@ -367,3 +367,31 @@ def diepte_pass(sk, dg, z, val, zlo, H, uit, dsk, ddg, dst):
         dsk[nd] = sk[i]; ddg[nd] = dg[i]; dst[nd, 0] = se; dst[nd, 1] = sn; nd += 1
         i = j
     return nd
+
+
+@njit(cache=True)
+def schaal_pass(sk, dg, z, val, H, uit, dsk, ddg, dst):
+    """Lange schaal per rijder: vervallen som van z^2 en aantal, apart voor snelle (z < 0) en trage ritten (valpartijen niet).
+    uit[:, 0:4] = (Sf, Nf, Ss, Ns) VOOR de dag; dsk/ddg/dst = toestand NA elke rijder-dag. Geeft het aantal rijder-dagen."""
+    n = len(sk); sf = 0.0; nf = 0.0; ss = 0.0; ns = 0.0; ld = -1; i = 0; nd = 0
+    while i < n:
+        j = i
+        while j < n and sk[j] == sk[i] and dg[j] == dg[i]:
+            j += 1
+        if i == 0 or sk[i] != sk[i - 1]:
+            sf = 0.0; nf = 0.0; ss = 0.0; ns = 0.0
+        else:
+            f = math.exp(-(dg[i] - ld) / H); sf *= f; nf *= f; ss *= f; ns *= f
+        ld = dg[i]
+        for q in range(i, j):
+            uit[q, 0] = sf; uit[q, 1] = nf; uit[q, 2] = ss; uit[q, 3] = ns
+        for q in range(i, j):
+            if val[q]:
+                continue
+            if z[q] < 0.0:
+                sf += z[q] * z[q]; nf += 1.0
+            else:
+                ss += z[q] * z[q]; ns += 1.0
+        dsk[nd] = sk[i]; ddg[nd] = dg[i]; dst[nd, 0] = sf; dst[nd, 1] = nf; dst[nd, 2] = ss; dst[nd, 3] = ns; nd += 1
+        i = j
+    return nd

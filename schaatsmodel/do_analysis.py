@@ -2317,28 +2317,53 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
 KANS_GEBIEDEN = np.array([0.0, 0.02, 0.07, 0.93, 0.98, 1.0])     # snel extreem | piek | gewoon | slecht | traag extreem
 
 
-def z_rijder(model, z, m_krimp=100.0):
-    """Kans per rit met de eigen gebiedskansen van de rijder: de geijkte kans p = Phi(z) valt in een van de vijf gebieden (KANS_GEBIEDEN);
-    per rijder telt het hoeveel eerdere ritten (alle afstanden, alleen eerdere dagen, valpartijen niet) in elk gebied vielen, gekrompen
-    naar de populatiekans met m_krimp ritten, en p wordt binnen zijn gebied lineair herschaald naar die eigen kansen.
-    Een rijder die vaak extreem traag (of snel) rijdt, krijgt zo minder extreme kansen aan die kant. Geeft z per obs-rij en de tellingen."""
+def z_rijder(model, z, m_krimp=200.0, recent_n=5, fit_tot=None):
+    """Kans per rit met de eigen gebiedskansen van de rijder. De geijkte kans p = Phi(z) valt in een van de vijf gebieden (KANS_GEBIEDEN).
+    Lang geheugen: per rijder het aantal eerdere ritten (alle afstanden, eerdere dagen, valpartijen niet) per gebied, gekrompen naar de
+    populatiekans met m_krimp ritten. Kort geheugen: het aantal ritten in elk van de twee extreme gebieden binnen de laatste recent_n
+    ritten; de factor daarvoor (na het lange geheugen) wordt geschat op de jaren <= fit_tot (standaard split_jaar), apart per kant.
+    Trage schokken komen in reeksen (ziekte, blessure): na een trage schok is de kans op de volgende ~3x zo groot.
+    p wordt binnen zijn gebied lineair herschaald naar de eigen kansen. Geeft (z per obs-rij, factoren kort geheugen)."""
     from scipy.stats import norm
     from scipy.special import ndtri
+    fit_tot = model.params.split_jaar if fit_tot is None else fit_tot
     o = model.obs.loc[z.index]
     ok = ((~o['verdacht']) & ~(o['z'] > model.params.dip_val_z) & np.isfinite(z)).to_numpy()
     p = norm.cdf(z.to_numpy()); G = KANS_GEBIEDEN; P0 = np.diff(G)
     reg = np.clip(np.searchsorted(G, p, side='right') - 1, 0, 4)
-    d = pd.DataFrame({'sk': o['skater_id'].to_numpy(), 'dag': o['dag'].to_numpy(), 'reg': reg, 'ok': ok}, index=o.index).sort_values(['sk', 'dag'], kind='stable')
-    C = np.zeros((len(d), 5))
+    d = pd.DataFrame({'sk': o['skater_id'].to_numpy(), 'dag': o['dag'].to_numpy(), 'reg': reg, 'ok': ok,
+                      'jr': o['jaar'].to_numpy()}, index=o.index).sort_values(['sk', 'dag'], kind='stable')
+    C = np.zeros((len(d), 5)); R = np.zeros((len(d), 2))
     for k in range(5):
         x = ((d['reg'] == k) & d['ok']).astype(float)
         C[:, k] = (x.groupby(d['sk']).cumsum() - x - (x.groupby([d['sk'], d['dag']]).cumsum() - x)).to_numpy()     # eerdere dagen
-    C = pd.DataFrame(C, index=d.index).reindex(o.index).to_numpy()
+    # kort geheugen: extreme ritten in de laatste recent_n ritten van eerdere dagen (per rijder-dag samengevat)
+    dd = d[d['ok']].groupby(['sk', 'dag']).agg(e0=('reg', lambda r: (r == 0).sum()), e4=('reg', lambda r: (r == 4).sum()), n=('reg', 'size')).reset_index()
+    for c_, col in ((0, 'e0'), (1, 'e4')):
+        tot = dd.groupby('sk')[col].cumsum() - dd[col]; ntot = dd.groupby('sk')['n'].cumsum() - dd['n']
+        # som over de laatste recent_n ritten benaderd met de laatste rijder-dagen tot er recent_n ritten zijn
+        cs = dd.groupby('sk')[col].transform(lambda x: x.shift(1).rolling(recent_n, min_periods=1).sum()).fillna(0.0)
+        dd['r' + str(c_)] = cs.to_numpy()
+    rr = d[['sk', 'dag']].merge(dd[['sk', 'dag', 'r0', 'r1']], on=['sk', 'dag'], how='left').fillna(0.0)
+    R[:, 0] = rr['r0'].to_numpy(); R[:, 1] = rr['r1'].to_numpy()
+    C = pd.DataFrame(C, index=d.index).reindex(o.index).to_numpy(); R = pd.DataFrame(R, index=d.index).reindex(o.index).to_numpy()
     W = (C + m_krimp * P0) / (C.sum(1, keepdims=True) + m_krimp)
+    # factor kort geheugen per kant en aantal recente extreme ritten (0, 1, 2+), geschat op de fitjaren na het lange geheugen
+    jr = o['jaar'].to_numpy(); fit = ok & (jr <= fit_tot) & (jr >= 2010)
+    fac = {}
+    for kant, k in ((0, 0), (1, 4)):
+        rb = np.minimum(R[:, kant], 2).astype(int)
+        for b in (0, 1, 2):
+            s_ = fit & (rb == b)
+            fac[(k, b)] = float((reg[s_] == k).mean() / max(W[s_, k].mean(), 1e-9)) if s_.sum() > 500 else 1.0
+        f = np.array([fac[(k, b)] for b in (0, 1, 2)])[rb]
+        nieuw = np.minimum(W[:, k] * f, 0.5)
+        rest = [x for x in range(5) if x != k]
+        W[:, rest] *= ((1 - nieuw) / np.maximum(1 - W[:, k], 1e-9))[:, None]; W[:, k] = nieuw
     cw = np.c_[np.zeros(len(W)), np.cumsum(W, 1)]
     i = reg; r = np.arange(len(p))
     pr = cw[r, i] + (p - G[i]) / P0[i] * W[r, i]
-    return pd.Series(ndtri(np.clip(pr, 1e-12, 1 - 1e-12)), index=o.index), C
+    return pd.Series(ndtri(np.clip(pr, 1e-12, 1 - 1e-12)), index=o.index), fac
 
 
 def _ou_vooruit(p, f, v, d0, dag):

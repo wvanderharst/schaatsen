@@ -2248,39 +2248,51 @@ def normaal_z_dag(model, vanaf_jaar=0):
     return z[m['jaar'] >= vanaf_jaar]
 
 
-def normaal_z_dag_kal(model, W=4, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000):
+def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True):
     """Geijkte normaal-equivalente dag-z voor de kans per rit op de pagina (de vormlaag gebruikt normaal_z_dag).
-    Per seizoen en groep (afstandsgroep x niveau vooraf, banden niv_grenzen) wordt de verdeling van u = fout / sd (t.o.v. het veld)
-    geschat op de W seizoenen ervoor (alleen eerdere seizoenen, valpartijen niet): empirisch tussen het q- en (1-q)-kwantiel,
-    daarbuiten aan elke kant een gegeneraliseerde Pareto-staart (xi >= 0). Te kleine groepen erven de lagere niveauband."""
+    Per kalendermaand en groep (afstand x niveau vooraf, banden niv_grenzen) wordt de verdeling van u = fout / sd (t.o.v. het veld)
+    geschat op de `venster` dagen vóór die maand (alleen eerdere data, valpartijen niet): empirisch tussen het q- en (1-q)-kwantiel,
+    daarbuiten aan elke kant een gegeneraliseerde Pareto-staart (xi >= 0). Te kleine groepen erven de lagere niveauband;
+    de eerste maanden (te weinig historie) gebruiken het eerste venster dat er wel is."""
     from scipy.stats import genpareto as _gp
     from scipy.special import ndtri
     p = model.params
     _, err, var, m = voorspelscore(model, 0, dag=True)
     u = err / np.sqrt(var)
     val = ((err > 0) & (m['z'].to_numpy() > p.dip_val_z) & (p.dip_val_z > 0)) | ~np.isfinite(u)
-    dat = pd.to_datetime(m['dag'].to_numpy(), unit='D')
-    sz = np.where(dat.month >= 7, dat.year, dat.year - 1)
-    band = np.digitize(_niv_pre(m), niv_grenzen); ag = GAS_GROEP[m['afstand_idx'].to_numpy()]
+    dg = m['dag'].to_numpy().astype(np.int64)
+    dat = pd.to_datetime(dg, unit='D'); mnd = (dat.year * 12 + dat.month - 1).to_numpy()
+    band = np.digitize(_niv_pre(m), niv_grenzen)
+    ag = m['afstand_idx'].to_numpy() if per_afstand else GAS_GROEP[m['afstand_idx'].to_numpy()]     # per afstand: de 1000 m heeft een veel dikkere trage staart dan de 500 m
     def staart(y):
         xi, _, sg = _gp.fit(y, floc=0.0)
         if xi < 0:
             xi, sg = 0.0, float(np.mean(y))
         return float(min(xi, 0.9)), float(sg)
     pit = np.full(len(u), np.nan)
-    for S in np.unique(sz):
-        ref_s = (sz >= S - W) & (sz < S) & ~val
-        if ref_s.sum() < min_n:                      # eerste seizoenen: neem de eerste W seizoenen die er wel zijn
-            ref_s = (sz >= sz.min()) & (sz < sz.min() + W) & ~val
-        for g in np.unique(ag):
+    o = np.argsort(dg, kind='stable'); dg_s = dg[o]
+    eerste_ok = None
+    for M in np.unique(mnd):
+        d0 = int((pd.Timestamp(year=int(M // 12), month=int(M % 12) + 1, day=1) - pd.Timestamp('1970-01-01')).days)
+        a_, b_ = np.searchsorted(dg_s, d0 - venster), np.searchsorted(dg_s, d0)
+        idx = o[a_:b_]; idx = idx[~val[idx]]
+        if len(idx) < min_n:
+            if eerste_ok is None:                    # begin van de data: neem het eerste volle venster
+                d1 = int(dg_s[0]) + venster
+                idx = o[:np.searchsorted(dg_s, d1)]; idx = idx[~val[idx]]
+            else:
+                idx = eerste_ok
+        else:
+            eerste_ok = idx if eerste_ok is None else eerste_ok
+        for g in np.unique(ag[mnd == M]):
             for b in range(len(niv_grenzen), -1, -1):
-                doel = (sz == S) & (ag == g) & (band == b) & np.isfinite(u)
+                doel = (mnd == M) & (ag == g) & (band == b) & np.isfinite(u)
                 if not doel.any():
                     continue
                 bb = b
-                while bb > 0 and (ref_s & (ag == g) & (band == bb)).sum() < min_n:
+                while bb > 0 and ((ag[idx] == g) & (band[idx] == bb)).sum() < min_n:
                     bb -= 1
-                ref = np.sort(u[ref_s & (ag == g) & (band == bb)])
+                ref = np.sort(u[idx[(ag[idx] == g) & (band[idx] == bb)]])
                 if len(ref) < 200:
                     continue
                 lo, hi = np.quantile(ref, q), np.quantile(ref, 1 - q)

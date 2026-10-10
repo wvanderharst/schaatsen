@@ -27,7 +27,7 @@ HF = 60.0          # vervaltijd van de vorm (dagen)
 
 @njit(cache=True)
 def _pass(rk, st, ltijd, dag, rid, nst, nr, min_n, alpha, snel_w, hub, beta, s0, m0, val_sd, val_min, gamma, hf,
-          o_par, o_mu, o_s, o_n, o_gap, o_e, o_val, o_goed, o_f):
+          o_par, o_mu, o_s, o_n, o_gap, o_e, o_val, o_goed, o_f, o_spar, o_k):
     mu = np.zeros(nst); s2 = np.full(nst, s0 * s0); n = np.zeros(nst)
     last = np.full(nr, -100000); f = np.zeros(nr); fdag = np.zeros(nr)
     N = len(rk); i = 0
@@ -46,6 +46,12 @@ def _pass(rk, st, ltijd, dag, rid, nst, nr, min_n, alpha, snel_w, hub, beta, s0,
             if n[st[q]] >= 1:
                 buf2[k2] = ltijd[q] - mu[st[q]] - fc; k2 += 1
         srt = np.sort(buf[:k])
+        # onzekerheid van het racepeil: robuuste spreiding van het veld, mediaan van k waarden (factor 1,2533^2 / k)
+        if k >= 4:
+            sv = (srt[(3 * k) // 4] - srt[k // 4]) / 1.349
+            spar2 = 1.5708 * sv * sv / (k - 1)
+        else:
+            spar2 = np.nan
         # terugval (alleen voor het bijwerken, niet voor de toets): rijders met enige historie, of aan het begin van de data peil 0
         par_terug = np.median(buf2[:k2]) if k2 >= 1 else 0.0
         for q in range(i, j):
@@ -73,7 +79,7 @@ def _pass(rk, st, ltijd, dag, rid, nst, nr, min_n, alpha, snel_w, hub, beta, s0,
             else:
                 m_ = kk // 2
                 par = srt[m_] if kk % 2 == 1 else 0.5 * (srt[m_ - 1] + srt[m_])
-            o_par[q] = par
+            o_par[q] = par; o_spar[q] = math.sqrt(spar2) if spar2 == spar2 else np.nan; o_k[q] = kk
             sp = math.sqrt((n[a] * s2[a] + m0 * s0 * s0) / (n[a] + m0))
             o_s[q] = sp; o_mu[q] = mu[a]
             if n[a] == 0:
@@ -112,13 +118,17 @@ def draai(df, alpha=ALPHA, snel_w=SNEL_W, gamma=GAMMA, hf=HF, beta=BETA, m0=M0, 
     st = (df['skater_id'].astype(np.int64) * 8 + df['afstand_idx'].astype(np.int64))
     st_codes, st_u = pd.factorize(st); rid_codes, _ = pd.factorize(df['skater_id'])
     N = len(df)
-    out = {k: np.zeros(N) for k in ('par', 'mu', 's', 'n', 'gap', 'e', 'f')}; val = np.zeros(N, bool); goed = np.zeros(N, bool)
+    out = {k: np.zeros(N) for k in ('par', 'mu', 's', 'n', 'gap', 'e', 'f', 'spar', 'k')}; val = np.zeros(N, bool); goed = np.zeros(N, bool)
     _pass(rk, st_codes.astype(np.int64), np.log(df['tijd'].to_numpy()), df['dag'].to_numpy().astype(np.int64), rid_codes.astype(np.int64),
           len(st_u), rid_codes.max() + 1, MIN_N, alpha, snel_w, hub, beta, s0, m0, VAL_SD, VAL_MIN, gamma, hf,
-          out['par'], out['mu'], out['s'], out['n'], out['gap'], out['e'], val, goed, out['f'])
+          out['par'], out['mu'], out['s'], out['n'], out['gap'], out['e'], val, goed, out['f'], out['spar'], out['k'])
     for k, v in out.items():
         df[k] = v
-    df['val'] = val; df['goed'] = goed; df['u'] = np.where(goed, df['e'] / df['s'], np.nan)
+    df['val'] = val; df['goed'] = goed
+    df['s_tot'] = np.sqrt(df['s'] ** 2 + df['spar'].fillna(df['s']) ** 2)          # eigen spreiding + onzekerheid van het racepeil
+    df['u'] = np.where(goed, df['e'] / df['s_tot'], np.nan)
+    key = ['dag', 'event_id', 'gender', 'afstand_idx']
+    return df
     return df
 
 
@@ -135,12 +145,15 @@ GAP_GRENZEN = (15, 61, 201)
 N_GRENZEN = (10, 30)
 
 
+K_GRENZEN = (6, 12, 24)           # aantal bekende rijders in de race (kwaliteit van het racepeil)
+
+
 def ijk(df, elite, eerste_seizoen=2014, q=0.02):
     """Kans per rit voor de elite, per seizoen geijkt op de elite-ritten van eerdere seizoenen (vanaf 2008)."""
     from scipy.stats import genpareto as gp
     from scipy.special import ndtri
     e = df[df['skater_id'].isin(elite) & np.isfinite(df['u']) & ~df['val'] & (df['n'] >= MIN_N) & ~df['verdacht']].copy()
-    e['g'] = np.digitize(e['gap'], GAP_GRENZEN) * 10 + np.digitize(e['n'], N_GRENZEN)
+    e['g'] = np.digitize(e['gap'], GAP_GRENZEN) * 100 + np.digitize(e['n'], N_GRENZEN) * 10 + np.digitize(e['k'], K_GRENZEN)
     e['p'] = np.nan
     def staart(y):
         xi, _, sg = gp.fit(y, floc=0.0)
@@ -151,13 +164,15 @@ def ijk(df, elite, eerste_seizoen=2014, q=0.02):
         if S < eerste_seizoen:
             continue
         ref = e[(e['seizoen'] < S) & (e['seizoen'] >= 2008)]
-        sc = ref.groupby('g')['u'].agg(lambda x: (np.quantile(x, .84) - np.quantile(x, .16)) / 2)
-        md = ref.groupby('g')['u'].median()
+        sc = ref.groupby('g')['u'].agg(lambda x: (np.quantile(x, .84) - np.quantile(x, .16)) / 2 if len(x) >= 50 else np.nan)
+        md = ref.groupby('g')['u'].agg(lambda x: x.median() if len(x) >= 50 else np.nan)
+        sc_all = (np.quantile(ref['u'], .84) - np.quantile(ref['u'], .16)) / 2; md_all = ref['u'].median()
+        sc = sc.fillna(sc_all); md = md.fillna(md_all)
         v_ref = np.sort(((ref['u'] - ref['g'].map(md)) / ref['g'].map(sc)).to_numpy())
         lo, hi = np.quantile(v_ref, q), np.quantile(v_ref, 1 - q)
         xl, sl = staart(lo - v_ref[v_ref < lo]); xh, sh = staart(v_ref[v_ref > hi] - hi)
         t = e['seizoen'] == S
-        v = ((e.loc[t, 'u'] - e.loc[t, 'g'].map(md)) / e.loc[t, 'g'].map(sc)).to_numpy()
+        v = ((e.loc[t, 'u'] - e.loc[t, 'g'].map(md).fillna(md_all)) / e.loc[t, 'g'].map(sc).fillna(sc_all)).to_numpy()
         p = np.searchsorted(v_ref, v, side='right') / len(v_ref)
         p = np.where(v < lo, q * gp.sf(lo - v, xl, 0, sl), p); p = np.where(v > hi, 1 - q * gp.sf(v - hi, xh, 0, sh), p)
         e.loc[t, 'p'] = np.clip(p, 1e-9, 1 - 1e-9)

@@ -2,7 +2,7 @@ import warnings; warnings.filterwarnings('ignore')
 import sys, itertools, numpy as np, pandas as pd, elite_model as em
 R=pd.read_parquet('ritten.parquet'); elite=None
 res=[]
-grid=[dict(alpha=a,snel_w=sw,gamma=g,hf=h) for a in (0.12,0.2,0.3) for sw in (1.0,1.5) for g in (0.0,0.2,0.4) for h in (30.0,90.0) if not (g==0 and h==90.0)]
+grid=[dict(alpha=a,snel_w=sw,gamma=g,hf=30.0) for a in (0.12,0.2,0.3) for sw in (1.0,1.5) for g in (0.0,0.2)]
 for kw in grid:
     df=em.draai(R.copy(),**kw)
     if elite is None: elite=em.kies_elite(df)

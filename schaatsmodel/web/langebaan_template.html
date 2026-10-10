@@ -203,6 +203,21 @@ const SLC = BAAN.get('Salt Lake City (USA)');
 const slcFactor = SLC ? Math.exp(SLC.mu - D.meta.anker) : null;
 const piekSLC = p => slcFactor ? p.piek * slcFactor : null;
 const Q0 = D.meta.piek_q[0], Q1 = D.meta.piek_q[1];
+function Phi(z) {                  // standaardnormale verdelingsfunctie (Zelen & Severo, fout < 1e-7; diepe staart asymptotisch)
+  if (z < -6) { const z2 = z * z; return Math.exp(-z2 / 2) / (-z * Math.sqrt(2 * Math.PI)) * (1 - 1 / z2 + 3 / (z2 * z2)); }
+  if (z > 6) return 1 - Phi(-z);
+  const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
+  const q = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  return z > 0 ? 1 - q : q;
+}
+function kansTekst(p) {             // 0,38 -> '38%'; 0,0048 -> '1 op 210'
+  if (p >= 0.095) return pct(100 * p, 0);
+  const n = 1 / p, r = n < 100 ? 1 : n < 1000 ? 10 : n < 10000 ? 100 : n < 100000 ? 1000 : 10000;
+  return '1 op ' + (Math.round(n / r) * r).toLocaleString('nl-NL');
+}
+function kansRace(z) {              // kans op een tijd minstens zo snel (snelle kant) of minstens zo traag (trage kant), t.o.v. het veld op die dag
+  return z < 0 ? {kant: 'sneller', p: Phi(z), tekst: 'zo snel of sneller'} : {kant: 'trager', p: Phi(-z), tekst: 'zo traag of trager'};
+}
 function kansChip(r) {
   const pk = r.pk ?? Q0, base = Q0;
   const cls = pk >= base * 1.4 ? 'goed' : pk <= base * 0.7 ? 'slecht' : 'neutraal';
@@ -283,7 +298,8 @@ function toonRijder(id, afst) {
     const zwak = p.n < 3 ? ' <span class="chip neutraal" title="minder dan 3 races: verwachting leunt op andere afstanden">weinig races</span>' : '';
     return `<tr><td>${a.replace('m', ' m')}${zwak}</td><td class="num"><b>${tijd(p.norm)}</b></td><td class="num piek">${tijd(p.piek)}</td><td class="num piek">${tijd(piekSLC(p))}</td><td class="num">${tijd(tijdBij(p, a, .1, th))}–${tijd(tijdBij(p, a, .9, th))}</td><td class="num">${tijd(p.pb)}</td><td class="num">${tijd(p.sb)}</td><td>${volChip(p)}</td><td class="num">${p.n}</td></tr>`; }).join('');
   const recent = r.res.slice(-14).reverse().map(x => { const [d, baan, a, t, z, verw] = x;
-    const chip = z == null ? '' : z <= -1.5 ? `<span class="chip goed">piek ${z.toFixed(1).replace('.', ',')}</span>` : z >= 2 ? `<span class="chip slecht">traag +${z.toFixed(1).replace('.', ',')}</span>` : `<span class="klein">${(z > 0 ? '+' : '') + z.toFixed(1).replace('.', ',')}</span>`;
+    const k = z == null ? null : kansRace(z), tl = k ? ` title="kans op een tijd ${k.tekst}: ${kansTekst(k.p)}"` : '';
+    const chip = z == null ? '' : z > 6 ? `<span class="chip slecht">valpartij</span>` : z <= -1.5 ? `<span class="chip goed"${tl}>piek · ${kansTekst(k.p)}</span>` : z >= 2 ? `<span class="chip slecht"${tl}>traag · ${kansTekst(k.p)}</span>` : `<span class="klein"${tl}>${k.kant} · ${kansTekst(k.p)}</span>`;
     return `<tr><td>${datum(d)}</td><td>${esc(baan.replace(/ \(.*\)$/, ''))}</td><td>${a.replace('m', ' m')}</td><td class="num"><b>${tijd(t)}</b></td><td class="num">${tijd(verw)}</td><td>${chip}</td></tr>`; }).join('');
   $('#rd-inhoud').innerHTML = `
     <div class="profielkop"><div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow">${GLAB[r.g]} · ${GROEP[r.groep] || r.groep} · ${esc(r.land || '')}</span><h2>${esc(r.naam)}</h2></div>
@@ -297,8 +313,8 @@ function toonRijder(id, afst) {
       <div id="rd-grafiek"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px"><h3>Laatste races</h3>
-      <div class="tabelbak"><table><thead><tr><th>Datum</th><th>Baan</th><th>Afstand</th><th class="num">Tijd</th><th class="num">Verwacht (Hv)</th><th>Verrassing (z)</th></tr></thead><tbody>${recent || '<tr><td colspan="6" class="klein">Geen races in de laatste 3 jaar.</td></tr>'}</tbody></table></div>
-      <p class="klein">z zegt hoe uitzonderlijk de rit was ten opzichte van het veld op die dag (het geschatte ijs eruit), gemeten met de eigen scheve verdeling van de rijder en omgerekend naar een normale schaal: −2 gebeurt ongeveer 1 op de 44 races, −3 ongeveer 1 op de 740, −4 ongeveer 1 op de 32.000. Negatief is sneller.</p></div>`;
+      <div class="tabelbak"><table><thead><tr><th>Datum</th><th>Baan</th><th>Afstand</th><th class="num">Tijd</th><th class="num">Verwacht (Hv)</th><th>Kans op deze tijd</th></tr></thead><tbody>${recent || '<tr><td colspan="6" class="klein">Geen races in de laatste 3 jaar.</td></tr>'}</tbody></table></div>
+      <p class="klein">De kans dat deze rijder op die dag een tijd rijdt die minstens zo snel is (bij een snelle rit) of minstens zo traag (bij een trage rit), ten opzichte van het veld op die dag (het geschatte ijs eruit) en met de eigen scheve verdeling van de rijder. Bij een gewone rit ligt dat tussen 15% en 50%; ‘piek’ is 1 op 15 of zeldzamer, ‘traag’ 1 op 44 of zeldzamer. Valpartijen tellen niet mee.</p></div>`;
   seg($('#rd-a'), (gereden.length ? gereden : [afst]).map(a => [a, a.replace('m', ' m')]), afst, k => { rdAfstand = k; tekenVorm(r, k); });
   $('#rd-naarrace').onclick = () => { RC.g = r.g; RC.a = rdAfstand && r.pr[rdAfstand] ? rdAfstand : Object.keys(r.pr)[0]; RC.sel = new Set(standaardVeld(RC.g, RC.a)); RC.sel.add(r.id); RC.extra.add(r.id); initRace(); simuleer(); toonTab('race'); };
   tekenVorm(r, afst);
@@ -343,7 +359,7 @@ function tekenVorm(r, a) {
   el.innerHTML = `<svg class="grafiek" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verwachte en gereden tijden ${a}">${g}${nu}${bandEl}${vlakEl}${basisEl}<path d="${lijn}" fill="none" stroke="var(--koud)" stroke-width="2" stroke-linejoin="round"/>${eind}${stippen}</svg>`;
   el.querySelector('svg').onmousemove = e => { const c = e.target.closest('circle[data-i]'); if (!c) return verbergTip(); const p = pts[+c.dataset.i];
     const q = trz.find(q => q[0] === p.d);
-    toonTip(e, `<b>${datum(p.d)}</b> · ${esc(p.baan)}<br>Gereden ${tijd(p.t)} (Heerenveen ${tijd(p.tv)})<br>Verwacht ${tijd(p.verw)}${q ? ' · vaste rating ' + tijd(q[2]) : ''}${q && q.length > 4 ? '<br>80%-band ' + tijd(q[1] + q[3] / 100) + '–' + tijd(q[1] + q[4] / 100) : ''}${p.z != null ? ' · z ' + p.z.toFixed(2).replace('.', ',') : ''}${p.uit ? '<br><i>Buiten de schaal: ' + ((p.z != null && p.z > 6) ? 'valpartij, telt niet mee in het model' : 'uitschieter') + '</i>' : ''}`); };
+    toonTip(e, `<b>${datum(p.d)}</b> · ${esc(p.baan)}<br>Gereden ${tijd(p.t)} (Heerenveen ${tijd(p.tv)})<br>Verwacht ${tijd(p.verw)}${q ? ' · vaste rating ' + tijd(q[2]) : ''}${q && q.length > 4 ? '<br>80%-band ' + tijd(q[1] + q[3] / 100) + '–' + tijd(q[1] + q[4] / 100) : ''}${p.z != null && p.z <= 6 ? (k => '<br>Kans op een tijd ' + k.tekst + ': ' + kansTekst(k.p))(kansRace(p.z)) : ''}${p.uit ? '<br><i>Buiten de schaal: ' + ((p.z != null && p.z > 6) ? 'valpartij, telt niet mee in het model' : 'uitschieter') + '</i>' : ''}`); };
   el.querySelector('svg').onmouseleave = verbergTip;
 }
 

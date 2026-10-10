@@ -271,7 +271,7 @@ N_GRENZEN = (10, 30)
 K_GRENZEN = (6, 12, 24)           # aantal bekende rijders in de race (kwaliteit van het racepeil)
 
 
-def ijk(df, elite, eerste_seizoen=2014, q=0.02):
+def ijk(df, elite, eerste_seizoen=2014, q=0.02, ref_jaren=None):
     """Kans per rit voor de elite, per seizoen geijkt op de elite-ritten van eerdere seizoenen (vanaf 2008)."""
     from scipy.stats import genpareto as gp
     from scipy.special import ndtri
@@ -287,7 +287,7 @@ def ijk(df, elite, eerste_seizoen=2014, q=0.02):
     for S in sorted(e['seizoen'].unique()):
         if S < eerste_seizoen:
             continue
-        ref = e[(e['seizoen'] < S) & (e['seizoen'] >= 2008)]
+        ref = e[(e['seizoen'] < S) & (e['seizoen'] >= (2008 if ref_jaren is None else S - ref_jaren))]
         sc = ref.groupby('g')['u'].agg(lambda x: (np.quantile(x, .84) - np.quantile(x, .16)) / 2 if len(x) >= 50 else np.nan)
         md = ref.groupby('g')['u'].agg(lambda x: x.median() if len(x) >= 50 else np.nan)
         sc_all = (np.quantile(ref['u'], .84) - np.quantile(ref['u'], .16)) / 2; md_all = ref['u'].median()
@@ -453,6 +453,40 @@ def hoogland_niveau(e, jaren=4):
         t = sz == S; corr[t] = A[t] @ b
     e['z'] = e['z'] - corr; e['p'] = norm.cdf(e['z']); e['hoog_corr'] = corr
     return e
+
+
+@njit(cache=True)
+def _dag_niveau(rk, rang, e, ok, lam, m, uit):
+    """Per race: voor elke rijder het gewogen gemiddelde van de fouten van de ANDERE rijders, gewicht exp(-|rang_i - rang_j| / lam),
+    gekrompen naar 0 met m pseudo-ritten."""
+    N = len(rk); i = 0
+    while i < N:
+        j = i
+        while j < N and rk[j] == rk[i]:
+            j += 1
+        for q in range(i, j):
+            sw = 0.0; se = 0.0
+            for q2 in range(i, j):
+                if q2 == q or not ok[q2]:
+                    continue
+                w = math.exp(-abs(rang[q] - rang[q2]) / lam)
+                sw += w; se += w * e[q2]
+            uit[q] = se / (sw + m)
+        i = j
+    return 0
+
+
+def dag_effect_niveau(df, lam=0.1, m=2.0):
+    """Dag-effect per niveau (doorlopend in de rang, geen groepen): het verschil tussen de race en het algemene racepeil zoals rijders
+    van vergelijkbaar niveau dat die dag lieten zien; wordt van de fout afgetrokken (u opnieuw)."""
+    df = df.sort_values(['dag', 'event_id', 'gender', 'afstand_idx'], kind='stable').copy()
+    rk = df.groupby(['dag', 'event_id', 'gender', 'afstand_idx'], sort=False).ngroup().to_numpy().astype(np.int64)
+    rang = df.groupby(['gender', 'afstand', 'seizoen'])['mu'].rank(pct=True).fillna(1.0).to_numpy()
+    e = df['e'].to_numpy(); ok = np.isfinite(e) & (df['n'].to_numpy() >= 5) & ~df['val'].to_numpy() & (np.abs(np.nan_to_num(e)) < 0.1)
+    uit = np.zeros(len(df))
+    _dag_niveau(rk, rang, np.nan_to_num(np.clip(e, -0.1, 0.1)), ok, lam, m, uit)
+    df['dag_niv'] = uit; df['e'] = df['e'] - uit; df['u'] = df['e'] / df['s_tot']; df['rang'] = rang
+    return df
 
 
 def toets(e, vanaf_seizoen=2016):

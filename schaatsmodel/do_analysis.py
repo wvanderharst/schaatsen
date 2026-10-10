@@ -1803,7 +1803,10 @@ def logloss_eerlijk(model, split_jaar=2019, vanaf_jaar=2010, n_fit=150000, seed=
     def _gesplitst(par, gname, rij, uu_fit):
         """(nll(x), F(x)) van body + GPD-staart, staart geschat op uu_fit (fitrijen van deze groep x niveauband)."""
         u0 = float(np.quantile(uu_fit, staart_q)); y = u0 - uu_fit[uu_fit < u0]
-        xi, _, sg = _gp.fit(y, floc=0.0); xi = float(np.clip(xi, -0.45, 0.9))
+        xi, _, sg = _gp.fit(y, floc=0.0)
+        if xi < 0:                                # xi >= 0: geen harde grens aan de snelle kant (anders kans 0 voorbij het eindpunt); dan exponentiële staart
+            xi, sg = 0.0, float(np.mean(y))
+        xi = float(min(xi, 0.9))
         Fb0 = float(_Fb(par, u0)); q = staart_q
         def nll(x):
             x = np.asarray(x, float); f = np.where(x >= u0, (1 - q) * np.exp(-nll_u(par, x)) / max(1 - Fb0, 1e-12), q * _gp.pdf(np.maximum(u0 - x, 0), xi, 0.0, sg))

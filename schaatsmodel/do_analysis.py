@@ -1476,7 +1476,11 @@ class SchaatsModel:
 
     def baan_effect(self, baan, dag=None):
         """Verwacht dag-effect (fractie van de tijd) voor een baan, met onzekerheid."""
-        dag = dag if dag is not None else int(self.obs['dag'].max())
+        if dag is None:                          # laatste dag in de data (bewaard: max over alle obs-rijen is traag en wordt per voorspelling gevraagd)
+            c = getattr(self, '_dag_max', None)
+            if c is None or c[0] is not self.obs:
+                c = self._dag_max = (self.obs, int(self.obs['dag'].max()))
+            dag = c[1]
         mu, var, n_eff = self._baan_prior(baan, dag)
         return mu, math.sqrt(var), n_eff
 
@@ -2026,7 +2030,9 @@ def _kw_met_piek(model, afstand, kans, q):
     else:
         qq = q1 + (q - kans[0] - kans[1]) / kans[2] * (1 - q1)
     pool = _pool_sorted(model, afstand)
-    return float(np.quantile(pool, min(max(qq, 0.0), 1.0)))
+    x = min(max(qq, 0.0), 1.0) * (len(pool) - 1)              # = np.quantile (lineair) op de al gesorteerde pool, zonder opnieuw te sorteren
+    i = min(int(x), len(pool) - 2)
+    return float(pool[i] + (x - i) * (pool[i + 1] - pool[i]))
 
 
 def _piek_tijden(model, v, afstand, kans, anker):
@@ -3189,7 +3195,14 @@ class Historie:
         return v
 
     def baan_effect(self, baan, dag):
-        """Baan-prior zoals het model die op `dag` had: (gemiddelde, sd) in het interne kader."""
+        """Baan-prior zoals het model die op `dag` had: (gemiddelde, sd) in het interne kader (bewaard per baan x dag)."""
+        c = self.__dict__.setdefault('_baan_cache', {})
+        k = (baan, int(dag))
+        if k not in c:
+            c[k] = self._baan_effect(baan, dag)
+        return c[k]
+
+    def _baan_effect(self, baan, dag):
         ev = self.model.events
         e = ev[(ev['baan'] == baan) & (ev['dag'] <= dag)]
         if e.empty:

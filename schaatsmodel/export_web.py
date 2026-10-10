@@ -37,8 +37,8 @@ def t_bij(v,a,p,anker):   # zelfde formule als tijdBij in de pagina (eigen piekd
     if lo is not None and z<lo: z=lo+(z-lo)*v.get('piek_diepte',1.0)
     if z<0: z*=v.get('snel_fac',1.0)
     return (v['t_lim']+math.exp(v['mu_log']+v['sigma_log']*z))*math.exp(anker)
-rijders=[]
-for s in sorted(sel):
+def rijder(s):
+    """Alles voor één rijder: voorspellingen nu, uitslagen met verwachting vooraf en het traject met 80%-band."""
     st=m.staten[s]; o=O[(O.skater_id==s)&(~O.verdacht)]
     pr={}
     for a in AF:
@@ -78,7 +78,15 @@ for s in sorted(sel):
             pts.append([int(d),nt,round(v['normale_basis'],2),int(round(100*(t_bij(v,a,.1,ak)-nt))),int(round(100*(t_bij(v,a,.9,ak)-nt)))])
         tr[a]=pts
     kans=da.piek_kansen(m,s)
-    rijders.append(dict(id=int(s),naam=st.naam,land=st.land,g=st.gender,groep=st.groep,pr=pr,res=res,tr=tr,pk=round(float(kans[0]),4),sl=round(float(kans[2]),4)))
+    return dict(id=int(s),naam=st.naam,land=st.land,g=st.gender,groep=st.groep,pr=pr,res=res,tr=tr,pk=round(float(kans[0]),4),sl=round(float(kans[2]),4))
+# rijders parallel (fork: het model wordt gedeeld); eerst één voorspelling zodat de caches (empirische z, baan per dag) er al zijn
+m.voorspel(next(iter(sel)),'500m',VANDAAG); h.voorspel(next(iter(sel)),'500m',VANDAAG)
+import multiprocessing as mp, os
+NPROC=int(os.environ.get('EXPORT_PROCESSEN',min(4,os.cpu_count() or 1)))
+if NPROC>1:
+    with mp.get_context('fork').Pool(NPROC) as pl: rijders=list(pl.imap(rijder,sorted(sel),chunksize=4))
+else:
+    rijders=[rijder(s) for s in sorted(sel)]
 print('rijders klaar',round(time.time()-t0),flush=True)
 # banen
 ev=m.events; recent=ev[ev.dag>=MAXD-3*365].groupby('baan').size()

@@ -2376,7 +2376,7 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
 KANS_GEBIEDEN = np.array([0.0, 0.02, 0.07, 0.93, 0.98, 1.0])     # snel extreem | piek | gewoon | slecht | traag extreem
 
 
-def z_rijder(model, z, m_krimp=200.0, recent_n=5, fit_tot=None):
+def z_rijder(model, z, m_krimp=200.0, recent_n=5, fit_tot=None, H=None):
     """Kans per rit met de eigen gebiedskansen van de rijder. De geijkte kans p = Phi(z) valt in een van de vijf gebieden (KANS_GEBIEDEN).
     Lang geheugen: per rijder het aantal eerdere ritten (alle afstanden, eerdere dagen, valpartijen niet) per gebied, gekrompen naar de
     populatiekans met m_krimp ritten. Kort geheugen: het aantal ritten in elk van de twee extreme gebieden binnen de laatste recent_n
@@ -2393,9 +2393,18 @@ def z_rijder(model, z, m_krimp=200.0, recent_n=5, fit_tot=None):
     d = pd.DataFrame({'sk': o['skater_id'].to_numpy(), 'dag': o['dag'].to_numpy(), 'reg': reg, 'ok': ok,
                       'jr': o['jaar'].to_numpy()}, index=o.index).sort_values(['sk', 'dag'], kind='stable')
     C = np.zeros((len(d), 5)); R = np.zeros((len(d), 2))
-    for k in range(5):
-        x = ((d['reg'] == k) & d['ok']).astype(float)
-        C[:, k] = (x.groupby(d['sk']).cumsum() - x - (x.groupby([d['sk'], d['dag']]).cumsum() - x)).to_numpy()     # eerdere dagen
+    if H:                                           # vervallen telling (halfwaardetijd-achtig: exp(-dt/H)), eerdere dagen; de huidige fase weegt zwaarder
+        from gas_lab import diepte_pass
+        sk_ = d['sk'].to_numpy().astype(np.int64); dg_ = d['dag'].to_numpy().astype(np.int64); nv_ = ~d['ok'].to_numpy()
+        for k in range(5):
+            zz_ = np.where(d['reg'].to_numpy() == k, -1.0, 1.0)
+            uit = np.zeros((len(d), 2)); a_ = np.zeros(len(d), np.int64); b_ = np.zeros(len(d), np.int64); st_ = np.zeros((len(d), 2))
+            diepte_pass(sk_, dg_, zz_, nv_, 0.0, float(H), uit, a_, b_, st_)
+            C[:, k] = uit[:, 1]
+    else:
+        for k in range(5):
+            x = ((d['reg'] == k) & d['ok']).astype(float)
+            C[:, k] = (x.groupby(d['sk']).cumsum() - x - (x.groupby([d['sk'], d['dag']]).cumsum() - x)).to_numpy()     # eerdere dagen
     # kort geheugen: extreme ritten in de laatste recent_n ritten van eerdere dagen (per rijder-dag samengevat)
     dd = d[d['ok']].groupby(['sk', 'dag']).agg(e0=('reg', lambda r: (r == 0).sum()), e4=('reg', lambda r: (r == 4).sum()), n=('reg', 'size')).reset_index()
     for c_, col in ((0, 'e0'), (1, 'e4')):

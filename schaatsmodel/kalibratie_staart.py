@@ -1,17 +1,23 @@
 """Kalibratie van de kans per rit bij de profs (niveau vooraf >= 90; ook elite >= 97), jaren 2020+ (buiten de fit).
 Per kant (snel / traag, valpartijen niet): hoe vaak een kans <= 1/1000 en <= 1/100 voorkomt t.o.v. verwacht, en per rijder hoeveel
 rijders 3, 4, 5 of 6+ ritten met kans <= 1/50 hebben t.o.v. een binomiale verdeling met dezelfde aantallen ritten (plus dispersie).
-Gebruik: python kalibratie_staart.py [z.pkl] [model.pkl]  (z: normaal-equivalente dag-z per obs-rij; kans = Phi(z) snel, Phi(-z) traag)."""
+Profs: niveau vooraf >= 90 op 500 m en langer, geen jeugdcategorie (alleen_senior=True). Gebruik: python kalibratie_staart.py [z.pkl] [model.pkl]  (z: normaal-equivalente dag-z per obs-rij; kans = Phi(z) snel, Phi(-z) traag)."""
 import warnings; warnings.filterwarnings('ignore')
 import sys, numpy as np, pandas as pd
 from scipy.stats import norm, binom
 import do_analysis as da
 
 
-def toets(z, m, vanaf=2020, label=''):
+PROF_AFSTANDEN = ('500m', '1000m', '1500m', '3000m', '5000m', '10000m')     # 100 m en 300 m zijn jeugdafstanden
+
+
+def toets(z, m, vanaf=2020, label='', alleen_senior=True):
+    """alleen_senior: profs = niveau vooraf >= 90 op 500 m en langer en geen jeugdcategorie (de beste kinderen op hun eerste 100 m tellen niet)."""
     o = m.obs.loc[z.index]
     niv = pd.Series(da._niv_pre(o), index=o.index)
     ok = (~o['verdacht']).to_numpy() & ~(o['z'] > m.params.dip_val_z).to_numpy() & (o['jaar'] >= vanaf).to_numpy() & np.isfinite(z.to_numpy())
+    if alleen_senior:
+        ok &= o['afstand'].isin(PROF_AFSTANDEN).to_numpy() & ~o['groep'].isin(da.JEUGD_GROEPEN).to_numpy()
     goed = True; regels = []
     for nm, grens in (('profs (>=90)', 90.0), ('elite (>=97)', 97.0)):
         s = ok & (niv.to_numpy() >= grens)

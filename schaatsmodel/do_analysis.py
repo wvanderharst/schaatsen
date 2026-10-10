@@ -2271,13 +2271,18 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
         if xi < 0:
             xi, sg = 0.0, float(np.mean(y))
         return float(min(xi, 0.9)), float(sg)
-    groep = {}                                       # per (afstand, band): dagen en u (gesorteerd op dag) van de bruikbare ritten
-    for g in np.unique(ag):
-        for b in range(nb * (len(erv_grenzen) + 1)):
-            s_ = (ag == g) & (band == b) & ~val
-            o_ = np.argsort(dg[s_], kind='stable'); groep[(g, b)] = (dg[s_][o_], u[s_][o_])
-    def referentie(g, b, d0):
-        dd, uu = groep[(g, b)]
+    groep = {}                                       # per (afstand of samengevoegde afstanden, band): dagen en u (gesorteerd op dag)
+    ags = GAS_GROEP[m['afstand_idx'].to_numpy()]
+    def _maak(sleutel, s_):
+        o_ = np.argsort(dg[s_], kind='stable'); groep[sleutel] = (dg[s_][o_], u[s_][o_])
+    for b in range(nb * (len(erv_grenzen) + 1)):
+        for g in np.unique(ag):
+            _maak((g, b), (ag == g) & (band == b) & ~val)
+        for g in np.unique(ags):
+            _maak(('groep', g, b), (ags == g) & (band == b) & ~val)
+        _maak(('alle', b), (band == b) & ~val)
+    def referentie(sleutel, d0):
+        dd, uu = groep[sleutel]
         e_ = np.searchsorted(dd, d0)
         w = venster
         while w <= venster * max_factor:
@@ -2294,13 +2299,18 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
                 doel = (mnd == M) & (ag == g) & (band == b) & np.isfinite(u)
                 if not doel.any():
                     continue
-                e0 = (b // nb) * nb; ref = None; bb = b
-                while ref is None and bb >= e0:           # te klein: lagere niveauband binnen dezelfde ervaringsband
-                    ref = referentie(g, bb, d0); bb -= 1
-                if ref is None:                      # begin van de data: eerste ritten van deze groep (of een lagere band)
-                    for bb in range(b, e0 - 1, -1):
-                        if len(groep[(g, bb)][1]) >= 200:
-                            ref = groep[(g, bb)][1][:max(min_n, 200)]; break
+                e0 = (b // nb) * nb; ref = None
+                # te klein: eerst afstanden samenvoegen binnen hetzelfde niveau en dezelfde ervaring (de staart in z hangt sterk aan het
+                # niveau: bij toppers is een uitglijder een veel grotere z), pas daarna een lagere niveauband
+                volgorde = [k_ for bb in range(b, e0 - 1, -1) for k_ in ((g, bb), ('groep', GAS_GROEP[g] if per_afstand else g, bb), ('alle', bb))]
+                for k_ in volgorde:
+                    ref = referentie(k_, d0)
+                    if ref is not None:
+                        break
+                if ref is None:                      # begin van de data: eerste ritten van de eerste groep die er genoeg heeft
+                    for k_ in volgorde:
+                        if len(groep[k_][1]) >= 200:
+                            ref = groep[k_][1][:max(min_n, 200)]; break
                 if ref is None or len(ref) < 200:
                     continue
                 ref = np.sort(ref)

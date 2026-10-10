@@ -2248,7 +2248,7 @@ def normaal_z_dag(model, vanaf_jaar=0):
     return z[m['jaar'] >= vanaf_jaar]
 
 
-def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(10, 50), q_traag=None, xi_max=0.9, veld_grenzen=(), xi_samen=True):
+def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8, erv_grenzen=(3, 10, 50), q_traag=None, xi_max=0.9, veld_grenzen=(), xi_samen=True):
     """Geijkte normaal-equivalente dag-z voor de kans per rit op de pagina (de vormlaag gebruikt normaal_z_dag).
     Per kalendermaand en groep (afstand x niveau vooraf (niv_grenzen) x ervaring op de afstand (n_prior, erv_grenzen) x veldgrootte van de race
     (veld_grenzen; in kleine velden is het dag-effect onzeker: minder snelle, veel meer trage uitschieters)) wordt de verdeling van u = fout / sd (t.o.v. het veld)

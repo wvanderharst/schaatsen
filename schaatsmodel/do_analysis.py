@@ -2248,12 +2248,13 @@ def normaal_z_dag(model, vanaf_jaar=0):
     return z[m['jaar'] >= vanaf_jaar]
 
 
-def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True):
+def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_n=3000, per_afstand=True, max_factor=8):
     """Geijkte normaal-equivalente dag-z voor de kans per rit op de pagina (de vormlaag gebruikt normaal_z_dag).
     Per kalendermaand en groep (afstand x niveau vooraf, banden niv_grenzen) wordt de verdeling van u = fout / sd (t.o.v. het veld)
-    geschat op de `venster` dagen vóór die maand (alleen eerdere data, valpartijen niet): empirisch tussen het q- en (1-q)-kwantiel,
-    daarbuiten aan elke kant een gegeneraliseerde Pareto-staart (xi >= 0). Te kleine groepen erven de lagere niveauband;
-    de eerste maanden (te weinig historie) gebruiken het eerste venster dat er wel is."""
+    geschat op de ritten vóór die maand (alleen eerdere data, valpartijen niet): het venster begint bij `venster` dagen en verdubbelt
+    (tot max_factor x) tot er min_n ritten in de groep zitten, zodat ook de elite per afstand een eigen staart houdt.
+    Empirisch tussen het q- en (1-q)-kwantiel, daarbuiten aan elke kant een gegeneraliseerde Pareto-staart (xi >= 0).
+    Is er ook dan te weinig, dan de lagere niveauband; aan het begin van de data het eerste volle venster."""
     from scipy.stats import genpareto as _gp
     from scipy.special import ndtri
     p = model.params
@@ -2269,32 +2270,39 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
         if xi < 0:
             xi, sg = 0.0, float(np.mean(y))
         return float(min(xi, 0.9)), float(sg)
+    groep = {}                                       # per (afstand, band): dagen en u (gesorteerd op dag) van de bruikbare ritten
+    for g in np.unique(ag):
+        for b in range(len(niv_grenzen) + 1):
+            s_ = (ag == g) & (band == b) & ~val
+            o_ = np.argsort(dg[s_], kind='stable'); groep[(g, b)] = (dg[s_][o_], u[s_][o_])
+    def referentie(g, b, d0):
+        dd, uu = groep[(g, b)]
+        e_ = np.searchsorted(dd, d0)
+        w = venster
+        while w <= venster * max_factor:
+            a_ = np.searchsorted(dd, d0 - w)
+            if e_ - a_ >= min_n:
+                return uu[a_:e_]
+            w *= 2
+        return None
     pit = np.full(len(u), np.nan)
-    o = np.argsort(dg, kind='stable'); dg_s = dg[o]
-    eerste_ok = None
     for M in np.unique(mnd):
         d0 = int((pd.Timestamp(year=int(M // 12), month=int(M % 12) + 1, day=1) - pd.Timestamp('1970-01-01')).days)
-        a_, b_ = np.searchsorted(dg_s, d0 - venster), np.searchsorted(dg_s, d0)
-        idx = o[a_:b_]; idx = idx[~val[idx]]
-        if len(idx) < min_n:
-            if eerste_ok is None:                    # begin van de data: neem het eerste volle venster
-                d1 = int(dg_s[0]) + venster
-                idx = o[:np.searchsorted(dg_s, d1)]; idx = idx[~val[idx]]
-            else:
-                idx = eerste_ok
-        else:
-            eerste_ok = idx if eerste_ok is None else eerste_ok
         for g in np.unique(ag[mnd == M]):
             for b in range(len(niv_grenzen), -1, -1):
                 doel = (mnd == M) & (ag == g) & (band == b) & np.isfinite(u)
                 if not doel.any():
                     continue
-                bb = b
-                while bb > 0 and ((ag[idx] == g) & (band[idx] == bb)).sum() < min_n:
-                    bb -= 1
-                ref = np.sort(u[idx[(ag[idx] == g) & (band[idx] == bb)]])
-                if len(ref) < 200:
+                ref = None; bb = b
+                while ref is None and bb >= 0:
+                    ref = referentie(g, bb, d0); bb -= 1
+                if ref is None:                      # begin van de data: eerste min_n ritten van deze groep (of band 0)
+                    for bb in range(b, -1, -1):
+                        if len(groep[(g, bb)][1]) >= 200:
+                            ref = groep[(g, bb)][1][:max(min_n, 200)]; break
+                if ref is None or len(ref) < 200:
                     continue
+                ref = np.sort(ref)
                 lo, hi = np.quantile(ref, q), np.quantile(ref, 1 - q)
                 xl, sl = staart(lo - ref[ref < lo]); xh, sh = staart(ref[ref > hi] - hi)
                 x = u[doel]
@@ -2303,6 +2311,33 @@ def normaal_z_dag_kal(model, venster=730, q=0.02, niv_grenzen=(90.0, 97.0), min_
                 pp = np.where(x > hi, 1 - q * _gp.sf(x - hi, xh, 0.0, sh), pp)
                 pit[doel] = np.clip(pp, 1e-12, 1 - 1e-12)
     return pd.Series(ndtri(pit), index=m.index)
+
+
+KANS_GEBIEDEN = np.array([0.0, 0.02, 0.07, 0.93, 0.98, 1.0])     # snel extreem | piek | gewoon | slecht | traag extreem
+
+
+def z_rijder(model, z, m_krimp=100.0):
+    """Kans per rit met de eigen gebiedskansen van de rijder: de geijkte kans p = Phi(z) valt in een van de vijf gebieden (KANS_GEBIEDEN);
+    per rijder telt het hoeveel eerdere ritten (alle afstanden, alleen eerdere dagen, valpartijen niet) in elk gebied vielen, gekrompen
+    naar de populatiekans met m_krimp ritten, en p wordt binnen zijn gebied lineair herschaald naar die eigen kansen.
+    Een rijder die vaak extreem traag (of snel) rijdt, krijgt zo minder extreme kansen aan die kant. Geeft z per obs-rij en de tellingen."""
+    from scipy.stats import norm
+    from scipy.special import ndtri
+    o = model.obs.loc[z.index]
+    ok = ((~o['verdacht']) & ~(o['z'] > model.params.dip_val_z) & np.isfinite(z)).to_numpy()
+    p = norm.cdf(z.to_numpy()); G = KANS_GEBIEDEN; P0 = np.diff(G)
+    reg = np.clip(np.searchsorted(G, p, side='right') - 1, 0, 4)
+    d = pd.DataFrame({'sk': o['skater_id'].to_numpy(), 'dag': o['dag'].to_numpy(), 'reg': reg, 'ok': ok}, index=o.index).sort_values(['sk', 'dag'], kind='stable')
+    C = np.zeros((len(d), 5))
+    for k in range(5):
+        x = ((d['reg'] == k) & d['ok']).astype(float)
+        C[:, k] = (x.groupby(d['sk']).cumsum() - x - (x.groupby([d['sk'], d['dag']]).cumsum() - x)).to_numpy()     # eerdere dagen
+    C = pd.DataFrame(C, index=d.index).reindex(o.index).to_numpy()
+    W = (C + m_krimp * P0) / (C.sum(1, keepdims=True) + m_krimp)
+    cw = np.c_[np.zeros(len(W)), np.cumsum(W, 1)]
+    i = reg; r = np.arange(len(p))
+    pr = cw[r, i] + (p - G[i]) / P0[i] * W[r, i]
+    return pd.Series(ndtri(np.clip(pr, 1e-12, 1 - 1e-12)), index=o.index), C
 
 
 def _ou_vooruit(p, f, v, d0, dag):

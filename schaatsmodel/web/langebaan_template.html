@@ -293,7 +293,7 @@ function toonRijder(id, afst) {
     <p class="klein">Verwachting voor ${datum(D.meta.vandaag)} op een gemiddelde dag in Heerenveen. De 80%-band is het bereik waarbinnen 8 van de 10 races vallen (zonder valpartijen).</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       <div class="balk" style="justify-content:space-between"><h3>Vorm, laatste 3 jaar</h3><div class="seg" id="rd-a"></div></div>
-      <div class="legend"><span><i style="width:18px;height:2px;background:var(--koud)"></i>verwachting (Heerenveen), incl. tijdelijke vorm</span><span><i style="width:18px;height:0;border-top:2px dashed var(--inkt)"></i>vaste rating (toestand + seizoenspauze)</span><span><i style="width:14px;height:10px;background:var(--koud);opacity:.25"></i>tijdelijke vorm: dooft in weken tot maanden uit</span><span><i style="width:9px;height:9px;border-radius:50%;background:var(--band)"></i>gereden, omgerekend naar Heerenveen</span><span><i style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid var(--band)"></i>valpartij of uitschieter (buiten de schaal)</span><span>sneller is hoger</span></div>
+      <div class="legend"><span><i style="width:18px;height:2px;background:var(--koud)"></i>verwachting (Heerenveen), incl. tijdelijke vorm</span><span><i style="width:18px;height:0;border-top:2px dashed var(--inkt)"></i>vaste rating (toestand + seizoenspauze)</span><span><i style="width:14px;height:10px;background:var(--koud);opacity:.25"></i>tijdelijke vorm: dooft in weken tot maanden uit</span><span><i style="width:14px;height:10px;background:var(--koud);opacity:.1;outline:1px dotted var(--koud)"></i>80%-band: 8 van de 10 races vallen hierbinnen</span><span><i style="width:9px;height:9px;border-radius:50%;background:var(--band)"></i>gereden, omgerekend naar Heerenveen</span><span><i style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid var(--band)"></i>valpartij of uitschieter (buiten de schaal)</span><span>sneller is hoger</span></div>
       <div id="rd-grafiek"></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px"><h3>Laatste races</h3>
@@ -311,7 +311,7 @@ function tekenVorm(r, a) {
   // valpartijen en uitschieters (z > 6, of meer dan 5% van de verwachting) bepalen de schaal niet; ze komen als driehoek op de rand
   for (const p of pts) p.uit = p.tv == null || (p.z != null && p.z > 6) || (p.verw != null && Math.abs(p.tv / p.verw - 1) > 0.05);
   const tr = (r.tr && r.tr[a]) || [];
-  const ys = pts.flatMap(p => p.uit ? [p.verw] : [p.tv, p.verw]).concat(tr.flatMap(q => [q[1], q[2]])).filter(v => v != null && isFinite(v));
+  const ys = pts.flatMap(p => p.uit ? [p.verw] : [p.tv, p.verw]).concat(tr.flatMap(q => q.length > 4 ? [q[1], q[2], q[1] + q[3] / 100, q[1] + q[4] / 100] : [q[1], q[2]])).filter(v => v != null && isFinite(v));
   let lo = Math.min(...ys), hi = Math.max(...ys); const pad = (hi - lo) * .08 || 0.3; lo -= pad; hi += pad;
   const d0 = Math.min(...pts.map(p => p.d)) - 10, d1 = Math.max(D.meta.vandaag, ...pts.map(p => p.d)) + 10;
   const X = d => L + (d - d0) / (d1 - d0) * (W - L - Rr), Y = v => T + (v - lo) / (hi - lo) * (H - T - B);   // snel (laag) boven
@@ -325,6 +325,11 @@ function tekenVorm(r, a) {
   const lijn = trz.length ? pad_(q => q[1]) : pts.filter(p => p.verw != null).map((p, i) => (i ? 'L' : 'M') + X(p.d).toFixed(1) + ' ' + Y(p.verw).toFixed(1)).join(' ');
   const basis = trz.length ? pad_(q => q[2]) : '';
   const vlak = trz.length ? pad_(q => q[1]) + ' ' + trz.slice().reverse().map(q => 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[2]).toFixed(1)).join(' ') + ' Z' : '';
+  const bz = trz.filter(q => q.length > 4);         // 80%-band: q[3], q[4] = 10%- en 90%-tijd min de verwachting, in honderdsten
+  const bandEl = bz.length > 1 ? (() => { const sn = bz.map((q, i) => (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1] + q[3] / 100).toFixed(1)).join(' '),
+      tr_ = bz.map((q, i) => (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1] + q[4] / 100).toFixed(1)).join(' '),
+      vl = sn + ' ' + bz.slice().reverse().map(q => 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[1] + q[4] / 100).toFixed(1)).join(' ') + ' Z';
+    return `<path d="${vl}" fill="var(--koud)" opacity="0.08"/><path d="${sn}" fill="none" stroke="var(--koud)" stroke-width="1" stroke-dasharray="1 3" opacity="0.7"/><path d="${tr_}" fill="none" stroke="var(--koud)" stroke-width="1" stroke-dasharray="1 3" opacity="0.7"/>`; })() : '';
   const laatste = trz.length ? {d: trz[trz.length - 1][0], verw: trz[trz.length - 1][1], basis: trz[trz.length - 1][2]} : pts.filter(p => p.verw != null).slice(-1)[0];
   const randY = p => (p.tv > (p.verw ?? p.tv) ? H - B - 7 : T + 7);
   let stippen = pts.map((p, i) => p.tv == null ? '' : p.uit ? (() => { const x = X(p.d).toFixed(1), y = randY(p), up = p.tv < (p.verw ?? 0);
@@ -335,10 +340,10 @@ function tekenVorm(r, a) {
   const vlakEl = vlak ? `<path d="${vlak}" fill="var(--koud)" opacity="0.14"/>` : '';
   const basisEl = basis ? `<path d="${basis}" fill="none" stroke="var(--inkt)" stroke-width="1.6" stroke-dasharray="5 3" stroke-linejoin="round"/>` : '';
   const nu = `<line class="raster" x1="${X(D.meta.vandaag)}" x2="${X(D.meta.vandaag)}" y1="${T}" y2="${H - B}"/>`;
-  el.innerHTML = `<svg class="grafiek" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verwachte en gereden tijden ${a}">${g}${nu}${vlakEl}${basisEl}<path d="${lijn}" fill="none" stroke="var(--koud)" stroke-width="2" stroke-linejoin="round"/>${eind}${stippen}</svg>`;
+  el.innerHTML = `<svg class="grafiek" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verwachte en gereden tijden ${a}">${g}${nu}${bandEl}${vlakEl}${basisEl}<path d="${lijn}" fill="none" stroke="var(--koud)" stroke-width="2" stroke-linejoin="round"/>${eind}${stippen}</svg>`;
   el.querySelector('svg').onmousemove = e => { const c = e.target.closest('circle[data-i]'); if (!c) return verbergTip(); const p = pts[+c.dataset.i];
     const q = trz.find(q => q[0] === p.d);
-    toonTip(e, `<b>${datum(p.d)}</b> · ${esc(p.baan)}<br>Gereden ${tijd(p.t)} (Heerenveen ${tijd(p.tv)})<br>Verwacht ${tijd(p.verw)}${q ? ' · vaste rating ' + tijd(q[2]) : ''}${p.z != null ? ' · z ' + p.z.toFixed(2).replace('.', ',') : ''}${p.uit ? '<br><i>Buiten de schaal: ' + ((p.z != null && p.z > 6) ? 'valpartij, telt niet mee in het model' : 'uitschieter') + '</i>' : ''}`); };
+    toonTip(e, `<b>${datum(p.d)}</b> · ${esc(p.baan)}<br>Gereden ${tijd(p.t)} (Heerenveen ${tijd(p.tv)})<br>Verwacht ${tijd(p.verw)}${q ? ' · vaste rating ' + tijd(q[2]) : ''}${q && q.length > 4 ? '<br>80%-band ' + tijd(q[1] + q[3] / 100) + '–' + tijd(q[1] + q[4] / 100) : ''}${p.z != null ? ' · z ' + p.z.toFixed(2).replace('.', ',') : ''}${p.uit ? '<br><i>Buiten de schaal: ' + ((p.z != null && p.z > 6) ? 'valpartij, telt niet mee in het model' : 'uitschieter') + '</i>' : ''}`); };
   el.querySelector('svg').onmouseleave = verbergTip;
 }
 

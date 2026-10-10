@@ -27,6 +27,16 @@ for a in AF:
         sel|=set(top.s); rang[(g,a)]=list(top.s)
     print(a,len(df),'kandidaten',round(time.time()-t0),flush=True)
 print('geselecteerd',len(sel),flush=True)
+pool=da.empirische_z(m)
+zq={a:[round(float(x),4) for x in np.quantile(pool[a],np.linspace(0,1,401))] for a in AF}
+PLO={a_:float(m.piek_drempel[da.PIEK_GIDX[a_]][0]) for a_ in AF} if getattr(m,'piek_drempel',None) else {}
+def zk(a,p):          # zelfde interpolatie als zKwantiel in de pagina
+    q=zq[a]; x=p*(len(q)-1); i=min(int(x),len(q)-2); f=x-i; return q[i]+f*(q[i+1]-q[i])
+def t_bij(v,a,p,anker):   # zelfde formule als tijdBij in de pagina (eigen piekdiepte en snelle schaal)
+    z=zk(a,p); lo=PLO.get(a)
+    if lo is not None and z<lo: z=lo+(z-lo)*v.get('piek_diepte',1.0)
+    if z<0: z*=v.get('snel_fac',1.0)
+    return (v['t_lim']+math.exp(v['mu_log']+v['sigma_log']*z))*math.exp(anker)
 rijders=[]
 for s in sorted(sel):
     st=m.staten[s]; o=O[(O.skater_id==s)&(~O.verdacht)]
@@ -63,7 +73,9 @@ for s in sorted(sel):
             if d<d_start: continue
             try: v=h.voorspel(s,a,int(d))
             except KeyError: continue
-            pts.append([int(d),round(v['normale_tijd'],2),round(v['normale_basis'],2)])
+            nt=round(v['normale_tijd'],2); ak=m.baan_effect(da.STANDAARD_BAAN,int(d))[0]
+            # 80%-band (10% en 90%) als afwijking van de verwachting in honderdsten
+            pts.append([int(d),nt,round(v['normale_basis'],2),int(round(100*(t_bij(v,a,.1,ak)-nt))),int(round(100*(t_bij(v,a,.9,ak)-nt)))])
         tr[a]=pts
     kans=da.piek_kansen(m,s)
     rijders.append(dict(id=int(s),naam=st.naam,land=st.land,g=st.gender,groep=st.groep,pr=pr,res=res,tr=tr,pk=round(float(kans[0]),4),sl=round(float(kans[2]),4)))
@@ -76,8 +88,6 @@ for b,n in recent.sort_values(ascending=False).items():
     mu,sd,ne=m.baan_effect(b,VANDAAG)
     banen.append(dict(naam=b,mu=round(mu,5),sd=round(sd,5),n=int(n),pct=round(100*(math.exp(mu-m.anker_std)-1),2)))
 pk_mu,pk_sd=m.piekdag_statistiek()
-pool=da.empirische_z(m)
-zq={a:[round(float(x),4) for x in np.quantile(pool[a],np.linspace(0,1,401))] for a in AF}
 meta=dict(piek_lo={a_:round(float(m.piek_drempel[da.PIEK_GIDX[a_]][0]),4) for a_ in AF} if getattr(m,'piek_drempel',None) else {},vol_bf=float(m.params.vol_asym_bf),piek_q=list(m.params.piek_q),vandaag=VANDAAG,data_tot=MAXD,anker=round(m.anker_std,6),piek_mu=round(pk_mu,5),piek_sd=round(pk_sd,5),
           loc_schaal_jaren=list(m.loc_schaal_tab['jaren']),afstanden=AF,
           ranglijst={f'{g}|{a}':v for (g,a),v in rang.items()})

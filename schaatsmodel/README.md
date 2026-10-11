@@ -6,7 +6,8 @@
 2. `pip install numpy pandas scipy numba pyarrow pytest requests beautifulsoup4`
 3. Model bouwen (≈1 uur, ~6 GB): `./bouw_model.sh` → `model_full_tuned.pkl` (+ `.extra`), `normaal_z*.pkl`, `hist_nieuw.npz`; als laatste stap `eval_ll.py` → `ch_eval.log` (eerlijke log loss vooraf en dag, totaal/toppers/elite).
    De gebouwde modelbestanden zitten **niet** in deze zip (≈2 GB); ze zijn met dit script opnieuw te maken.
-4. Webpagina: `python export_web.py` → `web_model.json`; daarna `python bouw_pagina.py`. `web/langebaan.html` is de laatst gepubliceerde versie.
+4. Webpagina: `python export_web.py` → `web_model.json`; dan voor de elite de kans per rit en volatiliteit uit de nieuwe methode
+   (`python ../elite/web_kans.py ritten_theta.parquet` → `python web_elite_kans.py elite_kans.parquet elite_spreiding.parquet`); daarna `python bouw_pagina.py`. `web/langebaan.html` is de laatst gepubliceerde versie.
    Let op: `VANDAAG` staat vast in `export_web.py` (nu 2026-10-10).
 5. Tests: `pytest test_model.py -q` (klein, op `speedskating_test.csv`: dezelfde rijders als voorheen, nu uit de racedatum-CSV); `--volledig` voor de volledige database (alleen op verzoek).
 

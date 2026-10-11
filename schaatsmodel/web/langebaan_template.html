@@ -229,12 +229,13 @@ function zEigen(pr, z, a) {                                        // piekzone: 
   return z < 0 ? z * (pr.sf ?? 1) : z;
 }
 function tijdBij(pr, a, p, theta) { return (pr.tl + Math.exp(pr.mu + pr.sd * zEigen(pr, zKwantiel(a, p), a))) * Math.exp(theta); }
-function volChip(p) {
+function volChip(p, nm) {
   if (p.vol == null) return '';
   const v = p.vol, cls = v >= 1.25 ? 'slecht' : v <= 0.8 ? 'goed' : 'neutraal', w = v >= 1.25 ? 'wisselvallig' : v <= 0.8 ? 'constant' : 'gemiddeld';
   const diep = (p.dp ?? 1) >= 1.25 ? ` <span class="chip goed" title="piekdiepte: als deze rijder piekt, gaat de piek ${p.dp.toFixed(2).replace('.', ',')}x zo diep als bij een gemiddelde rijder (geschat uit eerdere pieken, 4 jaar geheugen)">diepe pieken ×${p.dp.toFixed(1).replace('.', ',')}</span>` : '';
   const vorm = (p.vf ?? 1) >= 1.1 ? ` <span class="chip goed" title="recente snelle uitschieter(s): de snelle kant is ×${p.vf.toFixed(2).replace('.', ',')} breder">snelle kant ×${p.vf.toFixed(1).replace('.', ',')}</span>` : '';
-  return `<span class="chip ${cls}" title="spreiding t.o.v. rijders van hetzelfde niveau op deze afstand; snelle kant ×${p.sf.toFixed(2).replace('.', ',')}">${v.toFixed(2).replace('.', ',')}× ${w}</span>` + vorm + diep;
+  const titel = nm ? 'eigen spreiding van deze rijder over alle afstanden samen (pieken zijn gecorreleerd), t.o.v. de typische spreiding van de elite op elke afstand' : `spreiding t.o.v. rijders van hetzelfde niveau op deze afstand; snelle kant ×${p.sf.toFixed(2).replace('.', ',')}`;
+  return `<span class="chip ${cls}" title="${titel}">${v.toFixed(2).replace('.', ',')}× ${w}</span>` + vorm + diep;
 }
 
 /* ---------- algemeen ---------- */
@@ -267,7 +268,7 @@ function tekenRanglijst() {
   const a = RL.a;
   $('#rl-tabel').innerHTML = `<thead><tr><th class="num">#</th><th>Rijder</th><th>Categorie</th><th class="num">Normaal</th><th class="num">Piek</th><th class="num">Piek SLC</th><th class="num">80%-band</th><th class="num">PR</th><th class="num">SB</th><th>Piekkans</th><th>Volatiliteit</th><th class="num">Races</th></tr></thead><tbody>` +
     rows.map(({r, i}) => { const p = r.pr[a]; const th = D.meta.anker;
-      return `<tr class="rij" tabindex="0" data-id="${r.id}"><td class="num">${i}</td><td class="naam">${esc(r.naam)}<span class="land">${esc(r.land || '')}</span></td><td>${GROEP[r.groep] || r.groep}</td><td class="num"><b>${tijd(p.norm)}</b></td><td class="num piek">${tijd(p.piek)}</td><td class="num piek">${tijd(piekSLC(p))}</td><td class="num">${tijd(tijdBij(p, a, .1, th))}–${tijd(tijdBij(p, a, .9, th))}</td><td class="num">${tijd(p.pb)}</td><td class="num">${tijd(p.sb)}</td><td>${kansChip(r)}</td><td>${volChip(p)}</td><td class="num">${p.n}</td></tr>`; }).join('') + '</tbody>';
+      return `<tr class="rij" tabindex="0" data-id="${r.id}"><td class="num">${i}</td><td class="naam">${esc(r.naam)}<span class="land">${esc(r.land || '')}</span></td><td>${GROEP[r.groep] || r.groep}</td><td class="num"><b>${tijd(p.norm)}</b></td><td class="num piek">${tijd(p.piek)}</td><td class="num piek">${tijd(piekSLC(p))}</td><td class="num">${tijd(tijdBij(p, a, .1, th))}–${tijd(tijdBij(p, a, .9, th))}</td><td class="num">${tijd(p.pb)}</td><td class="num">${tijd(p.sb)}</td><td>${kansChip(r)}</td><td>${volChip(p, r.nm)}</td><td class="num">${p.n}</td></tr>`; }).join('') + '</tbody>';
 }
 $('#rl-tabel').onclick = e => { const tr = e.target.closest('tr.rij'); if (tr) { toonRijder(+tr.dataset.id); toonTab('rijder'); } };
 $('#rl-tabel').onkeydown = e => { if (e.key === 'Enter') { const tr = e.target.closest('tr.rij'); if (tr) { toonRijder(+tr.dataset.id); toonTab('rijder'); } } };
@@ -296,13 +297,13 @@ function toonRijder(id, afst) {
   const th = D.meta.anker;
   const rijen = AF.filter(a => r.pr[a]).map(a => { const p = r.pr[a];
     const zwak = p.n < 3 ? ' <span class="chip neutraal" title="minder dan 3 races: verwachting leunt op andere afstanden">weinig races</span>' : '';
-    return `<tr><td>${a.replace('m', ' m')}${zwak}</td><td class="num"><b>${tijd(p.norm)}</b></td><td class="num piek">${tijd(p.piek)}</td><td class="num piek">${tijd(piekSLC(p))}</td><td class="num">${tijd(tijdBij(p, a, .1, th))}–${tijd(tijdBij(p, a, .9, th))}</td><td class="num">${tijd(p.pb)}</td><td class="num">${tijd(p.sb)}</td><td>${volChip(p)}</td><td class="num">${p.n}</td></tr>`; }).join('');
+    return `<tr><td>${a.replace('m', ' m')}${zwak}</td><td class="num"><b>${tijd(p.norm)}</b></td><td class="num piek">${tijd(p.piek)}</td><td class="num piek">${tijd(piekSLC(p))}</td><td class="num">${tijd(tijdBij(p, a, .1, th))}–${tijd(tijdBij(p, a, .9, th))}</td><td class="num">${tijd(p.pb)}</td><td class="num">${tijd(p.sb)}</td><td>${volChip(p, r.nm)}</td><td class="num">${p.n}</td></tr>`; }).join('');
   const recent = r.res.slice(-14).reverse().map(x => { const [d, baan, a, t, z, verw] = x;
     const k = z == null ? null : kansRace(z), tl = k ? ` title="kans op een tijd ${k.tekst}: ${kansTekst(k.p)}"` : '';
     const chip = z == null ? '' : z > 6 ? `<span class="chip slecht">valpartij</span>` : z <= -1.5 ? `<span class="chip goed"${tl}>piek · ${kansTekst(k.p)}</span>` : z >= 2 ? `<span class="chip slecht"${tl}>traag · ${kansTekst(k.p)}</span>` : `<span class="klein"${tl}>${k.kant} · ${kansTekst(k.p)}</span>`;
     return `<tr><td>${datum(d)}</td><td>${esc(baan.replace(/ \(.*\)$/, ''))}</td><td>${a.replace('m', ' m')}</td><td class="num"><b>${tijd(t)}</b></td><td class="num">${tijd(verw)}</td><td>${chip}</td></tr>`; }).join('');
   $('#rd-inhoud').innerHTML = `
-    <div class="profielkop"><div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow">${GLAB[r.g]} · ${GROEP[r.groep] || r.groep} · ${esc(r.land || '')}</span><h2>${esc(r.naam)}</h2></div>
+    <div class="profielkop"><div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow">${GLAB[r.g]} · ${GROEP[r.groep] || r.groep} · ${esc(r.land || '')}</span><h2>${esc(r.naam)}</h2>${r.nm ? '<span class="chip goed" style="align-self:flex-start" title="hoort bij de 200 beste vrouwen of 200 beste mannen sinds 2011: kans per rit en volatiliteit uit de elite-methode">elite-methode</span>' : ''}</div>
       <div class="tags"><button class="knop licht" type="button" id="rd-naarrace">In race-simulator</button></div></div>
     <div class="kerncijfers"><div><span class="eyebrow">Piekkans per race</span><b>${pct(100 * (r.pk ?? Q0), 1)}</b><span class="klein">gemiddeld ${pct(100 * Q0, 0)}</span></div><div><span class="eyebrow">Kans op slechte dag</span><b>${pct(100 * (r.sl ?? 1 - Q1), 1)}</b><span class="klein">gemiddeld ${pct(100 * (1 - Q1), 0)}</span></div></div>
     <div class="tabelbak"><table><thead><tr><th>Afstand</th><th class="num">Normaal</th><th class="num">Piek</th><th class="num">Piek SLC</th><th class="num">80%-band</th><th class="num">PR</th><th class="num">SB</th><th title="spreiding t.o.v. rijders van hetzelfde niveau">Volatiliteit</th><th class="num">Races</th></tr></thead><tbody>${rijen}</tbody></table></div>
@@ -314,7 +315,7 @@ function toonRijder(id, afst) {
     </div>
     <div style="display:flex;flex-direction:column;gap:8px"><h3>Laatste races</h3>
       <div class="tabelbak"><table><thead><tr><th>Datum</th><th>Baan</th><th>Afstand</th><th class="num">Tijd</th><th class="num">Verwacht (Hv)</th><th>Kans op deze tijd</th></tr></thead><tbody>${recent || '<tr><td colspan="6" class="klein">Geen races in de laatste 3 jaar.</td></tr>'}</tbody></table></div>
-      <p class="klein">De kans dat deze rijder op die dag een tijd rijdt die minstens zo snel is (bij een snelle rit) of minstens zo traag (bij een trage rit), ten opzichte van het veld op die dag (het geschatte ijs eruit) en met de eigen scheve verdeling van de rijder. Bij een gewone rit ligt dat tussen 15% en 50%; ‘piek’ is 1 op 15 of zeldzamer, ‘traag’ 1 op 44 of zeldzamer. Valpartijen tellen niet mee.</p></div>`;
+      <p class="klein">${r.nm ? 'Elite-methode (200 beste vrouwen en 200 beste mannen sinds 2011): de kans komt uit het eigen niveau op de afstand (robuust lopend gemiddelde, snelle ritten wegen zwaarder), de vorm over alle afstanden, het racepeil van die dag en de eigen spreiding van de rijder over alle afstanden samen; geijkt op eerdere seizoenen van de elite en getoetst: 1 op 100 en 1 op 1000 komen even vaak voor als ze zouden moeten, bij toppers net zo als bij de rest. ' : ''}De kans dat deze rijder op die dag een tijd rijdt die minstens zo snel is (bij een snelle rit) of minstens zo traag (bij een trage rit), ten opzichte van het veld op die dag (het geschatte ijs eruit) en met de eigen scheve verdeling van de rijder. Bij een gewone rit ligt dat tussen 15% en 50%; ‘piek’ is 1 op 15 of zeldzamer, ‘traag’ 1 op 44 of zeldzamer. Valpartijen tellen niet mee.</p></div>`;
   seg($('#rd-a'), (gereden.length ? gereden : [afst]).map(a => [a, a.replace('m', ' m')]), afst, k => { rdAfstand = k; tekenVorm(r, k); });
   $('#rd-naarrace').onclick = () => { RC.g = r.g; RC.a = rdAfstand && r.pr[rdAfstand] ? rdAfstand : Object.keys(r.pr)[0]; RC.sel = new Set(standaardVeld(RC.g, RC.a)); RC.sel.add(r.id); RC.extra.add(r.id); initRace(); simuleer(); toonTab('race'); };
   tekenVorm(r, afst);

@@ -5,7 +5,8 @@ Alles chronologisch, alleen informatie van vóór de race:
                   minstens MIN_N eerdere ritten op die afstand (leave-one-out): het ijs en de omstandigheden van die dag.
   2. niveau     : per rijder x afstand een robuust lopend gemiddelde van ln tijd - racepeil (Huber op HUB x eigen spreiding);
                   snelle ritten wegen zwaarder (SNEL_W); valpartijen (fout > VAL_SD x spreiding en > VAL_MIN trager) tellen niet.
-  3. spreiding  : per rijder x afstand een lopend gemiddelde van de gekwadrateerde fout, gekrompen naar S0 met M0 pseudo-ritten.
+  3. spreiding  : per rijder over ALLE afstanden samen (pieken zijn gecorreleerd) een lopend gemiddelde van (fout / CD[afstand])^2,
+                  gekrompen naar 1 met M0R pseudo-ritten; spreiding = CD[afstand] x wortel daarvan (draai_ext; lam_af=1 = oud, per afstand).
   4. kans       : u = fout / spreiding wordt geijkt op de elite-ritten van EERDERE seizoenen, per groep (ervaring x tijd sinds de vorige
                   rit): schaal per groep, dan de gepoolde empirische verdeling met GPD-staarten voorbij 2% en 98%.
 Gebruik: python elite_model.py ritten.parquet  (schrijft elite_uitkomst.parquet en print de toets)."""
@@ -25,6 +26,9 @@ GAMMA = 0.0        # vorm per rijder (alle afstanden samen): f += GAMMA * fout n
 HF = 60.0          # vervaltijd van de vorm (dagen)
 TAU = 0.015        # sd van het dag-effect rond het baaneffect (ln-tijd): het racepeil wordt naar het baaneffect getrokken (anker)
 ETA = 0.05         # leergewicht van het baaneffect
+LAM_AF = 0.0       # aandeel van de spreiding dat per afstand blijft (0: spreiding per rijder over alle afstanden heen)
+M0R = 25.0         # krimp van de rijder-spreiding naar 1 x CD (pseudo-ritten); getoetst in pool.py
+CD = (0.012, 0.012, 0.011, 0.0134, 0.015, 0.0161, 0.0154, 0.016)    # typische spreiding van de elite per afstand (100 m .. 10 km)
 VFLOOR = 0.01      # ondergrens van de onzekerheid van het veldpeil (gezamenlijke verschuiving van de niveaus van een groep rijders)
 
 
@@ -136,12 +140,13 @@ def _pass(rk, st, ltijd, dag, rid, baan, nb, tau, eta, vfloor, nst, nr, min_n, a
 
 @njit(cache=True)
 def _pass_ext(st, ltijd, dag, rid, par, spar, rk, nst, nr, alpha, snel_w, hub, beta, s0, m0, val_sd, val_min, gamma, hf, tweezijdig,
-              dth, hoog, ref, ijs,
+              dth, hoog, ref, ijs, cd, lam_af, m0r,
               o_mu, o_s, o_n, o_gap, o_e, o_val, o_f, o_sf, o_ss, o_g, o_pe):
     """Zoals _pass, maar met een extern racepeil (bijv. het dag-effect theta van do_analysis): geen schaalverschuiving tussen groepen."""
     mu = np.zeros(nst); s2 = np.full(nst, s0 * s0); n = np.zeros(nst)
     s2f = np.full(nst, s0 * s0); s2s = np.full(nst, s0 * s0); nf = np.zeros(nst); ns = np.zeros(nst)    # spreiding per kant
     last = np.full(nr, -100000); f = np.zeros(nr); fdag = np.zeros(nr)
+    r2 = np.ones(nr); nr2 = np.zeros(nr)         # spreiding per rijder over alle afstanden: (fout / afstandsschaal cd)^2
     N = len(st); i = 0
     while i < N:
         j = i
@@ -156,7 +161,14 @@ def _pass_ext(st, ltijd, dag, rid, par, spar, rk, nst, nr, alpha, snel_w, hub, b
             o_g[q] = g_
             pe = par[q] + (ijs[0] + ijs[1] * g_) * dth[q] + (ijs[2] + ijs[3] * g_) * hoog[q]
             o_pe[q] = pe
-            sp = math.sqrt((n[a] * s2[a] + m0 * s0 * s0) / (n[a] + m0)); o_s[q] = sp
+            if lam_af < 1.0:                             # rijder-spreiding (over afstanden) x afstandsschaal, plus deel per afstand
+                rr = (nr2[r_] * r2[r_] + m0r) / (nr2[r_] + m0r)
+                spr = cd[q] * cd[q] * rr
+                spa = (n[a] * s2[a] + m0 * spr) / (n[a] + m0)
+                sp = math.sqrt(lam_af * spa + (1.0 - lam_af) * spr)
+            else:
+                sp = math.sqrt((n[a] * s2[a] + m0 * s0 * s0) / (n[a] + m0))
+            o_s[q] = sp
             o_sf[q] = math.sqrt((nf[a] * s2f[a] + m0 * sp * sp) / (nf[a] + m0)); o_ss[q] = math.sqrt((ns[a] * s2s[a] + m0 * sp * sp) / (ns[a] + m0))
             if n[a] == 0 or par[q] != par[q]:
                 o_e[q] = np.nan; o_val[q] = False
@@ -179,6 +191,9 @@ def _pass_ext(st, ltijd, dag, rid, par, spar, rk, nst, nr, alpha, snel_w, hub, b
                 mu[a] += w * ec
                 b = max(1.0 / (n[a] + 1.0), beta)
                 s2[a] = (1 - b) * s2[a] + b * min(e * e, (hub * sp) ** 2)
+                if lam_af < 1.0:
+                    r_ = rid[q]; br = max(1.0 / (nr2[r_] + 1.0), beta)
+                    r2[r_] = (1 - br) * r2[r_] + br * min(e * e, (hub * sp) ** 2) / (cd[q] * cd[q]); nr2[r_] += 1.0
                 if tweezijdig:                              # per kant, ruimer geknipt: juist de grote uitschieters bepalen de staart van die rijder
                     if e < 0:
                         bf = max(1.0 / (nf[a] + 1.0), beta); s2f[a] = (1 - bf) * s2f[a] + bf * min(e * e, 0.05 ** 2); nf[a] += 1.0
@@ -210,8 +225,10 @@ def ijs_kenmerken(df, par_kol='theta'):
 
 
 def draai_ext(df, alpha=ALPHA, snel_w=SNEL_W, gamma=GAMMA, hf=HF, beta=BETA, m0=M0, s0=S0, hub=HUB, par_kol='theta', var_kol='v_theta', tweezijdig=False,
-              ijs=(0.0, 0.0, 0.0, 0.0)):
-    """Nieuwe niveaus, spreiding en vorm met een extern racepeil (kolom par_kol, variantie var_kol)."""
+              ijs=(0.0, 0.0, 0.0, 0.0), lam_af=LAM_AF, m0r=M0R, cd=CD):
+    """Nieuwe niveaus, spreiding en vorm met een extern racepeil (kolom par_kol, variantie var_kol).
+    lam_af < 1: spreiding per rijder over alle afstanden heen (pieken zijn gecorreleerd), geschaald met de typische spreiding cd per
+    afstand; lam_af is het aandeel dat per afstand blijft (0 = alleen de rijder, 1 = alleen per afstand zoals vroeger)."""
     df = df.sort_values(['dag', 'event_id', 'gender', 'afstand_idx'], kind='stable').reset_index(drop=True)
     rk = df.groupby(['dag', 'event_id', 'gender', 'afstand_idx'], sort=False).ngroup().to_numpy().astype(np.int64)
     st = (df['skater_id'].astype(np.int64) * 8 + df['afstand_idx'].astype(np.int64))
@@ -221,7 +238,7 @@ def draai_ext(df, alpha=ALPHA, snel_w=SNEL_W, gamma=GAMMA, hf=HF, beta=BETA, m0=
     par = df[par_kol].to_numpy(dtype=float); spar = np.sqrt(df[var_kol].to_numpy(dtype=float))
     _pass_ext(st_codes.astype(np.int64), np.log(df['tijd'].to_numpy()), df['dag'].to_numpy().astype(np.int64), rid_codes.astype(np.int64),
               par, spar, rk, len(st_u), rid_codes.max() + 1, alpha, snel_w, hub, beta, s0, m0, VAL_SD, VAL_MIN, gamma, hf, tweezijdig,
-              dth, hoog, ref, np.asarray(ijs, float),
+              dth, hoog, ref, np.asarray(ijs, float), np.asarray(cd, float)[df['afstand_idx'].to_numpy()], float(lam_af), float(m0r),
               out['mu'], out['s'], out['n'], out['gap'], out['e'], val, out['f'], out['sf'], out['ss'], out['g'], out['pe'])
     for k, v in out.items():
         df[k] = v

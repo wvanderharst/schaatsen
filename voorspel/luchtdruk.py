@@ -4,7 +4,7 @@ Luchtweerstand is evenredig met de luchtdichtheid rho = p / (R T). Binnen is T g
 lagere druk is 1% minder luchtweerstand. De druk wordt opgevraagd op de hoogte van de baan (eigen hoogte waar bekend).
 
 Stappen (de weermap is voorspel/weer/ in de repo; ophalen draait op GitHub Actions, zie .github/workflows/luchtdruk.yml):
-  python luchtdruk.py <werkmap> invoer <weermap>   # lokaal: banen.csv en baan_dagen.csv uit ritten_cat.parquet
+  python luchtdruk.py <datamap> invoer <weermap>   # banen.csv en baan_dagen.csv uit de brondata (data/, zie nieuwe_data.py)
   python luchtdruk.py <weermap> banen              # plaatsbepaling (geocoding) -> banen_locatie.csv (nakijken!)
   python luchtdruk.py <weermap> haal [N]           # weer per wedstrijddag, hoogstens N calls -> weer_dag.csv (gaat verder waar hij was)
 
@@ -74,17 +74,26 @@ def zoeknaam(baan):
     return naam, land
 
 
-def invoer(w, wm):
-    """Lokaal: banenlijst (met prioriteit) en de wedstrijddagen per baan, klein genoeg voor de repo."""
-    import pyarrow.parquet as pq
+def invoer(dm, wm):
+    """Banenlijst (met prioriteit) en de wedstrijddagen per baan uit de brondata, klein genoeg voor de repo. Racedag per rit uit
+    nieuwe_data.racedatum; bij een toernooi zonder bekende racedagen de startdag en de 4 dagen erna (een venster tot 14 dagen kost
+    1 call, dus die extra dagen kosten bijna niets)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import nieuwe_data as nd
     os.makedirs(wm, exist_ok=True)
-    R = pq.read_table(os.path.join(w, 'ritten_cat.parquet'), columns=['baan', 'dag', 'skater_id']).to_pandas(); R['baan'] = R['baan'].astype(str)
+    N = nd.laad_nieuw(dm); rd, bron = nd.racedatum(N, pd.read_parquet(os.path.join(dm, 'racedatum_map.parquet')))
+    dag = lambda t: ((pd.to_datetime(t) - pd.Timestamp('1970-01-01')).dt.days).astype(int)
+    R = pd.DataFrame({'baan': N['Baan'].astype(str), 'dag': dag(rd), 'skater_id': N['Atleet_ID']})
+    los = N.loc[bron == 'startdag', ['Baan', 'Datum']].drop_duplicates()
+    extra = pd.concat([pd.DataFrame({'baan': los['Baan'].astype(str), 'dag': dag(los['Datum']) + k, 'skater_id': -1}) for k in range(5)])
+    R_ = pd.concat([R, extra], ignore_index=True)
     top = set(R.groupby('skater_id').size().sort_values().index[-3000:])          # rijders met de meeste ritten (wereldbeker, kampioenschappen)
     B = R.groupby('baan').agg(ritten=('dag', 'size')).join(R[R['skater_id'].isin(top)].groupby('baan').size().rename('ritten_top')).fillna(0)
     B['prio'] = B['ritten_top'] * 10 + B['ritten']
     B.sort_values('prio', ascending=False).astype(int).to_csv(os.path.join(wm, 'banen.csv'))
-    R.drop_duplicates(['baan', 'dag'])[['baan', 'dag']].sort_values(['baan', 'dag']).to_csv(os.path.join(wm, 'baan_dagen.csv'), index=False)
-    print(len(B), 'banen,', R.drop_duplicates(['baan', 'dag']).shape[0], 'baan-dagen')
+    D = R_.drop_duplicates(['baan', 'dag'])[['baan', 'dag']].sort_values(['baan', 'dag'])
+    D.to_csv(os.path.join(wm, 'baan_dagen.csv'), index=False)
+    print(len(B), 'banen,', len(D), 'baan-dagen (waarvan', len(D) - R.drop_duplicates(['baan', 'dag']).shape[0], 'rond toernooien zonder racedagen)')
 
 
 def banen(wm):
@@ -146,17 +155,25 @@ def haal(wm, budget=9000, per_uur=4500):
     L = pd.read_csv(os.path.join(wm, 'banen_locatie.csv')).sort_values('prio', ascending=False)
     D = pd.read_csv(os.path.join(wm, 'baan_dagen.csv'))
     f_dag = os.path.join(wm, 'weer_dag.csv'); f_klaar = os.path.join(wm, 'vensters_klaar.csv')
-    klaar = set(map(tuple, pd.read_csv(f_klaar)[['baan', 's', 'e']].itertuples(index=False))) if os.path.exists(f_klaar) else set()
-    gebruikt = 0; pauze = 3600.0 / per_uur
+    # al gedaan: dagen met weer, en dagen binnen een al opgehaald venster (ook als de dag geen uitkomst gaf)
+    gedaan = {}
+    if os.path.exists(f_dag):
+        for b_, g in pd.read_csv(f_dag, usecols=['baan', 'dag']).groupby('baan'):
+            gedaan.setdefault(b_, set()).update(g['dag'].astype(int))
+    if os.path.exists(f_klaar):
+        for b_, s_, e_ in pd.read_csv(f_klaar)[['baan', 's', 'e']].itertuples(index=False):
+            gedaan.setdefault(b_, set()).update(range(int(s_), int(e_) + 1))
+    gebruikt = 0; pauze = 3600.0 / per_uur; nieuw = []; nieuw_klaar = []
     try:
         for _, b in L.iterrows():
             if not np.isfinite(b['lat']):
                 continue
             dagen = D.loc[D['baan'] == b['baan'], 'dag'].to_numpy()
+            dagen = np.array([d for d in dagen if int(d) not in gedaan.get(b['baan'], ())])
             nieuw = []; nieuw_klaar = []
+            if len(dagen) == 0:
+                continue
             for s, e in vensters(dagen):
-                if (b['baan'], int(s), int(e)) in klaar:
-                    continue
                 kosten = math.ceil((e - s + 1) / 14)
                 if gebruikt + kosten > budget:
                     raise Limiet(f'budget van {budget} calls op')

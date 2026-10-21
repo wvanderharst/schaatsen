@@ -149,6 +149,8 @@ def kenm_verdeling(K):
     """Kenmerken voor de vorm van de foutverdeling: 1, exp(-niveau / 4%), niveau (0..0,4), jong."""
     gq = K['k_c'].clip(lower=0, upper=0.4).fillna(0.2).to_numpy()
     Z = [np.ones(len(K)), np.exp(-gq / 0.04), gq, K['groep'].isin(JONG).to_numpy().astype(float)]
+    hz = K['hoog'].fillna(0.0).to_numpy()
+    Z += [hz, hz * Z[1]]                                 # vorm van de foutverdeling op hoogland, apart voor de top (toppers: dikkere snelle staart)
     if UITSCHIETERS and 'k_pf' in K:                    # historische deviatie: eigen kans op snelle / trage uitschieters (log t.o.v. de basis)
         Z += [np.log(K['k_pf'].to_numpy() / PBASE), np.log(K['k_ps'].to_numpy() / PBASE)]
     return np.column_stack(Z)
@@ -207,6 +209,9 @@ def ontwerp(K):
     S['lv'] = np.log(K['k_vl'] + K['k_r']); S['lvr'] = F['onz']; S['lv_w'] = S['lv'] * wg; S['inv_n'] = F['inv_n']; S['lgapa'] = np.log1p(K['gapa'].clip(0, 2000).fillna(2000))
     for c in ('seizoenstart', 'a1', 'a2', 'a3', 'leeftijd_onb', 'g', 'vrouw', 'nieuw_af') + tuple('af_' + a for a in AF[1:]) + (('uit_snel', 'uit_traag') if 'uit_snel' in F else ()):
         S[c] = F[c]
+    # baansnelheid in de schaal: op hoogland / snel ijs is de spreiding groter (meer extreem snelle ritten), ook voor toppers
+    dth_ = (K['th_hat'] - K['gm']).clip(-0.06, 0.06).fillna(0.0)
+    S['hoog'] = K['hoog']; S['hoog_w'] = K['hoog'] * wg; S['dth'] = dth_; S['dth_w'] = dth_ * wg
     return F, S
 
 

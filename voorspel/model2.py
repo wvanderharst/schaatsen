@@ -13,6 +13,24 @@ from model import huber, twee_t, t_nll, t_cdf, ijs_voorspelling, vergelijk, AF, 
 from scipy.optimize import minimize
 from scipy.stats import t as T
 HUBER_C = float(os.environ.get('HUBER_C', '0.7'))
+BIAS_HL = float(os.environ.get('BIAS_HL', '45'))
+Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
+
+
+def online_bias(dag, r, ok, w, hl):
+    """Per dag het uitdovende gemiddelde van de geknipte fouten r (|r| <= 3%) van alle EERDERE dagen: algemeen en gewogen met w."""
+    r = np.clip(np.nan_to_num(r), -0.03, 0.03); m = ok & np.isfinite(r)
+    d = pd.DataFrame({'dag': dag[m], 'r': r[m], 'w': w[m], 'rw': r[m] * w[m]}).groupby('dag').agg(s=('r', 'sum'), n=('r', 'size'), sw=('rw', 'sum'), nw=('w', 'sum'))
+    dagen = d.index.to_numpy(); S = d.to_numpy(); acc = np.zeros(4); vorige = None; uit = np.zeros((len(dagen), 2))
+    for i, dg in enumerate(dagen):
+        if vorige is not None:
+            acc *= 0.5 ** ((dg - vorige) / hl)
+        uit[i] = [acc[0] / acc[1] if acc[1] > 50 else 0.0, acc[2] / acc[3] if acc[3] > 20 else 0.0]
+        acc += S[i]; vorige = dg
+    pos = np.searchsorted(dagen, dag)                    # dagen zonder eigen ritten: stand van de eerstvolgende dag met ritten (alleen eerdere info)
+    pos = np.clip(pos, 0, len(dagen) - 1)
+    b = uit[pos]
+    return b[:, 0], b[:, 1]
 
 
 def _tpar(p, Z):
@@ -131,6 +149,12 @@ def draai(w, par, verbose=True, segment=True):
         sc_r *= np.median(np.abs(rr[ff]) / sc_r[ff]) / 0.6745
     K['pred'] = K['th_hat'] + K['ref'] + K['k_zh'] + loc
     K['pred_basis'] = K['th_hat'] + K['ref'] + K['k_zh']
+    # online biascorrectie: lopend gemiddelde van de recente fouten (alleen eerdere dagen), algemeen en gewogen naar de toppers
+    if BIAS_HL > 0:
+        wb = np.exp(-K['k_c'].clip(lower=0, upper=0.4).fillna(0.4).to_numpy() / 0.04)
+        b_all, b_top = online_bias(K['dag'].to_numpy(), (np.log(K['tijd']) - K['pred']).to_numpy(), fit_b := (ok & ~K['k_val'].to_numpy()), wb, BIAS_HL)
+        K['bias'] = (1 - wb) * b_all + wb * b_top
+        K['pred'] = K['pred'] + K['bias']
     rc = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
     Ix = lambda d: np.c_[np.ones(len(d)), np.log1p(d['ijs_vn']), np.log1p(d['ijs_evn']), d['hoog'], np.log(d['v_theta'].clip(1e-7))]
     rci = (rc['theta'] - rc['th_hat']).to_numpy()
@@ -149,8 +173,21 @@ def draai(w, par, verbose=True, segment=True):
         sa = ok & (K['ag'] == gname).to_numpy()
         K.loc[sa, 'nll'] = tw_nll(p, K.loc[sa, 'u'].to_numpy(), Zq[sa]) + np.log(K.loc[sa, 'sd'].to_numpy())
         K.loc[sa, 'pit'] = tw_cdf(p, K.loc[sa, 'u'].to_numpy(), Zq[sa])
+    # snelle staart (voorbij Q_STAART): p' = Q (p / Q)^b met b = b0 + b1 w, geschat op de fitjaren (zonder eigen valpartijen);
+    # als p' uniform is, is b (-log(p / Q)) exponentieel met rate 1: ML van rate b(w)
+    pit = K['pit'].to_numpy(); Q = Q_STAART
+    ft = fit & (pit < Q) & np.isfinite(pit)
+    xs = -np.log(pit[ft] / Q); ws = wq[ft]
+    from scipy.optimize import minimize as _min
+    bb = _min(lambda c: -np.mean(np.log(np.maximum(c[0] + c[1] * ws, 1e-3)) - np.maximum(c[0] + c[1] * ws, 1e-3) * xs), np.array([1.0, 0.0]), method='Nelder-Mead').x
+    b_r = np.maximum(bb[0] + bb[1] * wq, 0.2)
+    st = (pit < Q) & np.isfinite(pit)
+    K['pit'] = np.where(st, Q * (np.clip(pit, 1e-300, 1) / Q) ** b_r, pit)
+    K['nll'] = np.where(st, K['nll'] - np.log(b_r) - (b_r - 1) * np.log(np.clip(pit, 1e-300, 1) / Q), K['nll'])
+    K.attrs['staart_b'] = [float(v) for v in bb]
     K['ok'] = ok
     if verbose:
+        print('staart b (snel, voorbij %.0f%%): b0 %.3f  b1 (x exp(-niveau/4%%)) %.3f' % (100 * Q, bb[0], bb[1]))
         print('ijs-coef', np.round(c_ijs, 3), '| tijd', round(time.time() - t0), 's', flush=True)
         print(pd.DataFrame(coefs).round(4).to_string())
     return K, coefs, gs, gi, par_t
@@ -169,4 +206,4 @@ if __name__ == '__main__':
         fout, rg, nr_, nk = em.toets(x, vanaf_seizoen=2019)
         print(f'kalibratie {nm}: {nr_} ritten van {nk} rijders, {fout} fouten', *[r for r in rg if 'FOUT' in r or 'kans<=' in r], sep='\n  ')
     K[['skater_id', 'skater_name', 'gender', 'groep', 'dag', 'jaar', 'seizoen', 'baan', 'afstand', 'tijd', 'pred', 'pred_basis', 'sd', 'u', 'pit', 'nll', 'ok',
-       'th_hat', 'theta']].to_parquet(os.path.join(w, 'voorspel2_uitkomst.parquet'))
+       'th_hat', 'theta', 'k_c', 'k_val']].to_parquet(os.path.join(w, 'voorspel2_uitkomst.parquet'))

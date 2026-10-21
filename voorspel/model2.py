@@ -20,6 +20,8 @@ BIAS_HL = float(os.environ.get('BIAS_HL', '45'))
 BAAN_TOP_HL = float(os.environ.get('BAAN_TOP_HL', '365'))   # 0 = uit
 BAAN_TOP_K = 30.0
 SZ_TOP = os.environ.get('SZ_TOP', '1') == '1'
+SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
+SNEL_K = 20.0
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
 
 
@@ -41,6 +43,20 @@ def seizoen_top(K, r, ok, w, bw=2.0, hl=2.0, k0=60.0):
             sw = (a[:, None] * S_[:j]).sum(0) @ Kw.T; cw = (a[:, None] * C_[:j]).sum(0) @ Kw.T
             m = idx[si == j]; out[m] = (sw / (cw + k0))[wk[m]]
     return out
+
+
+def per_wedstrijddag(dag, r, ok, w, a, k0):
+    """Per rit: EW-gemiddelde (gewicht a per wedstrijddag op deze baan) van de gewogen fouten van EERDERE dagen, gekrompen met k0."""
+    r = np.clip(np.nan_to_num(r), -0.03, 0.03); ww = np.where(ok & np.isfinite(r), w, 0.0)
+    d = pd.DataFrame({'dag': dag, 'sw': ww * r, 'w': ww}).groupby('dag')[['sw', 'w']].sum()
+    dagen = d.index.to_numpy(); S = d.to_numpy(); acc = np.zeros(2); st = np.zeros((len(dagen), 2))
+    for i in range(len(dagen)):
+        if i > 0:
+            acc *= (1 - a)
+        st[i] = acc; acc = acc + S[i]
+    pos = np.clip(np.searchsorted(dagen, dag), 0, len(dagen) - 1); x = st[pos]
+    laatste = dag > dagen[-1]; x[laatste] = acc
+    return x[:, 0] / (x[:, 1] + k0)
 
 
 def online_baan(dag, r, ok, w, hl):
@@ -230,6 +246,14 @@ def draai(w, par, verbose=True, segment=True):
             # (kernel 2 weken, halfwaardetijd 2 seizoenen, krimp 60); één ronde (herhalen gaat toevallige seizoenen naspelen)
             K['bias_seizoen'] = wb * seizoen_top(K, (np.log(K['tijd']) - K['pred']).to_numpy(), fit_b, wb)
             K['pred'] = K['pred'] + K['bias_seizoen']
+        if SNEL_A > 0:
+            # snelle correctie per baan voor de toppers: lopend gemiddelde per WEDSTRIJDDAG (elke nieuwe dag telt SNEL_A, los van de
+            # kalendertijd: het vorige bezoek aan SLC telt ook als het een jaar geleden was), alleen eerdere dagen, krimp SNEL_K
+            r_ = (np.log(K['tijd']) - K['pred']).to_numpy(); bs = np.zeros(len(K))
+            for b_, idx in K.groupby('baan').indices.items():
+                bs[idx] = per_wedstrijddag(K['dag'].to_numpy()[idx], r_[idx], fit_b[idx], wb[idx], SNEL_A, SNEL_K)
+            K['bias_snel'] = wb * bs
+            K['pred'] = K['pred'] + K['bias_snel']
     rc = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
     Ix = lambda d: np.c_[np.ones(len(d)), np.log1p(d['ijs_vn']), np.log1p(d['ijs_evn']), d['hoog'], np.log(d['v_theta'].clip(1e-7))]
     rci = (rc['theta'] - rc['th_hat_veld']).to_numpy()                 # onzekerheid van het dagpeil zelf (op raceniveau)

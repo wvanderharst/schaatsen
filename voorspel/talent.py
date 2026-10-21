@@ -29,6 +29,8 @@ def momentopnamen(w, par):
     for j, a in enumerate(AF):
         S['x_' + a] = s['x'][:, j]; S['p_' + a] = s['p'][:, j]; S['na_' + a] = s['na'][:, j]
     S['v'] = s['x'][:, 8]; S['pv'] = s['p'][:, 8]
+    if 'pf' in s:
+        S['pf'] = s['pf']; S['ps'] = s['ps']           # historische deviatie: kans op snelle / trage uitschieters
     info = R.sort_values('dag').groupby('skater_id').agg(naam=('skater_name', 'last'), gender=('gender', 'last'), land=('land', lambda x: x.mode().iloc[0]),
                                                           geboren=('geboren', 'last'), exact=('leeftijd_exact', 'last'), eerste=('seizoen', 'min'))
     S = S.join(info, on='skater_id')
@@ -86,6 +88,8 @@ def kenmerken(S):
     F['log_n'] = np.log1p(S['n_seizoen']); F['log_ntot'] = np.log1p(S['n_tot'])
     F['jaren_actief'] = (S['seizoen'] - S['eerste']).clip(0, 12)
     F['ned'] = (S['land'] == 'NED').astype(float); F['vrouw'] = (S['gender'] == 'v').astype(float)
+    if 'pf' in S:
+        F['uit_snel'] = np.log(S['pf'] / 0.0341); F['uit_traag'] = np.log(S['ps'] / 0.0341)
     t = (S['leeftijd'] - 16.0) / 3.0
     for c in list(F.columns):
         if c != 'vrouw':
@@ -172,26 +176,18 @@ def draai(w, par, uit=None):
     return S, F, drempel, regels
 
 
-if __name__ == '__main__':
-    w = sys.argv[1]; par = json.load(open(sys.argv[2])); uit = sys.argv[3] if len(sys.argv) > 3 else w
-    S, F, drempel, regels = draai(w, par, uit)
-    print('\n'.join(regels))
-
 
 def huidige_lijst(S, F, drempel, R, uit, n=40):
     """De jeugd van nu (laatste momentopname sinds seizoen 2025, leeftijd 13..19): kans op wereldtop-50 / top-10 als senior (21-24 jaar),
     met het model gefit op alle volledig waargenomen geboortejaren (1992..2001), en het verwachte seniorenniveau als tijd in Heerenveen."""
     jeugd = S['exact'] & (S['leeftijd'] >= 13) & (S['leeftijd'] <= 19) & np.isfinite(S['L_jeugd'])
-    Xa = np.nan_to_num(F.to_numpy(float)); fit = (jeugd & S['geboren'].between(1992, 2001)).to_numpy()
+    ijk = kruis_ijking(S, F, drempel, jeugd)                     # ijkingsfunctie uit voorspellingen buiten de steekproef
+    fit = (jeugd & S['geboren'].between(1992, 2001)).to_numpy()
+    u = fit_opgesplitst(S, F, fit, drempel)                       # samenhangend: doorgaan x seniorenniveau, gefit op alle jaargangen
+    S['kans_door'] = u['p_door']; S['L_senior'] = u['L_verwacht']
     for k in (50, 10):
-        dr = S['gender'].map({g: drempel[(g, k)] for g in ('m', 'v')})
-        y = (S['L_best_21_24'] <= dr).astype(float).to_numpy()
-        f, _ = logistisch(Xa[fit], y[fit]); S[f'kans_top{k}'] = f(Xa)
-    door = np.isfinite(S['L_best_21_24']).to_numpy().astype(float)
-    f, _ = logistisch(Xa[fit], door[fit]); S['kans_door'] = f(Xa)
-    from model import huber
-    fd = fit & (door == 1); mu, sd = Xa[fd].mean(0), Xa[fd].std(0) + 1e-9; Zx = np.c_[np.ones(len(Xa)), (Xa - mu) / sd]
-    S['L_senior'] = Zx @ huber(Zx[fd], S['L_best_21_24'].to_numpy()[fd])
+        S[f'kans_top{k}'] = ijk[k](u[f'p_top{k}'])
+    S['kans_top10'] = np.minimum(S['kans_top10'], S['kans_top50'])
     nu = S[jeugd & (S['seizoen'] >= 2025)].sort_values('seizoen').groupby('skater_id').tail(1)
     # tijd in Heerenveen: exp(wereldtop + niveau + racepeil Heerenveen) op de beste afstand nu
     lt = np.log(R['tijd'].to_numpy(float))
@@ -214,7 +210,56 @@ def huidige_lijst(S, F, drempel, R, uit, n=40):
     return lijst
 
 
+
+def fit_opgesplitst(S, F, fit, drempel):
+    """Opgesplitst model gefit op de rijen 'fit': kans door te gaan x verdeling van het seniorenniveau. Geeft een functie die voor alle
+    rijen (p_door, L_verwacht, p_top50, p_top10) teruggeeft; top-10 is zo nooit waarschijnlijker dan top-50."""
+    from model import huber
+    Xa = np.nan_to_num(F.to_numpy(float)); door = np.isfinite(S['L_best_21_24']).to_numpy().astype(float)
+    f_door, _ = logistisch(Xa[fit], door[fit])
+    fd = fit & (door == 1); mu, sd = Xa[fd].mean(0), Xa[fd].std(0) + 1e-9
+    Zx = np.c_[np.ones(len(Xa)), (Xa - mu) / sd]
+    bL = huber(Zx[fd], S['L_best_21_24'].to_numpy()[fd]); Lv = Zx @ bL
+    res = S['L_best_21_24'].to_numpy()[fd] - Lv[fd]
+    A_ = lambda m: np.c_[np.ones(m.sum()), S['leeftijd'].to_numpy()[m], np.exp(-np.clip(Lv[m], -0.1, 0.4) / 0.04)]
+    ga = np.linalg.lstsq(A_(fd), np.log(np.abs(res) + 1e-5), rcond=None)[0]
+    alle = np.ones(len(S), bool); sc = np.exp(A_(alle) @ ga); sc *= np.median(np.abs(res) / sc[fd]) / 0.6745
+    rs = np.sort(res / sc[fd])
+    uit = {'p_door': f_door(Xa), 'L_verwacht': Lv}
+    for k in (50, 10):
+        dr = S['gender'].map({g: drempel[(g, k)] for g in ('m', 'v')}).to_numpy()
+        uit[f'p_top{k}'] = uit['p_door'] * np.searchsorted(rs, (dr - Lv) / sc, side='right') / len(rs)
+    return uit
+
+
+def kruis_ijking(S, F, drempel, jeugd):
+    """Kruisfit (1992-96 -> 1997-01 en omgekeerd) en per k een ijkingsfunctie logit(p') = a + b logit(p) + c logit(p)^2 op de voorspellingen buiten de steekproef."""
+    lg = lambda p: np.log(np.clip(p, 1e-6, 1 - 1e-6) / (1 - np.clip(p, 1e-6, 1 - 1e-6)))
+    oos = {50: np.full(len(S), np.nan), 10: np.full(len(S), np.nan)}
+    for a_, b_ in ((FIT_JAREN, TOETS_JAREN), (TOETS_JAREN, FIT_JAREN)):
+        fit = (jeugd & S['geboren'].between(*a_)).to_numpy(); doel = (jeugd & S['geboren'].between(*b_)).to_numpy()
+        u = fit_opgesplitst(S, F, fit, drempel)
+        for k in (50, 10):
+            oos[k][doel] = u[f'p_top{k}'][doel]
+    ijk = {}
+    for k in (50, 10):
+        dr = S['gender'].map({g: drempel[(g, k)] for g in ('m', 'v')})
+        y = (S['L_best_21_24'] <= dr).astype(float).to_numpy(); m = np.isfinite(oos[k])
+        L_ = lg(oos[k][m]); f, b = logistisch(np.c_[L_, L_ ** 2], y[m], lam=0.0)        # ijkingsfunctie: kwadratisch in de logit
+        ijk[k] = (lambda p, f=f: f(np.c_[lg(p), lg(p) ** 2]))
+        regels_k = pd.DataFrame({'p': oos[k][m], 'pc': ijk[k](oos[k][m]), 'y': y[m]})
+        t = regels_k.groupby(pd.cut(regels_k['pc'], [0, .01, .05, .2, .5, .8, 1.01], right=False)).agg(n=('y', 'size'), voorspeld=('pc', 'mean'), echt=('y', 'mean'))
+        print(f'top-{k} na kruisijking (buiten de steekproef):'); print(t.round(3).to_string())
+    return ijk
+
+
+
+if __name__ == '__main__':
+    w = sys.argv[1]; par = json.load(open(sys.argv[2])); uit = sys.argv[3] if len(sys.argv) > 3 else w
+    S, F, drempel, regels = draai(w, par, uit)
+    print('\n'.join(regels))
+
 if __name__ == '__main__' and len(sys.argv) > 4 and sys.argv[4] == 'nu':
     R_ = pd.read_parquet(os.path.join(sys.argv[1], 'ritten_cat.parquet'))
-    L_ = huidige_lijst(S, F, drempel, R_, uit)
+    L_ = huidige_lijst(S, F, drempel, R_, uit, n=150)
     print(L_.groupby('gender').head(15).to_string(index=False))

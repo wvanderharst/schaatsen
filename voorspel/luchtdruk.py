@@ -35,6 +35,9 @@ VAST = {
     'Kolomna': (55.0896, 38.7681, 120),
     'Chelyabinsk': (55.1544, 61.4026, 220), 'Chelyabinsk-Inga': (55.1544, 61.4026, 220),
     'Hachinohe - YS Arena (JPN)': (40.5050, 141.4900, 20), 'Hachinohe-Piping (JPN)': (40.5050, 141.4900, 20),
+    'Den Haag (NED)': (52.0705, 4.3007, 5),                  # De Uithof
+    'Quebec City (CAN)': (46.7960, -71.2620, 60), 'Quebec City-Boucher (CAN)': (46.7960, -71.2620, 60),   # Centre de glace Intact Assurance
+    'Båstad (NOR)': (59.5300, 11.3500, 150),                 # Båstad bij Trøgstad (Østfold)
 }
 
 

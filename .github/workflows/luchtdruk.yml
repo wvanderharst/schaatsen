@@ -55,6 +55,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git status --short
           git add voorspel/weer
           git commit -m "Weerdata per baan en wedstrijddag bijgewerkt (Open-Meteo)" || exit 0
-          for i in 1 2 3; do git pull --rebase origin ${{ github.ref_name }} && git push origin HEAD:${{ github.ref_name }} && break; sleep 5; done
+          for i in 1 2 3; do git pull --rebase --autostash origin ${{ github.ref_name }} && git push origin HEAD:${{ github.ref_name }} && break; sleep 5; done

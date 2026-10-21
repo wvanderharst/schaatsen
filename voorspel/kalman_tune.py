@@ -26,7 +26,7 @@ stap = np.array([0.003 if k == 'G2' else (0.3 if k in LIN else (0.6 if k in LOGI
 simplex = np.vstack([np.array(x0)] + [np.array(x0) + np.eye(len(VRIJ))[i] * stap[i] for i in range(len(VRIJ))])
 best = [1e9, None]; n_ev = [0]; t0 = time.time()
 def doel(x):
-    p = naar(x); o = kf.pass_(inv, p); ok = sc & np.isfinite(o['e']) & ~o['val']
+    p = naar(x); o = kf.pass_(inv, p); ok = sc & np.isfinite(o['e'])      # ook ritten die het filter als val ziet: anders 'wint' een filter dat moeilijke ritten wegzet
     if ok.sum() < 1e5: return 1e9
     e = np.abs(o['e']); v = 100 * (np.median(e[ok]) + np.median(e[ok & (o['zh'] < 0.06)]) + np.median(e[ok & (o['zh'] < 0.03)]))
     n_ev[0] += 1

@@ -19,14 +19,15 @@ HOOGLAND = ('Salt Lake City (USA)', 'Calgary (CAN)')
 
 
 @njit(cache=True)
-def _ijs(rk_start, rk_end, baan, gsl, af, dag, theta, nb, w_min, w_baan, ev_dagen, glob_hl,
-         o_vm, o_vn, o_ba, o_bn, o_ev, o_evn, o_gl):
+def _ijs(rk_start, rk_end, baan, gsl, af, dag, theta, nb, w_min, w_baan, ev_dagen, glob_hl, w_rec,
+         o_vm, o_vn, o_ba, o_bn, o_ev, o_evn, o_gl, o_rec, o_recn):
     """Per race (blokken rk_start..rk_end, gesorteerd op dag): lopend gemiddelde theta per baan x geslacht x afstand en per baan,
     afwijking op eerdere dagen van hetzelfde toernooi en de algemene afwijking (halfwaardetijd glob_hl dagen)."""
     vm = np.zeros((nb, 2, 8)); vn = np.zeros((nb, 2, 8)); bm = np.zeros(nb); bn = np.zeros(nb)
     # eerdere dagen van een toernooi: per baan de afwijkingen van de laatste dagen (dag, som, aantal), ringbuffer van 64
     rb_d = np.full((nb, 64), -100000); rb_s = np.zeros((nb, 64)); rb_k = np.zeros((nb, 64)); rb_i = np.zeros(nb, np.int64)
     gl = 0.0; gl_d = -100000.0
+    rec = np.zeros(nb); recn = np.zeros(nb)          # recente afwijking per baan (snel aanpassend: verbouwing, nieuwe ijsvloer)
     R = len(rk_start); i = 0
     while i < R:
         # alle races van deze dag eerst voorspellen, dan pas bijwerken (volgorde binnen een dag is onbekend)
@@ -42,6 +43,7 @@ def _ijs(rk_start, rk_end, baan, gsl, af, dag, theta, nb, w_min, w_baan, ev_dage
                     s += rb_s[b, t]; k += rb_k[b, t]
             o_ev[q] = s / k if k > 0 else 0.0; o_evn[q] = k
             o_gl[q] = gl * math.exp(-(dag[q] - gl_d) / glob_hl * math.log(2.0)) if gl_d > -100000 else 0.0
+            o_rec[q] = rec[b]; o_recn[q] = recn[b]
         for q in range(i, j):
             th = theta[q]
             if th != th:
@@ -59,6 +61,7 @@ def _ijs(rk_start, rk_end, baan, gsl, af, dag, theta, nb, w_min, w_baan, ev_dage
             # algemene afwijking (lopend, uitdovend)
             dec = math.exp(-(dag[q] - gl_d) / glob_hl * math.log(2.0)) if gl_d > -100000 else 0.0
             gl = gl * dec * 0.98 + 0.02 * d; gl_d = dag[q]
+            rec[b] = (1.0 - w_rec) * rec[b] + w_rec * d; recn[b] += 1.0
             w = max(1.0 / (vn[b, g, a] + 1.0), w_min); vm[b, g, a] += w * (th - vm[b, g, a]) if vn[b, g, a] > 0 else 0.0
             if vn[b, g, a] == 0:
                 vm[b, g, a] = th
@@ -68,15 +71,15 @@ def _ijs(rk_start, rk_end, baan, gsl, af, dag, theta, nb, w_min, w_baan, ev_dage
     return 0
 
 
-def ijs_kenmerken(df, w_min=0.05, w_baan=0.02, ev_dagen=5, glob_hl=30.0):
+def ijs_kenmerken(df, w_min=0.05, w_baan=0.02, ev_dagen=5, glob_hl=30.0, w_rec=0.2):
     """Kenmerken van het racepeil vooraf per race; geeft een DataFrame op race-niveau (sleutel dag, event_id, gender, afstand_idx)."""
     r = df.drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])[['dag', 'event_id', 'gender', 'afstand_idx', 'baan', 'theta', 'v_theta', 'seizoen']]
     r = r.sort_values(['dag', 'event_id', 'gender', 'afstand_idx'], kind='stable').reset_index(drop=True)
     bc, bu = pd.factorize(r['baan']); n = len(r)
-    o = {k: np.zeros(n) for k in ('vm', 'vn', 'ba', 'bn', 'ev', 'evn', 'gl')}
+    o = {k: np.zeros(n) for k in ('vm', 'vn', 'ba', 'bn', 'ev', 'evn', 'gl', 'rec', 'recn')}
     _ijs(np.arange(n), np.arange(n), bc.astype(np.int64), (r['gender'] == 'v').to_numpy().astype(np.int64), r['afstand_idx'].to_numpy().astype(np.int64),
-         r['dag'].to_numpy().astype(np.int64), r['theta'].to_numpy(float), len(bu), w_min, w_baan, ev_dagen, glob_hl,
-         o['vm'], o['vn'], o['ba'], o['bn'], o['ev'], o['evn'], o['gl'])
+         r['dag'].to_numpy().astype(np.int64), r['theta'].to_numpy(float), len(bu), w_min, w_baan, ev_dagen, glob_hl, w_rec,
+         o['vm'], o['vn'], o['ba'], o['bn'], o['ev'], o['evn'], o['gl'], o['rec'], o['recn'])
     for k, v in o.items():
         r['ijs_' + k] = v
     r['hoog'] = r['baan'].isin(HOOGLAND).astype(float)

@@ -19,7 +19,7 @@ r['evw'] = r.ijs_ev * r.ijs_evn / (r.ijs_evn + 2)
 for k in (3, 10):
     r[f'b{k}_ev'] = r[f'base{k}']
 tr = r[r.jaar <= 2019]; te = r[r.jaar >= 2020]
-for cols in (['ijs_vm'], ['base3'], ['base10'], ['base3','evw'], ['base3','evw','ijs_gl'], ['base3','evw','ijs_gl','hoog']):
+for cols in (['base3','evw','ijs_gl'], ['base3','evw','ijs_gl','recw']):
     d_tr = tr.dropna(subset=cols); c = fit(cols, d_tr); s = sd(c, te.dropna(subset=cols), cols)
     print(cols, 'coef', np.round(c, 3), 'test sd %.4f mae %.4f' % s)
 print('aandeel races met eerdere toernooidag', (te.ijs_evn > 0).mean().round(3))

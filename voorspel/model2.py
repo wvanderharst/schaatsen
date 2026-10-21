@@ -10,6 +10,46 @@ import importlib
 kf = importlib.import_module(os.environ.get('KALMAN', 'kalman_mv2'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'elite'))
 from model import huber, twee_t, t_nll, t_cdf, ijs_voorspelling, vergelijk, AF, GROEP, FIT_TOT, KOL
+from scipy.optimize import minimize
+from scipy.stats import t as T
+HUBER_C = float(os.environ.get('HUBER_C', '0.7'))
+
+
+def _tpar(p, Z):
+    """Parameters van de twee-delige t als lineaire functie van de kenmerken Z (kolommen 1, exp(-niveau / 4%), niveau, jong):
+    elk van de vijf (kans snel, schaal en vrijheidsgraden per kant) is a + b w + c niveau + d jong."""
+    Z = np.atleast_2d(Z); k = Z.shape[1]
+    q = [Z @ np.asarray(p[k * i:k * (i + 1)]) for i in range(5)]
+    return 1 / (1 + np.exp(-q[0])), np.exp(q[1]), 1.5 + 28.5 / (1 + np.exp(-q[2])), np.exp(q[3]), 1.5 + 28.5 / (1 + np.exp(-q[4]))
+
+
+def _t_logpdf(x, nu):
+    from scipy.special import gammaln
+    return gammaln((nu + 1) / 2) - gammaln(nu / 2) - 0.5 * np.log(nu * np.pi) - (nu + 1) / 2 * np.log1p(x * x / nu)
+
+
+def tw_nll(p, u, w):
+    p0, sL, nL, sU, nU = _tpar(p, w)
+    lo = u < 0
+    lf = np.where(lo, np.log(2 * p0) + _t_logpdf(u / sL, nL) - np.log(sL), np.log(2 * (1 - p0)) + _t_logpdf(u / sU, nU) - np.log(sU))
+    return -lf
+
+
+def tw_cdf(p, u, w):
+    p0, sL, nL, sU, nU = _tpar(p, w)
+    return np.where(u < 0, p0 * 2 * T.cdf(u / sL, nL), p0 + (1 - p0) * (2 * T.cdf(u / sU, nU) - 1))
+
+
+def twee_t_w(u, Z):
+    p_ = twee_t(u); k = Z.shape[1]
+    x0 = np.concatenate([[p_[i]] + [0.0] * (k - 1) for i in range(5)])
+    return minimize(lambda p: np.mean(tw_nll(p, u, Z)), x0, method='Powell', options={'maxiter': 40000, 'xtol': 1e-4, 'ftol': 1e-9}).x
+
+
+def kenm_verdeling(K):
+    """Kenmerken voor de vorm van de foutverdeling: 1, exp(-niveau / 4%), niveau (0..0,4), jong."""
+    gq = K['k_c'].clip(lower=0, upper=0.4).fillna(0.2).to_numpy()
+    return np.c_[np.ones(len(K)), np.exp(-gq / 0.04), gq, K['groep'].isin(JONG).to_numpy().astype(float)]
 
 JONG = ['jeugd', 'junior_C', 'junior_B', 'junior_A', 'neo']
 NIVEAU_INTERACTIE = True
@@ -71,9 +111,10 @@ def draai(w, par, verbose=True, segment=True):
     zt = np.log(K['tijd']) - K['theta'] - K['ref']                  # z met het echte racepeil
     e = (zt - K['k_zh']).to_numpy()
     X = np.c_[np.ones(len(F)), F.to_numpy(float)]; Sx = np.c_[np.ones(len(S)), S.to_numpy(float)]
-    ok = (np.isfinite(K["k_zh"]) & np.isfinite(K["y"]) & ~K["k_val"] & ~K["verdacht"] & np.isfinite(K["th_hat"])).to_numpy().copy()
+    # ok: alle ritten met een voorspelling (ook wat dit model als valpartij ziet; de toets mag niet afhangen van de eigen valvlag)
+    ok = (np.isfinite(K["k_zh"]) & np.isfinite(K["y"]) & ~K["verdacht"] & np.isfinite(K["th_hat"])).to_numpy().copy()
     ok &= np.isfinite(X).all(1) & np.isfinite(Sx).all(1)
-    jr = K['jaar'].to_numpy(); fit = ok & (jr <= FIT_TOT) & (jr >= 2008) & np.isfinite(e)
+    jr = K['jaar'].to_numpy(); fit = ok & ~K['k_val'].to_numpy() & (jr <= FIT_TOT) & (jr >= 2008) & np.isfinite(e)
     # aparte correctiefuncties voor jonge rijders (t/m neo) en de rest: groei en ervaring werken anders
     seg = K['groep'].isin(JONG).to_numpy() if segment else np.zeros(len(K), bool)
     sc_r = np.sqrt(K['k_vl'] + K['k_r']).to_numpy()            # eerste schaal: de Kalman-onzekerheid + ritruis
@@ -82,7 +123,7 @@ def draai(w, par, verbose=True, segment=True):
         for sg in (True, False):
             m_ = fit & (seg == sg)
             if m_.sum() < 1000: continue
-            b = huber(X[m_], e[m_], w=1.0 / sc_r[m_] ** 2); coefs['jong' if sg else 'ouder'] = pd.Series(b, index=['const'] + list(F.columns))
+            b = huber(X[m_], e[m_], w=1.0 / sc_r[m_] ** 2, c=HUBER_C); coefs['jong' if sg else 'ouder'] = pd.Series(b, index=['const'] + list(F.columns))
             loc[seg == sg] = X[seg == sg] @ b
         rr = e - loc; lr = np.log(np.abs(rr) + 1e-5)
         ff = fit & np.isfinite(lr)
@@ -98,13 +139,16 @@ def draai(w, par, verbose=True, segment=True):
     K['sd'] = np.sqrt(sc_r ** 2 + sc_i ** 2)
     K['err'] = np.log(K['tijd']) - K['pred']; K['u'] = K['err'] / K['sd']
     K['ag'] = K['afstand'].map(GROEP); K['nll'] = np.nan; K['pit'] = np.nan; par_t = {}
+    Zq = kenm_verdeling(K); wq = Zq[:, 1]                        # vorm van de foutverdeling als functie van niveau en leeftijd
     for gname in ('sprint', 'midden', 'lang'):
-        sf = fit & (K['ag'] == gname).to_numpy(); u_f = K['u'].to_numpy()[sf]
-        u_f = np.random.default_rng(0).choice(u_f, min(len(u_f), 200000), replace=False)
-        p = twee_t(u_f); par_t[gname] = p
+        sf = fit & (K['ag'] == gname).to_numpy(); idx = np.flatnonzero(sf)
+        idx = np.random.default_rng(0).choice(idx, min(len(idx), 150000), replace=False)
+        u_f = K['u'].to_numpy()[idx]; Z_f = Zq[idx]; top = Z_f[:, 1] > 0.3
+        # toppers zwaarder in de fit (anders bepalen de vele zwakkere rijders alles)
+        p = twee_t_w(np.r_[u_f, u_f[top]], np.r_[Z_f, Z_f[top]]); par_t[gname] = p
         sa = ok & (K['ag'] == gname).to_numpy()
-        K.loc[sa, 'nll'] = t_nll(p, K.loc[sa, 'u'].to_numpy()) + np.log(K.loc[sa, 'sd'].to_numpy())
-        K.loc[sa, 'pit'] = t_cdf(p, K.loc[sa, 'u'].to_numpy())
+        K.loc[sa, 'nll'] = tw_nll(p, K.loc[sa, 'u'].to_numpy(), Zq[sa]) + np.log(K.loc[sa, 'sd'].to_numpy())
+        K.loc[sa, 'pit'] = tw_cdf(p, K.loc[sa, 'u'].to_numpy(), Zq[sa])
     K['ok'] = ok
     if verbose:
         print('ijs-coef', np.round(c_ijs, 3), '| tijd', round(time.time() - t0), 's', flush=True)

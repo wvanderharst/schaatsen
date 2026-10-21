@@ -7,12 +7,12 @@ import numpy as np, pandas as pd
 from scipy.optimize import minimize
 from scipy.stats import t as T
 
-FIT_TOT = 2019
+FIT_TOT = int(os.environ.get('FIT_TOT', '2019'))      # fit op de jaren t/m FIT_TOT (2019: toets op 2020+; 2026: alles, voor voorspellingen nu)
 AF = ['500m', '1000m', '1500m', '3000m', '5000m', '10000m']
 GROEP = {'500m': 'sprint', '1000m': 'sprint', '1500m': 'midden', '3000m': 'midden', '5000m': 'lang', '10000m': 'lang'}
 KOL = ['skater_id', 'skater_name', 'gender', 'groep', 'afstand', 'afstand_idx', 'dag', 'jaar', 'seizoen', 'event_id', 'baan', 'tijd', 'verdacht',
        'theta', 'v_theta', 'leeftijd', 'mu', 'n', 'gapa', 'gap', 'f', 'f2', 's', 'sa', 'pr', 'prraw', 'sb3', 'sbc', 'ela', 'elany', 'elage', 'e', 'val',
-       'y', 'ijs_vm', 'ijs_vn', 'ijs_ba', 'ijs_bn', 'ijs_ev', 'ijs_evn', 'ijs_gl', 'hoog'] + ['mu_' + a for a in AF] + ['n_' + a for a in AF]
+       'y', 'ijs_vm', 'ijs_vn', 'ijs_ba', 'ijs_bn', 'ijs_ev', 'ijs_evn', 'ijs_gl', 'ijs_rec', 'ijs_recn', 'hoog'] + ['mu_' + a for a in AF] + ['n_' + a for a in AF]
 
 
 def huber(X, y, w=None, c=1.345, n_iter=30):
@@ -43,10 +43,12 @@ def ijs_voorspelling(K):
     ba = K['ijs_ba'].where(K['ijs_bn'] > 0, K['gm'])
     K['ijs_basis'] = np.where(K['ijs_vn'] > 0, (K['ijs_vn'] * K['ijs_vm'] + 3 * ba) / (K['ijs_vn'] + 3), ba)
     K['ijs_evw'] = K['ijs_ev'] * K['ijs_evn'] / (K['ijs_evn'] + 2)
+    K['ijs_recw'] = K['ijs_rec'] * (1 - np.exp(-K['ijs_recn'] / 3.0))
+    IJS = ['ijs_basis', 'ijs_evw', 'ijs_gl', 'ijs_recw']
     r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
-    X = np.c_[np.ones(len(r)), r[['ijs_basis', 'ijs_evw', 'ijs_gl']].to_numpy()]
+    X = np.c_[np.ones(len(r)), r[IJS].to_numpy()]
     c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]
-    K['th_hat'] = np.c_[np.ones(len(K)), K[['ijs_basis', 'ijs_evw', 'ijs_gl']].to_numpy()] @ c
+    K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
     return K, c
 
 

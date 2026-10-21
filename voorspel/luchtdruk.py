@@ -42,10 +42,10 @@ class Limiet(Exception):
     pass
 
 
-def _json(url, pogingen=6):
+def _json(url, pogingen=4):
     for k in range(pogingen):
         try:
-            with urllib.request.urlopen(url, timeout=90) as r:
+            with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'schaatsen-luchtdruk/1.0'}), timeout=30) as r:
                 return json.loads(r.read().decode())
         except urllib.error.HTTPError as e:
             tekst = e.read().decode(errors='ignore')
@@ -53,8 +53,10 @@ def _json(url, pogingen=6):
                 raise Limiet(tekst)
             if e.code not in (429, 500, 502, 503, 504) or k == pogingen - 1:
                 raise
+            print(f'  HTTP {e.code}: {tekst[:120]}', flush=True)
             time.sleep(60 if e.code == 429 else 2 ** (k + 1))
-        except (urllib.error.URLError, TimeoutError):
+        except (urllib.error.URLError, TimeoutError, OSError) as e:
+            print(f'  verbinding: {e}', flush=True)
             if k == pogingen - 1:
                 raise
             time.sleep(2 ** (k + 1))
@@ -98,7 +100,10 @@ def banen(wm):
             q = {'name': naam, 'count': 5, 'language': 'en', 'format': 'json'}
             if land:
                 q['countryCode'] = land
-            res = _json(GEO + '?' + urllib.parse.urlencode(q)).get('results') or []
+            try:
+                res = _json(GEO + '?' + urllib.parse.urlencode(q)).get('results') or []
+            except Exception as e:
+                print(f'{b}: geocoding mislukt ({e})', flush=True); res = []
             if not land:                                          # zonder landcode: meestal Rusland / Wit-Rusland / Kazachstan
                 res = sorted(res, key=lambda r: r.get('country_code') not in ('RU', 'BY', 'KZ', 'UA'))
             if res:
@@ -107,6 +112,9 @@ def banen(wm):
                 lat = lon = h = np.nan; bron = 'niet gevonden'
             time.sleep(0.3)
         rij.append(dict(baan=b, zoeknaam=naam, land=land, lat=lat, lon=lon, hoogte=h, bron=bron, ritten=int(x['ritten']), prio=int(x['prio'])))
+        print(f'{b}: {bron} ({lat}, {lon}, {h} m)', flush=True)
+        if len(rij) % 20 == 0:
+            pd.DataFrame(rij).to_csv(uit, index=False)
     L = pd.DataFrame(rij); L.to_csv(uit, index=False)
     print(L.head(30).to_string(index=False)); print('niet gevonden:', L[~np.isfinite(L['lat'].astype(float))]['baan'].tolist())
 
@@ -173,8 +181,18 @@ def _bewaar(nieuw, nieuw_klaar, f_dag, f_klaar):
     pd.DataFrame(nieuw_klaar, columns=['baan', 's', 'e']).to_csv(f_klaar, mode='a', header=not os.path.exists(f_klaar), index=False)
 
 
+def test():
+    """Verbindingstest: een baan opzoeken en een dag weer ophalen."""
+    print(_json(GEO + '?' + urllib.parse.urlencode({'name': 'Heerenveen', 'count': 1, 'countryCode': 'NL'}))['results'][0])
+    j = _json(ARCH + '?' + urllib.parse.urlencode({'latitude': 52.957, 'longitude': 5.942, 'start_date': '2026-02-07', 'end_date': '2026-02-07',
+                                                    'hourly': ','.join(VARS), 'timezone': 'auto'}))
+    print(dag_gemiddelde(j, [20491]))
+
+
 if __name__ == '__main__':
     a = sys.argv
+    if a[1] == 'test':
+        test(); sys.exit()
     if a[2] == 'invoer':
         invoer(a[1], a[3])
     elif a[2] == 'banen':

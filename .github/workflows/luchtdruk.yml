@@ -29,6 +29,8 @@ jobs:
   haal:
     runs-on: ubuntu-latest
     timeout-minutes: 330
+    env:
+      PYTHONUNBUFFERED: '1'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +39,14 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install pandas numpy
+      - name: Verbindingstest
+        timeout-minutes: 5
+        run: |
+          curl -sS -m 20 -o /dev/null -w "geocoding %{http_code} %{time_total}s\n" "https://geocoding-api.open-meteo.com/v1/search?name=Heerenveen&count=1"
+          curl -sS -m 30 -o /dev/null -w "archief %{http_code} %{time_total}s\n" "https://archive-api.open-meteo.com/v1/archive?latitude=52.96&longitude=5.94&start_date=2026-02-07&end_date=2026-02-07&hourly=surface_pressure"
+          python voorspel/luchtdruk.py test
       - name: Plaatsbepaling banen
+        timeout-minutes: 30
         run: python voorspel/luchtdruk.py voorspel/weer banen
       - name: Weer per wedstrijddag
         run: python voorspel/luchtdruk.py voorspel/weer haal ${{ github.event.inputs.budget || '9000' }}

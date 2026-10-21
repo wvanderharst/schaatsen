@@ -24,6 +24,8 @@ SZ_TOP = os.environ.get('SZ_TOP', '1') == '1'
 BAAN_FUNCTIE = os.environ.get('BAAN_FUNCTIE', '1') == '1'
 HOOG_SCHAAL = os.environ.get('HOOG_SCHAAL', '0') == '1'
 SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter in correcties/schaal/vorm: maakte alles slechter (alle -2,3303 -> -2,3176)
+VORM = os.environ.get('VORM', '0') == '1'
+VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
@@ -175,6 +177,51 @@ def tw_nll(p, u, w):
 def tw_cdf(p, u, w):
     p0, sL, nL, sU, nU = _tpar(p, w)
     return np.where(u < 0, p0 * 2 * T.cdf(u / sL, nL), p0 + (1 - p0) * (2 * T.cdf(u / sU, nU) - 1))
+
+
+def tw_ppf(p, q, w):
+    """Inverse van tw_cdf (exact): de u met tw_cdf(p, u, w) = q."""
+    p0, sL, nL, sU, nU = _tpar(p, w)
+    q = np.clip(q, 1e-12, 1 - 1e-12)
+    return np.where(q < p0, sL * T.ppf(np.clip(q / (2 * p0), 1e-15, 0.5), nL), sU * T.ppf(np.clip((q - p0) / (2 * (1 - p0)) + 0.5, 0.5, 1 - 1e-15), nU))
+
+
+def kwantiel_u(K, par_t, Zq, q):
+    """Kwantiel q (per rit) van de gestandaardiseerde fout u, inclusief de vormlaag en de staartcorrectie (in omgekeerde volgorde)."""
+    q = np.broadcast_to(np.asarray(q, float), (len(K),))
+    from scipy.stats import norm as _n
+    if 'vorm_mu' in K:                                   # vormlaag: z' = (z - mu) / sigma, dus z = mu + sigma z'
+        q = _n.cdf(K['vorm_mu'].to_numpy() + K['vorm_sg'].to_numpy() * _n.ppf(q))
+    b_r = K['staart_br'].to_numpy() if 'staart_br' in K else np.ones(len(K))
+    q = np.where(q < Q_STAART, Q_STAART * (q / Q_STAART) ** (1.0 / b_r), q)     # staartcorrectie terugdraaien
+    uq = np.full(len(K), np.nan); ag = K['afstand'].map(GROEP).to_numpy()
+    for g, p in par_t.items():
+        s_ = ag == g
+        if s_.any():
+            uq[s_] = tw_ppf(p, q[s_], Zq[s_])
+    return uq
+
+
+def vorm_toepassen(K, fit, ok, verbose=True):
+    """Vormlaag (vormlaag.py) op de kansschaal: geschat op de fitjaren (zonder eigen valpartijen), toegepast op alle ritten."""
+    import vormlaag as vl
+    from scipy.stats import norm as _n
+    pit = K['pit'].to_numpy()
+    z = np.where(ok & np.isfinite(pit), _n.ppf(np.clip(pit, 1e-9, 1 - 1e-9)), np.nan).clip(-6, 6)
+    F = vl.kenmerken(K['skater_id'].to_numpy(), K['dag'].to_numpy(), z, K['k_val'].to_numpy(), K['rk_'].to_numpy())
+    wg = np.exp(-K['k_c'].clip(0, 0.5).fillna(0.2).to_numpy() / 0.04)
+    Xm, Xs, nm_m, nm_s = vl.ontwerp(F, wg)
+    fm = fit & np.isfinite(z) & (K['jaar'].to_numpy() >= 2012)
+    p = vl.fit(z[fm], Xm[fm], Xs[fm], (1 + 2 * (wg > 0.3))[fm] if VORM_TOP else None)
+    mu, sg, pit2, d = vl.pas_toe(p, np.nan_to_num(z), Xm, Xs)
+    K['pit_basis'] = pit; K['vorm_mu'] = mu; K['vorm_sg'] = sg
+    K['pit'] = np.where(np.isfinite(z), pit2, pit); K['nll'] = np.where(np.isfinite(z), K['nll'] + d, K['nll'])
+    K.attrs['vorm_par'] = [float(v) for v in p]
+    if verbose:
+        km = Xm.shape[1]
+        print('vormlaag locatie', ' '.join(f'{a} {b:+.3f}' for a, b in zip(nm_m, p[:km])))
+        print('vormlaag schaal ', ' '.join(f'{a} {b:+.3f}' for a, b in zip(nm_s, p[km:])))
+    return K
 
 
 def twee_t_w(u, Z):
@@ -368,8 +415,18 @@ def draai(w, par, verbose=True, segment=True):
     st = (pit < Q) & np.isfinite(pit)
     K['pit'] = np.where(st, Q * (np.clip(pit, 1e-300, 1) / Q) ** b_r, pit)
     K['nll'] = np.where(st, K['nll'] - np.log(b_r) - (b_r - 1) * np.log(np.clip(pit, 1e-300, 1) / Q), K['nll'])
-    K.attrs['staart_b'] = [float(v) for v in bb]
+    K.attrs['staart_b'] = [float(v) for v in bb]; K['staart_br'] = b_r
     K['ok'] = ok
+    if VORM:
+        K = vorm_toepassen(K, fit, ok, verbose)
+        # voorspelde tijd = mediaan van de nieuwe verdeling (verschuiving t.o.v. de mediaan zonder vormlaag)
+        mu_, sg_ = K.pop('vorm_mu'), K.pop('vorm_sg')
+        u0 = kwantiel_u(K, par_t, Zq, 0.5)
+        K['vorm_mu'] = mu_; K['vorm_sg'] = sg_
+        u1 = kwantiel_u(K, par_t, Zq, 0.5)
+        K['bias_vorm'] = np.nan_to_num((u1 - u0) * K['sd'].to_numpy())
+        K['pred'] = K['pred'] + K['bias_vorm']
+        K['err'] = np.log(K['tijd']) - K['pred']
     if verbose:
         print('staart b (snel, voorbij %.0f%%): b0 %.3f  b1 (x exp(-niveau/4%%)) %.3f' % (100 * Q, bb[0], bb[1]))
         print('ijs-coef', np.round(c_ijs, 3), '| tijd', round(time.time() - t0), 's', flush=True)

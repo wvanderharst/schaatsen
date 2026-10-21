@@ -24,14 +24,6 @@ def kies_top(R, n_per, vanaf_dag):
     return b.groupby('gender').head(n_per)['skater_id'].tolist()
 
 
-def kwantiel(p, w, q, lo=-30.0, hi=30.0, n=60):
-    a = np.full(len(w), lo); b = np.full(len(w), hi)          # w: kenmerkenmatrix Z van de verdeling
-    for _ in range(n):
-        m = (a + b) / 2; c = m2.tw_cdf(p, m, w) < q
-        a = np.where(c, m, a); b = np.where(c, b, m)
-    return (a + b) / 2
-
-
 def main(w, par_pad, uit, datum='2026-10-20', n_per=50):
     os.makedirs(uit, exist_ok=True)
     R = pd.read_parquet(os.path.join(w, 'ritten_cat.parquet')); R['afstand'] = R['afstand'].astype(str)
@@ -58,13 +50,9 @@ def main(w, par_pad, uit, datum='2026-10-20', n_per=50):
     K, coefs, gs, gi, par_t = m2.draai(uit, json.load(open(par_pad)), verbose=False)
     x = K[(K['dag'] == D) & (K['event_id'] < 0)].copy()
     Zq = m2.kenm_verdeling(x)
+    loc0 = x['pred'].to_numpy() - (x['bias_vorm'].to_numpy() if 'bias_vorm' in x else 0.0)     # locatie zonder de vormlaag
     for q, nm in ((0.1, 'p10'), (0.5, 'mediaan'), (0.9, 'p90')):
-        uq = np.zeros(len(x))
-        for g in ('sprint', 'midden', 'lang'):
-            s = (x['ag'] == g).to_numpy()
-            if s.any():
-                uq[s] = kwantiel(par_t[g], Zq[s], q)
-        x[nm] = np.exp(x['pred'].to_numpy() + uq * x['sd'].to_numpy())
+        x[nm] = np.exp(loc0 + m2.kwantiel_u(x, par_t, Zq, q) * x['sd'].to_numpy())     # exact, met staartcorrectie en vormlaag
     pr = R[~R['verdacht']].groupby(['skater_id', 'afstand'])['tijd'].min().rename('PR')
     sb = R[~R['verdacht'] & (R['seizoen'] == S - 1)].groupby(['skater_id', 'afstand'])['tijd'].min().rename('SB_vorig')
     x = x.join(pr, on=['skater_id', 'afstand']).join(sb, on=['skater_id', 'afstand'])

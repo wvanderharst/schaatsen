@@ -107,7 +107,8 @@ def voorbereid(df):
     refq = np.array([ref.get((g, k), np.nan) for g, k in zip(df['gender'], df['afstand_idx'])])
     lf = (df['leeftijd'] + ((df['dag'] - (df['seizoen'] - 1970) * 365.25 - 182) / 365.25).clip(0, 1)).to_numpy(float)
     inv = dict(rk=rk, rid=rid.astype(np.int64), a=df['afstand_idx'].to_numpy().astype(np.int64), z=y - refq,
-               vth=np.nan_to_num(df['v_theta'].to_numpy(float)), dag=df['dag'].to_numpy(float), lf=lf, nr=int(rid.max() + 1), refq=refq)
+               vth=np.nan_to_num(df['v_theta'].to_numpy(float)), dag=df['dag'].to_numpy(float), lf=lf, nr=int(rid.max() + 1), refq=refq,
+               seiz=df['seizoen'].to_numpy().astype(np.int64))
     return df, inv
 
 

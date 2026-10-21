@@ -80,3 +80,53 @@ KALMAN=kalman_mv2 python voorspel_nu.py . kalman_par.json nu 2026-10-21 50  # vo
 ```
 
 `oud_vooraf.py` maakt de baseline van het oude model (in de map met `model_full_tuned.pkl`).
+
+
+## Universele baanfactor (`baanfactor.py`, `maak_baanfactor.py`)
+
+Eén methode voor alle onderdelen: de Kalman-meting, PR en seizoensbeste, de voorspelling vooraf en het omrekenen naar een baan.
+
+    baanfactor(rit i in race r) = theta_r + d_r x (m(g_i) / m(gbar_r) - 1),   m(g) = 1 + A (exp(-g / TM) - exp(-G0 / TM))
+
+- theta_r is het dagpeil zoals het veld het mat (achteraf), of zoals de baanhistorie het voorspelt (vooraf).
+- d_r is hoe snel het ijs is ten opzichte van Heerenveen.
+- g is het niveau van de rijder, gbar het gewogen niveau van het veld. Het gemeten peil geldt voor het veld; een rijder sterker of zwakker dan het veld krijgt meer of minder van het verschil met Heerenveen.
+- Geschat op 2019 en eerder: A = 0,29, TM = 0,20. Toppers winnen op ijs dat 1,3% sneller is dan Heerenveen ongeveer 1,5%, het veld 1,3% en zwakke rijders 1,15%.
+
+Een volledig zelfstandig dagpeil, zonder het veldpeil als invoer (`kalman_mv3.py`), drijft weg. Elke systematische fout in de niveaus wordt door het veld als ijs gelezen en versterkt zichzelf. Dat gebeurt ook met een Heerenveen-anker en zonder jeugd.
+
+Toets (2020+, log loss; lager is beter):
+
+| variant | alle | toppers | elite |
+|---|---|---|---|
+| vorige versie (lineaire baan x niveau-termen in de correcties) | −2,3251 | −3,0209 | −3,1293 |
+| universele baanfactor | −2,3217 | −3,0151 | −3,1205 |
+| universele baanfactor + uitschieters | −2,3246 | −3,0161 | −3,1215 |
+| oud model | −2,3143 | −2,9888 | −3,1123 |
+
+## Historische deviatie
+
+- **Uitschieters:** het filter houdt per rijder bij hoe vaak een rit snel of traag buiten 2 sd viel. Dat gebeurt over alle afstanden, met een lang geheugen (150 ritten) en gekrompen naar de basis. Deze uitschieterkans zit in de correcties, de schaal en de vorm van de foutverdeling.
+- **Week-op-week:** de ritruis van het filter is KR x CD^2 x (eigen spreiding)^BR. BR ≈ 0,1 maakt het filter zelf iets nauwkeuriger, maar het hele model slechter (log loss alle −2,3010): de eigen spreiding is nodig voor de breedte van de verdeling. Daarom blijft BR = 1.
+
+## Talentmodel (`talent.py`)
+
+Het model voorspelt aan het eind van elk jeugdseizoen (13–19 jaar) de kans dat de rijder op 21–24 jaar het niveau van de wereldtop-50 of top-10 haalt op de beste seniorenafstand.
+
+- **Stand:** momentopnamen van het Kalmanfilter.
+- **Kenmerken:**
+  - niveau ten opzichte van de wereldtop en ten opzichte van leeftijdsgenoten;
+  - groeisnelheid en verbetering over één en twee seizoenen;
+  - piek (beste rit) ten opzichte van het niveau;
+  - sprint- of duurprofiel;
+  - uitschieters;
+  - aantal ritten en jaren actief;
+  - land en geslacht.
+
+  Alles ook × leeftijd.
+- **Model:** de kans dat de rijder doorgaat × de verdeling van het verwachte seniorenniveau. Die verdeling is empirisch, met een spreiding als functie van leeftijd en niveau.
+- **IJking:** een kruisfit tussen de jaargangen 1992–96 en 1997–2001, met een ijkingsfunctie die kwadratisch is in de logit.
+
+Toets (buiten de steekproef): op 16 jaar zitten van de latere top-50-profs er 50 van de 109 in de top-N van het model, tegen 43 bij rangschikken op niveau. Van de latere top-10 zijn het er 13 van de 30, tegen 8. De kansen zijn gekalibreerd (bijv. voorspeld 30% → werkelijk 30%, 62% → 65%).
+
+De lijst van nu staat in `talenten_2026-10-21.csv`: 150 per geslacht.

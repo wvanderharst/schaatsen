@@ -11,8 +11,9 @@ Stappen (de weermap is voorspel/weer/ in de repo; ophalen draait op GitHub Actio
 Limieten van de gratis API: 10.000 calls per dag, 5.000 per uur, 600 per minuut; meer dan 2 weken data per locatie telt als meer
 calls (per 2 weken 1). Alle wedstrijddagen samen zijn ~13.000 calls: twee runs op verschillende dagen. Banen met veel ritten van
 toprijders gaan eerst. Per dag het gemiddelde over 10-20 uur lokale tijd."""
-import os, sys, json, time, math, re, urllib.request, urllib.parse, urllib.error
+import os, sys, json, time, math, re, urllib.parse
 import numpy as np, pandas as pd
+import requests
 
 GEO = 'https://geocoding-api.open-meteo.com/v1/search'
 ARCH = 'https://archive-api.open-meteo.com/v1/archive'
@@ -45,20 +46,33 @@ class Limiet(Exception):
     pass
 
 
-def _json(url, pogingen=4):
+_S = None
+
+
+def _sessie():
+    """Eén blijvende verbinding (keep-alive): zonder hergebruik kostte elke nieuwe TLS-handshake soms 30 s (time-out)."""
+    global _S
+    if _S is None:
+        _S = requests.Session(); _S.headers['User-Agent'] = 'schaatsen-luchtdruk/1.0'
+        _S.mount('https://', requests.adapters.HTTPAdapter(pool_connections=2, pool_maxsize=2))
+    return _S
+
+
+def _json(url, pogingen=5):
     for k in range(pogingen):
         try:
-            with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'schaatsen-luchtdruk/1.0'}), timeout=30) as r:
-                return json.loads(r.read().decode())
-        except urllib.error.HTTPError as e:
-            tekst = e.read().decode(errors='ignore')
-            if e.code == 429 and 'aily' in tekst:            # daglimiet: stoppen, volgende run gaat verder
-                raise Limiet(tekst)
-            if e.code not in (429, 500, 502, 503, 504) or k == pogingen - 1:
+            r = _sessie().get(url, timeout=(10, 60))
+            if r.status_code == 200:
+                return r.json()
+            if r.status_code == 429 and 'aily' in r.text:          # daglimiet: stoppen, volgende run gaat verder
+                raise Limiet(r.text)
+            print(f'  HTTP {r.status_code}: {r.text[:120]}', flush=True)
+            if r.status_code not in (429, 500, 502, 503, 504) or k == pogingen - 1:
+                r.raise_for_status()
+            time.sleep(60 if r.status_code == 429 else 2 ** (k + 1))
+        except requests.exceptions.RequestException as e:
+            if isinstance(e, requests.exceptions.HTTPError):
                 raise
-            print(f'  HTTP {e.code}: {tekst[:120]}', flush=True)
-            time.sleep(60 if e.code == 429 else 2 ** (k + 1))
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
             print(f'  verbinding: {e}', flush=True)
             if k == pogingen - 1:
                 raise

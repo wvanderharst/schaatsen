@@ -23,8 +23,8 @@ BAAN_TOP_K = 30.0
 SZ_TOP = os.environ.get('SZ_TOP', '1') == '1'
 BAAN_FUNCTIE = os.environ.get('BAAN_FUNCTIE', '1') == '1'
 HOOG_SCHAAL = os.environ.get('HOOG_SCHAAL', '0') == '1'
-SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter in correcties/schaal/vorm: maakte alles slechter (alle -2,3303 -> -2,3176)
-VORM = os.environ.get('VORM', '0') == '1'
+SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter in correcties/schaal/vorm (niet geldig getoetst; vervangen door de vormlaag)
+VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (vormlaag.py)
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0

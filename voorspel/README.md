@@ -149,3 +149,39 @@ ijs en de scherpte zijn in elite-wedstrijden beter.
 | universele baanfactor + uitschieters | −2,3246 | −3,0161 | −3,1215 | 0,664% |
 | + ijs/veld-term | **−2,3264** | **−3,0261** | **−3,1375** | **0,650%** |
 | oud model | −2,3143 | −2,9888 | −3,1123 | 0,657% |
+
+## Vormlaag (`vormlaag.py`)
+
+Vormpieken werden niet gevangen. Na een snelle schok (kans ≤ 1/50) reed dezelfde rijder ook de weken erna sneller dan voorspeld, en na
+elke schok was het onrustiger (beide staarten). Gemiddeld leken de staarten goed, maar dat was een mengsel van rustige periodes (te dunne
+staarten) en periodes na een schok (veel te dikke staarten). Volgende ritten na een snelle schok (toetsjaren, `vorm_diag.py`):
+
+| | 1–7 dagen | 8–30 dagen | 31–90 dagen |
+|---|---|---|---|
+| toppers, snel 1/20 vóór vormlaag | 1,7× | 1,1× | 1,2× |
+| toppers, snel 1/20 met vormlaag | 0,80× | 0,98× | 1,00× |
+| overige rijders, snel 1/20 vóór vormlaag | 2,5× | 1,8× | 1,5× |
+| overige rijders, snel 1/20 met vormlaag | 0,83× | 0,95× | 0,92× |
+
+**Methode.** z = Φ⁻¹(PIT) van het model; de vormlaag maakt z' = (z − mu) / sigma. Dat is een geldige verdeling voor de tijd
+(Gauss-copula op de modelverdeling), en de log loss verandert exact met log φ(z) − log φ(z') + log sigma.
+- mu is lineair in het uitdovende gemiddelde van de eigen z (7, 30 en 90 dagen), de snelle en trage schokken (het deel van z voorbij 2)
+  en het gemiddelde rijdergeheugen van de startlijst (een circuit dat recent sneller of trager rijdt dan voorspeld).
+- log sigma is lineair in de extra variantie van de laatste 7, 30 en 90 dagen (z² − 1).
+- Alles ook × exp(−niveau/4%). Er zijn geen vaste termen: de fitjaren liggen voor het basismodel binnen de steekproef, en vaste termen
+  leerden daar een niveau en breedte die in de toetsjaren niet kloppen (elite 0,05 sd te traag, toppers sigma 0,94).
+- Alleen eerdere dagen; eigen valpartijen tellen niet mee. Geschat op 2012–2019, toppers ×3.
+- De voorspelde tijd is de mediaan van de nieuwe verdeling; `voorspel_nu.py` rekent de kwantielen exact uit, met de vormlaag en de staartcorrectie.
+
+Toets (2020+, dezelfde ritten als het oude model):
+
+| | log loss alle | toppers | elite | mediane fout elite | kalibratiefouten toppers / elite |
+|---|---|---|---|---|---|
+| zonder vormlaag | −2,3303 | −3,0362 | −3,1449 | 0,655% | 7 / 4 |
+| met vormlaag | **−2,3394** | **−3,0408** | **−3,1496** | **0,652%** | 9 / **1** |
+| oud model | −2,3143 | −2,9888 | −3,1123 | 0,657% | |
+
+Elite met vormlaag: snel 1/1000 0,99×, 1/100 0,92×, 1/20 1,02×; traag 1,09×, 1,01×, 0,96×. Rijders met ≥ 3, 4, 6 en 8 snelle ritten
+(kans ≤ 1/50) kloppen. Nog niet goed:
+- **Toppers 90–97:** de verdeling is iets te breed (z-sd 0,977): er zijn minder snelle uitschieters dan voorspeld (1/100: 0,84×). Dat zat al in de basis.
+- **Trage reeksen per rijder:** te veel rijders met ≥ 5 trage ritten (toppers 83 tegen 60, elite 32 tegen 20).

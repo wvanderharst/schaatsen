@@ -77,7 +77,7 @@ def met_kalman(w, par):
     R = pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'))
     R, inv = kf.voorbereid(R); o = kf.pass_(inv, par)
     K = pd.read_parquet(os.path.join(w, 'kenmerken.parquet'), columns=KOL)
-    assert len(K) == len(R) and (K['skater_id'].to_numpy() == R['skater_id'].to_numpy()).all() and (K['tijd'].to_numpy() == R['tijd'].to_numpy()).all()
+    assert len(K) == len(R) and (K['skater_id'].to_numpy() == R['skater_id'].to_numpy()).all() and np.array_equal(K['tijd'].to_numpy(float), R['tijd'].to_numpy(float), equal_nan=True)
     for k in ('zh', 'vl', 'r', 'e', 'na', 'c', 'd', 'f', 'pc'):
         K['k_' + k] = o[k]
     K['k_val'] = o['val']; K['ref'] = inv['refq']; K['lf'] = inv['lf']

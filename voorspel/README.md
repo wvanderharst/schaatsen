@@ -130,3 +130,22 @@ Het model voorspelt aan het eind van elk jeugdseizoen (13–19 jaar) de kans dat
 Toets (buiten de steekproef): op 16 jaar zitten van de latere top-50-profs er 50 van de 109 in de top-N van het model, tegen 43 bij rangschikken op niveau. Van de latere top-10 zijn het er 13 van de 30, tegen 8. De kansen zijn gekalibreerd (bijv. voorspeld 30% → werkelijk 30%, 62% → 65%).
 
 De lijst van nu staat in `talenten_2026-10-21.csv`: 150 per geslacht.
+
+
+## Elite op beter geprepareerd ijs (ijs/veld-term in de baanfactor)
+
+    baanfactor = theta_r + d_r x (m(g_i) / m(gbar_r) - 1) + B x (exp(-g_i / TB) - exp(-gbar_r / TB))
+
+Toprijders (binnen 4% van de wereldtop) rijden ten opzichte van hun niveau en het gemeten dagpeil trager naarmate hun race zwakker bezet is.
+Dat geldt ook binnen dezelfde rijders: −0,03% in elite-velden en +0,15% in de zwakste velden. Het dagpeil wordt op het veld gemeten, en het
+ijs en de scherpte zijn in elite-wedstrijden beter.
+
+- **Schatting:** B en TB worden samen met A en TM geschat, met hulptermen voor een afwijking die alleen van het eigen niveau afhangt. Uitkomst: B = 1,6%, TB = 0,20, A = −0,25, TM = 0,5.
+- **Bijvangst:** de term vangt ook dat het gemeten peil van een veld scheef kan zijn door de samenstelling, zoals groeiende jeugd.
+- **Vooraf:** dezelfde formule werkt ook vooraf, want de startlijst is bekend.
+
+| variant (2020+, log loss) | alle | toppers | elite | elite mediane fout |
+|---|---|---|---|---|
+| universele baanfactor + uitschieters | −2,3246 | −3,0161 | −3,1215 | 0,664% |
+| + ijs/veld-term | **−2,3264** | **−3,0261** | **−3,1375** | **0,650%** |
+| oud model | −2,3143 | −2,9888 | −3,1123 | 0,657% |

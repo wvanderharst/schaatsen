@@ -17,8 +17,10 @@ gbar = bf.veldniveau(inv['rk'], g, wv)
 hv = bf.hv_peil(df); thv = np.array([hv.get((gg, a), np.nan) for gg, a in zip(df['gender'], df['afstand_idx'])])
 d = df['theta'].to_numpy() - thv
 e = o['e']; ok = np.isfinite(e) & ~o['val'] & (df['afstand_idx'].to_numpy() >= 2) & (df['jaar'].to_numpy() <= 2019)
-A, TM, rss, r2, B, TB = bf.schat_m(e[ok], d[ok], g[ok], gbar[ok], tm_grid=(0.015, 0.02, 0.03, 0.04, 0.06, 0.08, 0.12, 0.2, 0.3, 0.5),
-                                   tb_grid=(0.02, 0.03, 0.05, 0.08, 0.12, 0.2))
+# stap 1: snelheidsterm (toppers winnen meer op snel ijs) zonder veldterm; stap 2: veldterm met A en TM vast (samen schatten is niet
+# identificeerbaar: A sloeg dan om naar negatief en snelle banen werden voor de elite te traag voorspeld)
+A, TM = bf.schat_a(e[ok], d[ok], g[ok], gbar[ok])
+B, TB, r2 = bf.schat_b(e[ok], d[ok], g[ok], gbar[ok], A, TM)
 print('baanfactor: A %.3f TM %.3f B %.4f TB %.3f (verklaarde fractie %.5f)' % (A, TM, B, TB, r2))
 gg = np.where(np.isfinite(g), g, gbar)
 df['theta_rijder'] = np.where(np.isfinite(d), bf.factor(df['theta'].to_numpy(), d, gg, gbar, A, TM, B, TB), df['theta'].to_numpy())

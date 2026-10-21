@@ -1,156 +1,118 @@
-staart b (snel, voorbij 2%): b0 0.910  b1 (x exp(-niveau/4%)) 0.139
-ijs-coef [0.    0.981 0.211 0.293 0.373] | tijd 1297 s
+staart b (snel, voorbij 2%): b0 0.942  b1 (x exp(-niveau/4%)) 0.017
+ijs-coef [ 0.     0.982  0.202  0.299  0.376  0.002 -0.005] | tijd 1863 s
                   jong   ouder
-const           0.0032  0.0144
-g               0.0260 -0.0126
-g2             -0.1000 -0.0136
-f               0.2327  0.1508
-ela             0.0114  0.0365
-elany           0.0050  0.0420
-pr             -0.1159 -0.1101
-pr_n            0.6373  0.7009
-pr_geen        -0.0689 -0.0013
-prraw           0.0012  0.0292
-sb3             0.0821  0.0770
-sb3_geen       -0.0037  0.0047
-sbc             0.0902  0.1845
-sbc_geen        0.0000 -0.0003
-a1              0.0089  0.1436
-a1_dt           0.0366 -1.0095
-a2             -0.0083 -0.0266
-a2_dt          -0.0612  0.1421
-a3              0.0000 -0.0010
-a3_dt           0.0000  0.0070
-a4             -0.0000  0.0031
-a4_dt           0.0000 -0.0039
-leeftijd_onb    0.0000 -0.0043
-dt              0.0235 -0.0109
-inv_n          -0.0293 -0.0370
-logn           -0.0002 -0.0014
-nieuw_af        0.1255  0.0373
-onz             0.0006  0.0009
-seizoenstart    0.0033  0.0024
-lgap           -0.0002 -0.0004
-hoog_g         -0.0155  0.0137
-dth_g           0.3152 -0.1278
-hoog            0.0017 -0.0030
-dth             0.0275  0.1321
-vrouw           0.0013  0.0010
-af_1000m        0.0001  0.0006
-af_1500m        0.0007  0.0003
-af_3000m        0.0018  0.0001
-af_5000m        0.0047  0.0026
-af_10000m       0.0029  0.0024
-g_w            -0.0344 -0.1098
-g2_w            1.3042  2.2205
-f_w            -0.5978 -0.0119
-ela_w          -0.0080 -0.0143
-elany_w        -0.1121 -0.1368
-pr_w            0.7425  0.3655
-pr_n_w         -2.7594 -1.5186
-pr_geen_w       0.8368 -0.0886
-prraw_w         0.0007 -0.0792
-sb3_w          -0.2905 -0.0984
-sb3_geen_w      0.0022 -0.0098
-sbc_w          -0.2656 -0.3105
-sbc_geen_w     -0.0034  0.0009
-a1_w           -0.0161 -0.5976
-a1_dt_w         0.0959  3.2836
-a2_w            0.0137  0.1054
-a2_dt_w         0.0508 -0.5424
-a3_w            0.0000  0.0074
-a3_dt_w        -0.0000 -0.0345
-a4_w            0.0000 -0.0737
-a4_dt_w         0.0000  0.0020
-leeftijd_onb_w  0.0000  0.0155
-dt_w           -0.0244  0.0609
-inv_n_w         0.0912  0.0492
-logn_w          0.0026  0.0026
-nieuw_af_w     -0.9715  0.0631
-onz_w           0.0015  0.0008
-seizoenstart_w  0.0010  0.0019
-lgap_w          0.0011  0.0009
-hoog_g_w       -0.0056  0.1555
-dth_g_w         1.1313 -0.8847
-hoog_w         -0.0038  0.0004
-dth_w           0.0412 -0.0858
-vrouw_w        -0.0020 -0.0011
-af_1000m_w      0.0010  0.0007
-af_1500m_w     -0.0001  0.0010
-af_3000m_w     -0.0027  0.0002
-af_5000m_w     -0.0083 -0.0026
-af_10000m_w    -0.0036 -0.0027
-w              -0.0123 -0.0273
-alle            n=1107298 | mediaan |fout| %: oud 1.329  nieuw 1.298  basis 1.351 | gem |fout| %: oud 2.412 nieuw 2.296 | log loss: oud -2.3143 nieuw -2.3251 (verschil -0.0108)
-toppers >=90    n= 116337 | mediaan |fout| %: oud 0.741  nieuw 0.728  basis 0.735 | gem |fout| %: oud 0.970 nieuw 0.950 | log loss: oud -2.9888 nieuw -3.0209 (verschil -0.0321)
-elite >=97      n=  40226 | mediaan |fout| %: oud 0.657  nieuw 0.657  basis 0.665 | gem |fout| %: oud 0.848 nieuw 0.848 | log loss: oud -3.1123 nieuw -3.1293 (verschil -0.0170)
-jong (t/m neo)  n= 822266 | mediaan |fout| %: oud 1.340  nieuw 1.305  basis 1.351 | gem |fout| %: oud 2.379 nieuw 2.274 | log loss: oud -2.3104 nieuw -2.3249 (verschil -0.0145)
-senior          n=  57092 | mediaan |fout| %: oud 0.903  nieuw 0.873  basis 0.898 | gem |fout| %: oud 1.537 nieuw 1.426 | log loss: oud -2.7255 nieuw -2.7558 (verschil -0.0303)
-kalibratie toppers >=90: 116337 ritten van 2929 rijders, 14 fouten
-  snel  kans<=1/1000 :   193 ritten, verwacht   116.3 ±  10.8 (1.66x) FOUT
-  snel  kans<=1/100  :  1330 ritten, verwacht  1163.4 ±  34.1 (1.14x) FOUT
-  snel  kans<=1/20   :  6284 ritten, verwacht  5816.9 ±  76.3 (1.08x) FOUT
-  snel  rijders met >=3 ritten kans<=1/50:  325, verwacht  289.2  FOUT
-  snel  rijders met >=4 ritten kans<=1/50:  173, verwacht  135.7  FOUT
-  snel  rijders met >=5 ritten kans<=1/50:  102, verwacht   59.7  FOUT
-  snel  rijders met >=6 ritten kans<=1/50:   59, verwacht   24.4  FOUT
-  snel  rijders met >=8 ritten kans<=1/50:   22, verwacht    3.3  FOUT
-  traag kans<=1/1000 :   125 ritten, verwacht   116.3 ±  10.8 (1.07x) ok
-  traag kans<=1/100  :  1247 ritten, verwacht  1163.4 ±  34.1 (1.07x) FOUT
-  traag kans<=1/20   :  5566 ritten, verwacht  5816.9 ±  76.3 (0.96x) FOUT
-  traag rijders met >=3 ritten kans<=1/50:  309, verwacht  289.2  ok
+const           0.0025  0.0155
+g               0.0258 -0.0041
+g2             -0.0893 -0.0237
+f               0.2683  0.1571
+ela             0.0137  0.0386
+elany           0.0059  0.0433
+pr             -0.0939 -0.0603
+pr_n            0.6565  0.7120
+pr_geen        -0.0734 -0.0024
+prraw          -0.0405 -0.0171
+sb3             0.0915  0.0771
+sb3_geen       -0.0028  0.0049
+sbc             0.0831  0.1789
+sbc_geen        0.0004  0.0001
+a1              0.0078  0.1433
+a1_dt           0.0378 -1.0457
+a2             -0.0068 -0.0237
+a2_dt          -0.0623  0.1451
+a3              0.0000 -0.0008
+a3_dt          -0.0000  0.0071
+a4              0.0000  0.0025
+a4_dt          -0.0000 -0.0038
+leeftijd_onb   -0.0000 -0.0030
+dt              0.0233 -0.0116
+inv_n          -0.0282 -0.0395
+logn           -0.0004 -0.0020
+nieuw_af        0.1280  0.0387
+onz             0.0006  0.0011
+seizoenstart    0.0035  0.0025
+lgap           -0.0001 -0.0004
+uit_snel       -0.0002 -0.0005
+uit_traag       0.0007  0.0015
+vrouw           0.0013  0.0008
+af_1000m       -0.0001  0.0001
+af_1500m        0.0005 -0.0002
+af_3000m        0.0017 -0.0004
+af_5000m        0.0049  0.0022
+af_10000m       0.0030  0.0016
+g_w            -0.0141 -0.0874
+g2_w            1.1186  1.3647
+f_w            -0.5972  0.0398
+ela_w           0.0002 -0.0112
+elany_w        -0.0959 -0.1278
+pr_w            0.7166  0.3441
+pr_n_w         -2.7511 -1.5243
+pr_geen_w       0.6862 -0.0985
+prraw_w         0.0291 -0.0727
+sb3_w          -0.2791 -0.0872
+sb3_geen_w      0.0016 -0.0095
+sbc_w          -0.2821 -0.3231
+sbc_geen_w     -0.0040 -0.0003
+a1_w           -0.0086 -0.5261
+a1_dt_w         0.0805  3.1656
+a2_w            0.0112  0.0904
+a2_dt_w         0.0550 -0.5164
+a3_w           -0.0000  0.0066
+a3_dt_w         0.0000 -0.0321
+a4_w            0.0000 -0.0688
+a4_dt_w        -0.0000 -0.0091
+leeftijd_onb_w -0.0000  0.0146
+dt_w           -0.0258  0.0576
+inv_n_w         0.0817  0.0479
+logn_w          0.0024  0.0032
+nieuw_af_w     -0.8164  0.0724
+onz_w           0.0016  0.0005
+seizoenstart_w -0.0004  0.0007
+lgap_w          0.0011  0.0010
+uit_snel_w      0.0014  0.0015
+uit_traag_w    -0.0010 -0.0018
+vrouw_w        -0.0021 -0.0010
+af_1000m_w      0.0008  0.0011
+af_1500m_w     -0.0002  0.0013
+af_3000m_w     -0.0025  0.0010
+af_5000m_w     -0.0084 -0.0021
+af_10000m_w    -0.0043 -0.0013
+w              -0.0105 -0.0279
+alle            n=1107298 | mediaan |fout| %: oud 1.329  nieuw 1.302  basis 1.356 | gem |fout| %: oud 2.412 nieuw 2.301 | log loss: oud -2.3143 nieuw -2.3263 (verschil -0.0120)
+toppers >=90    n= 116337 | mediaan |fout| %: oud 0.741  nieuw 0.722  basis 0.732 | gem |fout| %: oud 0.970 nieuw 0.941 | log loss: oud -2.9888 nieuw -3.0316 (verschil -0.0428)
+elite >=97      n=  40226 | mediaan |fout| %: oud 0.657  nieuw 0.650  basis 0.657 | gem |fout| %: oud 0.848 nieuw 0.837 | log loss: oud -3.1123 nieuw -3.1447 (verschil -0.0324)
+jong (t/m neo)  n= 822266 | mediaan |fout| %: oud 1.340  nieuw 1.308  basis 1.355 | gem |fout| %: oud 2.379 nieuw 2.280 | log loss: oud -2.3104 nieuw -2.3251 (verschil -0.0147)
+senior          n=  57092 | mediaan |fout| %: oud 0.903  nieuw 0.870  basis 0.897 | gem |fout| %: oud 1.537 nieuw 1.422 | log loss: oud -2.7255 nieuw -2.7638 (verschil -0.0383)
+kalibratie toppers >=90: 116337 ritten van 2929 rijders, 9 fouten
+  snel  kans<=1/1000 :   156 ritten, verwacht   116.3 ±  10.8 (1.34x) FOUT
+  snel  kans<=1/100  :  1198 ritten, verwacht  1163.4 ±  34.1 (1.03x) ok
+  snel  kans<=1/20   :  5914 ritten, verwacht  5816.9 ±  76.3 (1.02x) ok
+  snel  rijders met >=3 ritten kans<=1/50:  285, verwacht  289.2  ok
+  snel  rijders met >=4 ritten kans<=1/50:  156, verwacht  135.7  ok
+  snel  rijders met >=5 ritten kans<=1/50:   70, verwacht   59.7  ok
+  snel  rijders met >=6 ritten kans<=1/50:   40, verwacht   24.4  FOUT
+  snel  rijders met >=8 ritten kans<=1/50:   13, verwacht    3.3  FOUT
+  traag kans<=1/1000 :   130 ritten, verwacht   116.3 ±  10.8 (1.12x) ok
+  traag kans<=1/100  :  1273 ritten, verwacht  1163.4 ±  34.1 (1.09x) FOUT
+  traag kans<=1/20   :  5642 ritten, verwacht  5816.9 ±  76.3 (0.97x) FOUT
+  traag rijders met >=3 ritten kans<=1/50:  314, verwacht  289.2  ok
   traag rijders met >=4 ritten kans<=1/50:  182, verwacht  135.7  FOUT
-  traag rijders met >=5 ritten kans<=1/50:  111, verwacht   59.7  FOUT
-  traag rijders met >=6 ritten kans<=1/50:   61, verwacht   24.4  FOUT
-  traag rijders met >=8 ritten kans<=1/50:   12, verwacht    3.3  FOUT
+  traag rijders met >=5 ritten kans<=1/50:  103, verwacht   59.7  FOUT
+  traag rijders met >=6 ritten kans<=1/50:   62, verwacht   24.4  FOUT
+  traag rijders met >=8 ritten kans<=1/50:   10, verwacht    3.3  FOUT
 kalibratie elite >=97: 40226 ritten van 1042 rijders, 8 fouten
-  snel  kans<=1/1000 :    81 ritten, verwacht    40.2 ±   6.3 (2.01x) FOUT
-  snel  kans<=1/100  :   444 ritten, verwacht   402.3 ±  20.1 (1.10x) FOUT
-  snel  kans<=1/20   :  2064 ritten, verwacht  2011.3 ±  44.8 (1.03x) ok
-  snel  rijders met >=3 ritten kans<=1/50:   88, verwacht   98.7  ok
-  snel  rijders met >=4 ritten kans<=1/50:   50, verwacht   46.1  ok
-  snel  rijders met >=5 ritten kans<=1/50:   26, verwacht   20.2  ok
-  snel  rijders met >=6 ritten kans<=1/50:   11, verwacht    8.2  ok
+  snel  kans<=1/1000 :    64 ritten, verwacht    40.2 ±   6.3 (1.59x) FOUT
+  snel  kans<=1/100  :   396 ritten, verwacht   402.3 ±  20.1 (0.98x) ok
+  snel  kans<=1/20   :  2007 ritten, verwacht  2011.3 ±  44.8 (1.00x) ok
+  snel  rijders met >=3 ritten kans<=1/50:   90, verwacht   98.7  ok
+  snel  rijders met >=4 ritten kans<=1/50:   42, verwacht   46.1  ok
+  snel  rijders met >=5 ritten kans<=1/50:   13, verwacht   20.2  ok
+  snel  rijders met >=6 ritten kans<=1/50:    7, verwacht    8.2  ok
   snel  rijders met >=8 ritten kans<=1/50:    3, verwacht    1.1  ok
-  traag kans<=1/1000 :    50 ritten, verwacht    40.2 ±   6.3 (1.24x) ok
-  traag kans<=1/100  :   481 ritten, verwacht   402.3 ±  20.1 (1.20x) FOUT
-  traag kans<=1/20   :  2136 ritten, verwacht  2011.3 ±  44.8 (1.06x) FOUT
-  traag rijders met >=3 ritten kans<=1/50:  115, verwacht   98.7  ok
-  traag rijders met >=4 ritten kans<=1/50:   70, verwacht   46.1  FOUT
+  traag kans<=1/1000 :    47 ritten, verwacht    40.2 ±   6.3 (1.17x) ok
+  traag kans<=1/100  :   483 ritten, verwacht   402.3 ±  20.1 (1.20x) FOUT
+  traag kans<=1/20   :  2153 ritten, verwacht  2011.3 ±  44.8 (1.07x) FOUT
+  traag rijders met >=3 ritten kans<=1/50:  120, verwacht   98.7  FOUT
+  traag rijders met >=4 ritten kans<=1/50:   74, verwacht   46.1  FOUT
   traag rijders met >=5 ritten kans<=1/50:   43, verwacht   20.2  FOUT
-  traag rijders met >=6 ritten kans<=1/50:   18, verwacht    8.2  FOUT
-  traag rijders met >=8 ritten kans<=1/50:    6, verwacht    1.1  FOUT
-Traceback (most recent call last):
-  File "/home/user/schaatsen/voorspel/model2.py", line 209, in <module>
-    'th_hat', 'theta', 'k_c', 'k_val']].to_parquet(os.path.join(w, 'voorspel2_uitkomst.parquet'))
-                                        ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/usr/local/lib/python3.13/dist-packages/pandas/core/frame.py", line 3135, in to_parquet
-    return to_parquet(
-        self,
-    ...<7 lines>...
-        **kwargs,
-    )
-  File "/usr/local/lib/python3.13/dist-packages/pandas/io/parquet.py", line 490, in to_parquet
-    impl.write(
-    ~~~~~~~~~~^
-        df,
-        ^^^
-    ...<6 lines>...
-        **kwargs,
-        ^^^^^^^^^
-    )
-    ^
-  File "/usr/local/lib/python3.13/dist-packages/pandas/io/parquet.py", line 194, in write
-    df_metadata = {"PANDAS_ATTRS": json.dumps(df.attrs)}
-                                   ~~~~~~~~~~^^^^^^^^^^
-  File "/usr/lib/python3.13/json/__init__.py", line 235, in dumps
-    return _default_encoder.encode(obj)
-           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
-  File "/usr/lib/python3.13/json/encoder.py", line 202, in encode
-    chunks = self.iterencode(o, _one_shot=True)
-  File "/usr/lib/python3.13/json/encoder.py", line 263, in iterencode
-    return _iterencode(o, 0)
-  File "/usr/lib/python3.13/json/encoder.py", line 182, in default
-    raise TypeError(f'Object of type {o.__class__.__name__} '
-                    f'is not JSON serializable')
-TypeError: Object of type ndarray is not JSON serializable
+  traag rijders met >=6 ritten kans<=1/50:   23, verwacht    8.2  FOUT
+  traag rijders met >=8 ritten kans<=1/50:    7, verwacht    1.1  FOUT

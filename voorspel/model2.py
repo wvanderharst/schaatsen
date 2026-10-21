@@ -17,7 +17,27 @@ UITSCHIETERS = os.environ.get('UITSCHIETERS', '1') == '1'
 PBASE = 0.5 * math.erfc(2.0 / math.sqrt(2.0)) * 1.5
 import baanfactor as bf
 BIAS_HL = float(os.environ.get('BIAS_HL', '45'))
+BAAN_TOP_HL = float(os.environ.get('BAAN_TOP_HL', '365'))   # 0 = uit
+BAAN_TOP_K = 30.0
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
+
+
+def online_baan(dag, r, ok, w, hl):
+    """Per dag het uitdovende gewogen gemiddelde (gewicht w) van de geknipte fouten van EERDERE dagen, en het effectieve gewicht."""
+    r = np.clip(np.nan_to_num(r), -0.03, 0.03); m = ok & np.isfinite(r)
+    d = pd.DataFrame({'dag': dag[m], 'rw': r[m] * w[m], 'w': w[m]}).groupby('dag').agg(sw=('rw', 'sum'), nw=('w', 'sum'))
+    dagen = d.index.to_numpy(); S = d.to_numpy(); acc = np.zeros(2); vorige = None; uit = np.zeros((len(dagen), 2))
+    if len(dagen) == 0:
+        return np.zeros(len(dag)), np.zeros(len(dag))
+    for i, dg in enumerate(dagen):
+        if vorige is not None:
+            acc *= 0.5 ** ((dg - vorige) / hl)
+        uit[i] = [acc[0] / acc[1] if acc[1] > 0 else 0.0, acc[1]]
+        acc += S[i]; vorige = dg
+    pos = np.clip(np.searchsorted(dagen, dag), 0, len(dagen) - 1)
+    laatste = dag > dagen[-1]                              # na de laatste dag met data: stand inclusief die dag
+    b = uit[pos]; b[laatste] = [acc[0] / acc[1] if acc[1] > 0 else 0.0, acc[1]]
+    return b[:, 0], b[:, 1]
 
 
 def online_bias(dag, r, ok, w, hl):
@@ -174,6 +194,16 @@ def draai(w, par, verbose=True, segment=True):
         b_all, b_top = online_bias(K['dag'].to_numpy(), (np.log(K['tijd']) - K['pred']).to_numpy(), fit_b := (ok & ~K['k_val'].to_numpy()), wb, BIAS_HL)
         K['bias'] = (1 - wb) * b_all + wb * b_top
         K['pred'] = K['pred'] + K['bias']
+        if BAAN_TOP_HL > 0:
+            # per baan: lopende fout van de toppers (gewogen met wb, alleen eerdere dagen, halfwaardetijd BAAN_TOP_HL dagen, krimp naar 0):
+            # het baangemiddelde mengt alle soorten wedstrijden; voor elite-wedstrijden is het ijs op de ene baan anders dan op de andere
+            r_ = (np.log(K['tijd']) - K['pred']).to_numpy(); bt = np.zeros(len(K))
+            for b_, idx in K.groupby('baan').indices.items():
+                if len(idx) < 50: continue
+                bb_, nb_ = online_baan(K['dag'].to_numpy()[idx], r_[idx], fit_b[idx], wb[idx], BAAN_TOP_HL)
+                bt[idx] = bb_ * nb_ / (nb_ + BAAN_TOP_K)
+            K['bias_baan'] = wb * bt
+            K['pred'] = K['pred'] + K['bias_baan']
     rc = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
     Ix = lambda d: np.c_[np.ones(len(d)), np.log1p(d['ijs_vn']), np.log1p(d['ijs_evn']), d['hoog'], np.log(d['v_theta'].clip(1e-7))]
     rci = (rc['theta'] - rc['th_hat_veld']).to_numpy()                 # onzekerheid van het dagpeil zelf (op raceniveau)

@@ -6,6 +6,7 @@ Gebruik: python model2.py <map> [kalman_par.json]"""
 import sys, os, json, time, math, warnings; warnings.filterwarnings('ignore')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np, pandas as pd
+from numba import njit
 import importlib
 kf = importlib.import_module(os.environ.get('KALMAN', 'kalman_mv2'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'elite'))
@@ -21,6 +22,8 @@ BAAN_TOP_HL = float(os.environ.get('BAAN_TOP_HL', '365'))   # 0 = uit
 BAAN_TOP_K = 30.0
 SZ_TOP = os.environ.get('SZ_TOP', '1') == '1'
 BAAN_FUNCTIE = os.environ.get('BAAN_FUNCTIE', '1') == '1'
+HOOG_SCHAAL = os.environ.get('HOOG_SCHAAL', '0') == '1'
+SCHOK = os.environ.get('SCHOK', '1') == '1'
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
@@ -63,6 +66,41 @@ def baan_functie(K, r, ok, hl=730.0, k0=50.0):
             c = np.linalg.solve(A + k0 * np.eye(Pn), bv)
             out[idx[s_:e_]] = X[s_:e_] @ c
             mm = m[s_:e_]; Xs = X[s_:e_][mm]; A += Xs.T @ Xs; bv += Xs.T @ y[s_:e_][mm]; prev = d
+    return out
+
+
+@njit(cache=True)
+def _schok(rid, dag, u, nr, T, o_neg, o_pos, o_v, o_n):
+    # per rijder lopende sommen over EERDERE dagen, uitdovend met tijdconstante T dagen
+    sn = np.zeros(nr); sp = np.zeros(nr); sv = np.zeros(nr); sc = np.zeros(nr); td = np.full(nr, -1e9)
+    pn = np.zeros(nr); pp = np.zeros(nr); pv = np.zeros(nr); pc = np.zeros(nr); pd_ = np.full(nr, -1e9)    # bijdragen van de huidige dag
+    for i in range(len(rid)):
+        r_ = rid[i]; d = dag[i]
+        if d != pd_[r_]:                          # nieuwe dag voor deze rijder: bijdragen van de vorige dag toevoegen
+            if pd_[r_] > -1e8:
+                f = np.exp(-(pd_[r_] - td[r_]) / T) if td[r_] > -1e8 else 0.0
+                sn[r_] = sn[r_] * f + pn[r_]; sp[r_] = sp[r_] * f + pp[r_]; sv[r_] = sv[r_] * f + pv[r_]; sc[r_] = sc[r_] * f + pc[r_]
+                td[r_] = pd_[r_]
+            pn[r_] = 0.0; pp[r_] = 0.0; pv[r_] = 0.0; pc[r_] = 0.0; pd_[r_] = d
+        f = np.exp(-(d - td[r_]) / T) if td[r_] > -1e8 else 0.0
+        o_neg[i] = sn[r_] * f; o_pos[i] = sp[r_] * f; o_v[i] = sv[r_] * f; o_n[i] = sc[r_] * f
+        if u[i] == u[i]:
+            x = u[i]
+            pn[r_] += min(x + 2.0, 0.0); pp[r_] += max(x - 2.0, 0.0)      # alleen het deel voorbij 2 sd: schokken
+            pv[r_] += min(x * x, 25.0) - 1.0; pc[r_] += 1.0
+    return 0
+
+
+def schok_geheugen(rid, dag, u, Ts=(7.0, 30.0, 90.0)):
+    """Per rit (rijen in tijdsvolgorde): uitdovende sommen over eerdere dagen van de rijder van de snelle schokken (deel van u voorbij -2),
+    trage schokken (voorbij +2) en de extra variantie (u^2 - 1), en het uitdovende aantal ritten, voor tijdconstanten Ts."""
+    out = {}; nr = int(rid.max()) + 1
+    for T in Ts:
+        a = {k: np.zeros(len(rid)) for k in ('neg', 'pos', 'v', 'n')}
+        _schok(rid.astype(np.int64), dag.astype(np.float64), u.astype(np.float64), nr, float(T), a['neg'], a['pos'], a['v'], a['n'])
+        t = int(T)
+        out[f'neg{t}'] = a['neg']; out[f'pos{t}'] = a['pos']
+        out[f'v{t}'] = a['v'] / (a['n'] + 2.0); out[f'n{t}'] = np.log1p(a['n'])
     return out
 
 
@@ -149,8 +187,11 @@ def kenm_verdeling(K):
     """Kenmerken voor de vorm van de foutverdeling: 1, exp(-niveau / 4%), niveau (0..0,4), jong."""
     gq = K['k_c'].clip(lower=0, upper=0.4).fillna(0.2).to_numpy()
     Z = [np.ones(len(K)), np.exp(-gq / 0.04), gq, K['groep'].isin(JONG).to_numpy().astype(float)]
-    hz = K['hoog'].fillna(0.0).to_numpy()
-    Z += [hz, hz * Z[1]]                                 # vorm van de foutverdeling op hoogland, apart voor de top (toppers: dikkere snelle staart)
+    if HOOG_SCHAAL:
+        hz = K['hoog'].fillna(0.0).to_numpy()
+        Z += [hz, hz * Z[1]]
+    if SCHOK and 'sk_v30' in K:
+        Z += [K['sk_v30'].to_numpy(), K['sk_n30'].to_numpy()]      # onrust van de laatste weken: dikkere staarten
     if UITSCHIETERS and 'k_pf' in K:                    # historische deviatie: eigen kans op snelle / trage uitschieters (log t.o.v. de basis)
         Z += [np.log(K['k_pf'].to_numpy() / PBASE), np.log(K['k_ps'].to_numpy() / PBASE)]
     return np.column_stack(Z)
@@ -170,6 +211,12 @@ def met_kalman(w, par):
     if 'theta_rijder' not in K:
         K['theta_rijder'] = K['theta']
     K['rk_'] = inv['rk']
+    if SCHOK:
+        u = o['e'] / np.sqrt(np.maximum(o['vl'] + o['r'], 1e-10))
+        u = np.where(o['val'] | ~np.isfinite(u), np.nan, np.clip(u, -6, 6))
+        uit = schok_geheugen(inv['rid'], inv['dag'], u)
+        for k_, v_ in uit.items():
+            K['sk_' + k_] = v_
     K['k_val'] = o['val']; K['ref'] = inv['refq']; K['lf'] = inv['lf']
     K = K[K['afstand'].astype(str).isin(AF)].copy(); K['afstand'] = K['afstand'].astype(str)
     return K
@@ -209,9 +256,16 @@ def ontwerp(K):
     S['lv'] = np.log(K['k_vl'] + K['k_r']); S['lvr'] = F['onz']; S['lv_w'] = S['lv'] * wg; S['inv_n'] = F['inv_n']; S['lgapa'] = np.log1p(K['gapa'].clip(0, 2000).fillna(2000))
     for c in ('seizoenstart', 'a1', 'a2', 'a3', 'leeftijd_onb', 'g', 'vrouw', 'nieuw_af') + tuple('af_' + a for a in AF[1:]) + (('uit_snel', 'uit_traag') if 'uit_snel' in F else ()):
         S[c] = F[c]
-    # baansnelheid in de schaal: op hoogland / snel ijs is de spreiding groter (meer extreem snelle ritten), ook voor toppers
-    dth_ = (K['th_hat'] - K['gm']).clip(-0.06, 0.06).fillna(0.0)
-    S['hoog'] = K['hoog']; S['hoog_w'] = K['hoog'] * wg; S['dth'] = dth_; S['dth_w'] = dth_ * wg
+    if HOOG_SCHAAL:
+        # baansnelheid in de schaal (maakte de log loss beter maar de kalibratie van de elite slechter; standaard uit)
+        dth_ = (K['th_hat'] - K['gm']).clip(-0.06, 0.06).fillna(0.0)
+        S['hoog'] = K['hoog']; S['hoog_w'] = K['hoog'] * wg; S['dth'] = dth_; S['dth_w'] = dth_ * wg
+    if SCHOK:
+        # schokgeheugen: na een snelle schok blijft de rijder weken sneller (vorm), na elke schok is het onrustiger (beide staarten)
+        for c in [c for c in K.columns if c.startswith('sk_')]:
+            F[c] = K[c]; F[c + '_w'] = K[c] * wg
+            if c.startswith('sk_v') or c.startswith('sk_n'):
+                S[c] = K[c]
     return F, S
 
 

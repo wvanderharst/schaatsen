@@ -2,7 +2,7 @@
 Voegt denkbeeldige ritten (zonder tijd) toe aan de data, draait dezelfde passes (kenmerken, Kalman) en het model met alle jaren
 als fit (FIT_TOT = 2026), en geeft per rijder x afstand x baan de mediaan en de 10%- en 90%-grens.
 Gebruik: python voorspel_nu.py <map met ritten_cat.parquet> <kalman_par.json> <uitmap> [datum JJJJ-MM-DD] [aantal per geslacht]"""
-import os, sys
+import os, sys, shutil
 os.environ['FIT_TOT'] = '2026'
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json, warnings; warnings.filterwarnings('ignore')
@@ -42,7 +42,11 @@ def main(w, par_pad, uit, datum='2026-10-20', n_per=50):
                               tijd=np.nan, verdacht=False, theta=np.nan, v_theta=0.0, geboren=l['geboren'], leeftijd=S - l['geboren'] if np.isfinite(l['geboren']) else np.nan,
                               leeftijd_exact=l['leeftijd_exact']))
     N = pd.DataFrame(rijen)
+    if 'theta_rijder' in R:
+        N['theta_rijder'] = np.nan
     A = pd.concat([R, N[R.columns]], ignore_index=True)
+    if os.path.exists(os.path.join(w, 'baanfactor_par.json')):            # universele baanfactor (anders draait draai() zonder)
+        shutil.copy(os.path.join(w, 'baanfactor_par.json'), os.path.join(uit, 'baanfactor_par.json'))
     for c in ('groep', 'categorie', 'afstand', 'baan', 'gender', 'land', 'skater_name'):
         A[c] = A[c].astype(str)
     A.to_parquet(os.path.join(uit, 'ritten_cat.parquet'))

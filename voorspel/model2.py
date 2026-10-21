@@ -24,6 +24,7 @@ SZ_TOP = os.environ.get('SZ_TOP', '1') == '1'
 BAAN_FUNCTIE = os.environ.get('BAAN_FUNCTIE', '1') == '1'
 HOOG_SCHAAL = os.environ.get('HOOG_SCHAAL', '0') == '1'
 SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter in correcties/schaal/vorm (niet geldig getoetst; vervangen door de vormlaag)
+WAT_ALS_EVENT = -100000                               # event_id <= dit: denkbeeldige rit alleen voor de rijder zelf (geen veld)
 VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (vormlaag.py)
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
@@ -210,6 +211,9 @@ def vorm_toepassen(K, fit, ok, verbose=True):
     z = np.where(ok & np.isfinite(pit), _n.ppf(np.clip(pit, 1e-9, 1 - 1e-9)), np.nan).clip(-6, 6)
     F = vl.kenmerken(K['skater_id'].to_numpy(), K['dag'].to_numpy(), z, K['k_val'].to_numpy(), K['rk_'].to_numpy())
     wg = np.exp(-K['k_c'].clip(0, 0.5).fillna(0.2).to_numpy() / 0.04)
+    nep = K['event_id'].to_numpy() <= WAT_ALS_EVENT        # wat-als-ritten (wat_als_heerenveen.py): zonder veldaanpassing
+    for c in [c for c in F.columns if c.startswith('veld_')]:
+        F.loc[nep, c] = 0.0
     Xm, Xs, nm_m, nm_s = vl.ontwerp(F, wg)
     fm = fit & np.isfinite(z) & (K['jaar'].to_numpy() >= 2012)
     p = vl.fit(z[fm], Xm[fm], Xs[fm], (1 + 2 * (wg > 0.3))[fm] if VORM_TOP else None)

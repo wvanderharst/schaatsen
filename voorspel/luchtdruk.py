@@ -3,19 +3,21 @@
 Luchtweerstand is evenredig met de luchtdichtheid rho = p / (R T). Binnen is T geregeld, dus vooral p telt; een dag met 10 hPa
 lagere druk is 1% minder luchtweerstand. De druk wordt opgevraagd op de hoogte van de baan (eigen hoogte waar bekend).
 
-Stappen (alles wordt bewaard in <werkmap>/weer/, een volgende run gaat verder waar hij was):
-  python luchtdruk.py <werkmap> banen      # banenlijst + plaatsbepaling (geocoding) -> weer/banen_locatie.csv (nakijken!)
-  python luchtdruk.py <werkmap> haal [N]   # weer per baan, alleen vensters rond de wedstrijddagen, hoogstens N calls (standaard 9000)
-  python luchtdruk.py <werkmap> samen      # -> weer/weer_dag.parquet: baan, dag, druk (hPa), temperatuur, wind, vocht (10-20 uur lokaal)
+Stappen (de weermap is voorspel/weer/ in de repo; ophalen draait op GitHub Actions, zie .github/workflows/luchtdruk.yml):
+  python luchtdruk.py <werkmap> invoer <weermap>   # lokaal: banen.csv en baan_dagen.csv uit ritten_cat.parquet
+  python luchtdruk.py <weermap> banen              # plaatsbepaling (geocoding) -> banen_locatie.csv (nakijken!)
+  python luchtdruk.py <weermap> haal [N]           # weer per wedstrijddag, hoogstens N calls -> weer_dag.csv (gaat verder waar hij was)
 
-Limiet van de gratis API: 10.000 calls per dag; meer dan 2 weken data per locatie telt als meer calls (per 2 weken 1).
-Volgorde: banen met elitewedstrijden en veel ritten eerst."""
-import os, sys, json, time, math, re, urllib.request, urllib.parse
+Limieten van de gratis API: 10.000 calls per dag, 5.000 per uur, 600 per minuut; meer dan 2 weken data per locatie telt als meer
+calls (per 2 weken 1). Alle wedstrijddagen samen zijn ~13.000 calls: twee runs op verschillende dagen. Banen met veel ritten van
+toprijders gaan eerst. Per dag het gemiddelde over 10-20 uur lokale tijd."""
+import os, sys, json, time, math, re, urllib.request, urllib.parse, urllib.error
 import numpy as np, pandas as pd
 
 GEO = 'https://geocoding-api.open-meteo.com/v1/search'
 ARCH = 'https://archive-api.open-meteo.com/v1/archive'
 VARS = ['surface_pressure', 'pressure_msl', 'temperature_2m', 'wind_speed_10m', 'relative_humidity_2m']
+NAMEN = {'surface_pressure': 'druk', 'pressure_msl': 'druk_zee', 'temperature_2m': 'temp', 'wind_speed_10m': 'wind', 'relative_humidity_2m': 'vocht'}
 LAND = {'NED': 'NL', 'GER': 'DE', 'CAN': 'CA', 'NOR': 'NO', 'JPN': 'JP', 'POL': 'PL', 'KOR': 'KR', 'KAZ': 'KZ', 'ITA': 'IT', 'CHN': 'CN',
         'USA': 'US', 'FIN': 'FI', 'AUT': 'AT', 'MGL': 'MN', 'SUI': 'CH', 'SWE': 'SE', 'CZE': 'CZ', 'BLR': 'BY', 'RUS': 'RU', 'BEL': 'BE',
         'FRA': 'FR', 'GBR': 'GB', 'HUN': 'HU', 'ROU': 'RO', 'LAT': 'LV', 'EST': 'EE', 'LTU': 'LT', 'UKR': 'UA', 'DEN': 'DK', 'ARG': 'AR',
@@ -36,12 +38,23 @@ VAST = {
 }
 
 
-def _json(url, pogingen=4):
+class Limiet(Exception):
+    pass
+
+
+def _json(url, pogingen=6):
     for k in range(pogingen):
         try:
-            with urllib.request.urlopen(url, timeout=60) as r:
+            with urllib.request.urlopen(url, timeout=90) as r:
                 return json.loads(r.read().decode())
-        except Exception as e:
+        except urllib.error.HTTPError as e:
+            tekst = e.read().decode(errors='ignore')
+            if e.code == 429 and 'aily' in tekst:            # daglimiet: stoppen, volgende run gaat verder
+                raise Limiet(tekst)
+            if e.code not in (429, 500, 502, 503, 504) or k == pogingen - 1:
+                raise
+            time.sleep(60 if e.code == 429 else 2 ** (k + 1))
+        except (urllib.error.URLError, TimeoutError):
             if k == pogingen - 1:
                 raise
             time.sleep(2 ** (k + 1))
@@ -56,15 +69,26 @@ def zoeknaam(baan):
     return naam, land
 
 
-def banen(w):
+def invoer(w, wm):
+    """Lokaal: banenlijst (met prioriteit) en de wedstrijddagen per baan, klein genoeg voor de repo."""
     import pyarrow.parquet as pq
-    os.makedirs(os.path.join(w, 'weer'), exist_ok=True)
+    os.makedirs(wm, exist_ok=True)
     R = pq.read_table(os.path.join(w, 'ritten_cat.parquet'), columns=['baan', 'dag', 'skater_id']).to_pandas(); R['baan'] = R['baan'].astype(str)
-    B = R.groupby('baan').agg(ritten=('dag', 'size'), eerste=('dag', 'min'), laatste=('dag', 'max')).sort_values('ritten', ascending=False)
-    uit = os.path.join(w, 'weer', 'banen_locatie.csv')
-    oud = pd.read_csv(uit).set_index('baan') if os.path.exists(uit) else pd.DataFrame()
+    top = set(R.groupby('skater_id').size().sort_values().index[-3000:])          # rijders met de meeste ritten (wereldbeker, kampioenschappen)
+    B = R.groupby('baan').agg(ritten=('dag', 'size')).join(R[R['skater_id'].isin(top)].groupby('baan').size().rename('ritten_top')).fillna(0)
+    B['prio'] = B['ritten_top'] * 10 + B['ritten']
+    B.sort_values('prio', ascending=False).astype(int).to_csv(os.path.join(wm, 'banen.csv'))
+    R.drop_duplicates(['baan', 'dag'])[['baan', 'dag']].sort_values(['baan', 'dag']).to_csv(os.path.join(wm, 'baan_dagen.csv'), index=False)
+    print(len(B), 'banen,', R.drop_duplicates(['baan', 'dag']).shape[0], 'baan-dagen')
+
+
+def banen(wm):
+    B = pd.read_csv(os.path.join(wm, 'banen.csv'))
+    uit = os.path.join(wm, 'banen_locatie.csv')
+    oud = pd.read_csv(uit).set_index('baan') if os.path.exists(uit) else pd.DataFrame(columns=['lat'])
     rij = []
-    for b, x in B.iterrows():
+    for _, x in B.iterrows():
+        b = x['baan']
         if b in oud.index and np.isfinite(oud.loc[b, 'lat']):
             rij.append(oud.loc[b].to_dict() | {'baan': b}); continue
         naam, land = zoeknaam(b)
@@ -81,10 +105,10 @@ def banen(w):
                 lat, lon, h = res[0]['latitude'], res[0]['longitude'], res[0].get('elevation', np.nan); bron = f"geo:{res[0].get('name')},{res[0].get('country_code')}"
             else:
                 lat = lon = h = np.nan; bron = 'niet gevonden'
-            time.sleep(0.2)
-        rij.append(dict(baan=b, zoeknaam=naam, land=land, lat=lat, lon=lon, hoogte=h, bron=bron, ritten=int(x.ritten)))
+            time.sleep(0.3)
+        rij.append(dict(baan=b, zoeknaam=naam, land=land, lat=lat, lon=lon, hoogte=h, bron=bron, ritten=int(x['ritten']), prio=int(x['prio'])))
     L = pd.DataFrame(rij); L.to_csv(uit, index=False)
-    print(L.head(40).to_string(index=False)); print('niet gevonden:', L[~np.isfinite(L['lat'])]['baan'].tolist())
+    print(L.head(30).to_string(index=False)); print('niet gevonden:', L[~np.isfinite(L['lat'].astype(float))]['baan'].tolist())
 
 
 def vensters(dagen, max_len=14):
@@ -99,53 +123,61 @@ def vensters(dagen, max_len=14):
     return uit
 
 
-def haal(w, budget=9000):
-    import pyarrow.parquet as pq
-    L = pd.read_csv(os.path.join(w, 'weer', 'banen_locatie.csv'))
-    R = pq.read_table(os.path.join(w, 'ritten_cat.parquet'), columns=['baan', 'dag', 'skater_id']).to_pandas(); R['baan'] = R['baan'].astype(str)
-    # volgorde: banen met de meeste ritten van toprijders eerst (wereldbeker / kampioenschappen), dan de rest
-    top = set(R.groupby('skater_id').size().sort_values().index[-3000:])
-    prio = R[R['skater_id'].isin(top)].groupby('baan').size()
-    L['prio'] = L['baan'].map(prio).fillna(0) * 10 + L['ritten']
-    L = L.sort_values('prio', ascending=False)
-    cache = os.path.join(w, 'weer', 'uur'); os.makedirs(cache, exist_ok=True)
-    gebruikt = 0
-    for _, b in L.iterrows():
-        if not np.isfinite(b['lat']):
-            continue
-        dagen = R.loc[R['baan'] == b['baan'], 'dag'].unique()
-        for s, e in vensters(dagen):
-            f = os.path.join(cache, f"{re.sub(r'[^A-Za-z0-9]+', '_', b['baan'])}_{int(s)}_{int(e)}.json")
-            if os.path.exists(f):
+def dag_gemiddelde(j, dagen, van=10, tot=20):
+    h = pd.DataFrame(j['hourly']); h['tijd'] = pd.to_datetime(h['time'])
+    h = h[(h['tijd'].dt.hour >= van) & (h['tijd'].dt.hour <= tot)]                    # wedstrijduren (lokale tijd)
+    h['dag'] = (h['tijd'].dt.normalize() - pd.Timestamp('1970-01-01')).dt.days
+    d = h[h['dag'].isin(dagen)].groupby('dag')[VARS].mean().reset_index().rename(columns=NAMEN)
+    return d
+
+
+def haal(wm, budget=9000, per_uur=4500):
+    L = pd.read_csv(os.path.join(wm, 'banen_locatie.csv')).sort_values('prio', ascending=False)
+    D = pd.read_csv(os.path.join(wm, 'baan_dagen.csv'))
+    f_dag = os.path.join(wm, 'weer_dag.csv'); f_klaar = os.path.join(wm, 'vensters_klaar.csv')
+    klaar = set(map(tuple, pd.read_csv(f_klaar)[['baan', 's', 'e']].itertuples(index=False))) if os.path.exists(f_klaar) else set()
+    gebruikt = 0; pauze = 3600.0 / per_uur
+    try:
+        for _, b in L.iterrows():
+            if not np.isfinite(b['lat']):
                 continue
-            kosten = math.ceil((e - s + 1) / 14)
-            if gebruikt + kosten > budget:
-                print('budget op:', gebruikt, 'calls; volgende run gaat verder'); return
-            q = {'latitude': b['lat'], 'longitude': b['lon'], 'start_date': str(pd.Timestamp(int(s), unit='D').date()),
-                 'end_date': str(pd.Timestamp(int(e), unit='D').date()), 'hourly': ','.join(VARS), 'timezone': 'auto'}
-            if np.isfinite(b['hoogte']) and b['hoogte'] > 0:
-                q['elevation'] = b['hoogte']                     # druk op de hoogte van de baan
-            json.dump(_json(ARCH + '?' + urllib.parse.urlencode(q)), open(f, 'w'))
-            gebruikt += kosten; time.sleep(0.15)
-        print(f"{b['baan']}: klaar ({gebruikt} calls)", flush=True)
-    print('alles opgehaald,', gebruikt, 'calls')
+            dagen = D.loc[D['baan'] == b['baan'], 'dag'].to_numpy()
+            nieuw = []; nieuw_klaar = []
+            for s, e in vensters(dagen):
+                if (b['baan'], int(s), int(e)) in klaar:
+                    continue
+                kosten = math.ceil((e - s + 1) / 14)
+                if gebruikt + kosten > budget:
+                    raise Limiet(f'budget van {budget} calls op')
+                q = {'latitude': b['lat'], 'longitude': b['lon'], 'start_date': str(pd.Timestamp(int(s), unit='D').date()),
+                     'end_date': str(pd.Timestamp(int(e), unit='D').date()), 'hourly': ','.join(VARS), 'timezone': 'auto'}
+                if np.isfinite(b['hoogte']) and b['hoogte'] > 0:
+                    q['elevation'] = b['hoogte']                 # druk op de hoogte van de baan
+                t0 = time.time()
+                d = dag_gemiddelde(_json(ARCH + '?' + urllib.parse.urlencode(q)), dagen[(dagen >= s) & (dagen <= e)])
+                d.insert(0, 'baan', b['baan']); nieuw.append(d); nieuw_klaar.append((b['baan'], int(s), int(e)))
+                gebruikt += kosten
+                time.sleep(max(0.0, pauze * kosten - (time.time() - t0)))
+            _bewaar(nieuw, nieuw_klaar, f_dag, f_klaar)
+            print(f"{b['baan']}: klaar ({gebruikt} calls)", flush=True)
+        print('alles opgehaald,', gebruikt, 'calls')
+    except Limiet as e:
+        _bewaar(nieuw, nieuw_klaar, f_dag, f_klaar)
+        print('gestopt:', str(e)[:200], f'({gebruikt} calls); volgende run gaat verder')
 
 
-def samen(w, van=10, tot=20):
-    cache = os.path.join(w, 'weer', 'uur'); L = pd.read_csv(os.path.join(w, 'weer', 'banen_locatie.csv'))
-    sleutel = {re.sub(r'[^A-Za-z0-9]+', '_', b): b for b in L['baan']}
-    delen = []
-    for f in sorted(os.listdir(cache)):
-        j = json.load(open(os.path.join(cache, f))); h = pd.DataFrame(j['hourly']); h['tijd'] = pd.to_datetime(h['time'])
-        h = h[(h['tijd'].dt.hour >= van) & (h['tijd'].dt.hour <= tot)]            # wedstrijduren (lokale tijd)
-        h['dag'] = (h['tijd'].dt.normalize() - pd.Timestamp('1970-01-01')).dt.days
-        d = h.groupby('dag')[VARS].mean().reset_index(); d['baan'] = sleutel[f.rsplit('_', 2)[0]]
-        delen.append(d)
-    D = pd.concat(delen).drop_duplicates(['baan', 'dag'])
-    D = D.rename(columns={'surface_pressure': 'druk', 'pressure_msl': 'druk_zee', 'temperature_2m': 'temp', 'wind_speed_10m': 'wind', 'relative_humidity_2m': 'vocht'})
-    D.to_parquet(os.path.join(w, 'weer', 'weer_dag.parquet')); print(len(D), 'baan-dagen;', D['baan'].nunique(), 'banen')
+def _bewaar(nieuw, nieuw_klaar, f_dag, f_klaar):
+    if not nieuw:
+        return
+    pd.concat(nieuw).round(3).to_csv(f_dag, mode='a', header=not os.path.exists(f_dag), index=False)
+    pd.DataFrame(nieuw_klaar, columns=['baan', 's', 'e']).to_csv(f_klaar, mode='a', header=not os.path.exists(f_klaar), index=False)
 
 
 if __name__ == '__main__':
-    w, stap = sys.argv[1], sys.argv[2]
-    {'banen': lambda: banen(w), 'haal': lambda: haal(w, int(sys.argv[3]) if len(sys.argv) > 3 else 9000), 'samen': lambda: samen(w)}[stap]()
+    a = sys.argv
+    if a[2] == 'invoer':
+        invoer(a[1], a[3])
+    elif a[2] == 'banen':
+        banen(a[1])
+    elif a[2] == 'haal':
+        haal(a[1], int(a[3]) if len(a) > 3 else 9000)

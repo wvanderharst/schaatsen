@@ -20,6 +20,7 @@ BIAS_HL = float(os.environ.get('BIAS_HL', '45'))
 BAAN_TOP_HL = float(os.environ.get('BAAN_TOP_HL', '365'))   # 0 = uit
 BAAN_TOP_K = 30.0
 SZ_TOP = os.environ.get('SZ_TOP', '1') == '1'
+BAAN_FUNCTIE = os.environ.get('BAAN_FUNCTIE', '1') == '1'
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
@@ -42,6 +43,26 @@ def seizoen_top(K, r, ok, w, bw=2.0, hl=2.0, k0=60.0):
             a = 0.5 ** ((seiz[j] - 1 - seiz[:j]) / hl)
             sw = (a[:, None] * S_[:j]).sum(0) @ Kw.T; cw = (a[:, None] * C_[:j]).sum(0) @ Kw.T
             m = idx[si == j]; out[m] = (sw / (cw + k0))[wk[m]]
+    return out
+
+
+def baan_functie(K, r, ok, hl=730.0, k0=50.0):
+    """Per baan: corr(g) = c . [1, exp(-g/0,04), exp(-g/0,15), g], c uit een uitdovende kleinste-kwadratenschatting op de fouten van
+    eerdere dagen op die baan (alle rijders, halfwaardetijd hl dagen, ridge k0)."""
+    r = np.clip(np.nan_to_num(r), -0.03, 0.03); g = K['k_c'].clip(0, 0.5).fillna(0.3).to_numpy()
+    PHI = np.c_[np.ones(len(K)), np.exp(-g / 0.04), np.exp(-g / 0.15), g]; Pn = PHI.shape[1]
+    out = np.zeros(len(K)); dagall = K['dag'].to_numpy()
+    for b, idx in K.groupby('baan').indices.items():
+        o = np.argsort(dagall[idx], kind='stable'); idx = idx[o]; dag = dagall[idx]
+        X = PHI[idx]; y = r[idx]; m = ok[idx] & np.isfinite(r[idx])
+        ud, start = np.unique(dag, return_index=True); eind = np.r_[start[1:], len(dag)]
+        A = np.zeros((Pn, Pn)); bv = np.zeros(Pn); prev = None
+        for d, s_, e_ in zip(ud, start, eind):
+            if prev is not None:
+                f = 0.5 ** ((d - prev) / hl); A *= f; bv *= f
+            c = np.linalg.solve(A + k0 * np.eye(Pn), bv)
+            out[idx[s_:e_]] = X[s_:e_] @ c
+            mm = m[s_:e_]; Xs = X[s_:e_][mm]; A += Xs.T @ Xs; bv += Xs.T @ y[s_:e_][mm]; prev = d
     return out
 
 
@@ -231,6 +252,11 @@ def draai(w, par, verbose=True, segment=True):
         b_all, b_top = online_bias(K['dag'].to_numpy(), (np.log(K['tijd']) - K['pred']).to_numpy(), fit_b := (ok & ~K['k_val'].to_numpy()), wb, BIAS_HL)
         K['bias'] = (1 - wb) * b_all + wb * b_top
         K['pred'] = K['pred'] + K['bias']
+        if BAAN_FUNCTIE:
+            # per baan een correctie als functie van het niveau, geschat op ALLE rijders (alleen eerdere dagen; halfwaardetijd 2 jaar,
+            # ridge 50): op snel ijs winnen zwakkere rijders meer dan de baanfactor zegt (Calgary tot -1,2% bij >30% van de top)
+            K['bias_baanfunctie'] = baan_functie(K, (np.log(K['tijd']) - K['pred']).to_numpy(), fit_b)
+            K['pred'] = K['pred'] + K['bias_baanfunctie']
         if BAAN_TOP_HL > 0:
             # per baan: lopende fout van de toppers (gewogen met wb, alleen eerdere dagen, halfwaardetijd BAAN_TOP_HL dagen, krimp naar 0):
             # het baangemiddelde mengt alle soorten wedstrijden; voor elite-wedstrijden is het ijs op de ene baan anders dan op de andere

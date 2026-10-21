@@ -101,9 +101,12 @@ def voorbereid(df):
     df = df.sort_values(['dag', 'event_id', 'gender', 'afstand_idx'], kind='stable').reset_index(drop=True)
     rk = df.groupby(['dag', 'event_id', 'gender', 'afstand_idx'], sort=False).ngroup().to_numpy().astype(np.int64)
     rid, _ = pd.factorize(df['skater_id'])
-    lt = np.log(df['tijd'].to_numpy(float)); y = np.where(df['verdacht'].to_numpy(), np.nan, lt - df['theta'].to_numpy(float))
-    fitset = (df['jaar'] <= 2019) & np.isfinite(y)
-    ref = pd.Series(y[fitset.to_numpy()]).groupby([df.loc[fitset, 'gender'].to_numpy(), df.loc[fitset, 'afstand_idx'].to_numpy()]).quantile(0.01)
+    lt = np.log(df['tijd'].to_numpy(float))
+    th_ = df['theta_rijder'] if 'theta_rijder' in df else df['theta']          # universele baanfactor per rijder (baanfactor.py) als die er is
+    y = np.where(df['verdacht'].to_numpy(), np.nan, lt - th_.to_numpy(float))
+    yr = lt - df['theta'].to_numpy(float)
+    fitset = (df['jaar'] <= 2019) & np.isfinite(yr)
+    ref = pd.Series(yr[fitset.to_numpy()]).groupby([df.loc[fitset, 'gender'].to_numpy(), df.loc[fitset, 'afstand_idx'].to_numpy()]).quantile(0.01)
     refq = np.array([ref.get((g, k), np.nan) for g, k in zip(df['gender'], df['afstand_idx'])])
     lf = (df['leeftijd'] + ((df['dag'] - (df['seizoen'] - 1970) * 365.25 - 182) / 365.25).clip(0, 1)).to_numpy(float)
     inv = dict(rk=rk, rid=rid.astype(np.int64), a=df['afstand_idx'].to_numpy().astype(np.int64), z=y - refq,

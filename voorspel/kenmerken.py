@@ -168,7 +168,7 @@ def rijder_kenmerken(df, alpha=0.2, snel_w=2.0, hub=3.0, gamma=0.4, hf=30.0, hf2
     df = df.sort_values(['dag', 'event_id', 'gender', 'afstand_idx'], kind='stable').reset_index(drop=True)
     rk = df.groupby(['dag', 'event_id', 'gender', 'afstand_idx'], sort=False).ngroup().to_numpy().astype(np.int64)
     rid, _ = pd.factorize(df['skater_id']); N = len(df)
-    lt = np.log(df['tijd'].to_numpy(float)); th = df['theta'].to_numpy(float)
+    lt = np.log(df['tijd'].to_numpy(float)); th = (df['theta_rijder'] if 'theta_rijder' in df else df['theta']).to_numpy(float)     # universele baanfactor per rijder
     y = np.where(df['verdacht'].to_numpy(), np.nan, lt - th)
     names = ('mu', 'n', 'gapa', 'gap', 'f', 'f2', 's', 'sa', 'pr', 'prraw', 'sb3', 'sbc', 'ela', 'elany', 'elage', 'e', 'eerste_dag')
     o = {k: np.zeros(N) for k in names}; val = np.zeros(N, bool)

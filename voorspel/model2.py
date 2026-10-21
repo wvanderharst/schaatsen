@@ -3,7 +3,7 @@ groei per leeftijd) + vorm; daarbovenop correctiefuncties (bewezen PR en seizoen
 leeftijd x tijd sinds de vorige rit, niveau x baan, onzekerheid van het niveau) en een schaal per rit (Kalman-onzekerheid, eigen
 spreiding, ijs). Foutverdeling: twee-delige Student-t per afstandsgroep op de fitjaren (zoals de eerlijke log loss van het oude model).
 Gebruik: python model2.py <map> [kalman_par.json]"""
-import sys, os, json, time, warnings; warnings.filterwarnings('ignore')
+import sys, os, json, time, math, warnings; warnings.filterwarnings('ignore')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np, pandas as pd
 import importlib
@@ -13,6 +13,9 @@ from model import huber, twee_t, t_nll, t_cdf, ijs_voorspelling, vergelijk, AF, 
 from scipy.optimize import minimize
 from scipy.stats import t as T
 HUBER_C = float(os.environ.get('HUBER_C', '0.7'))
+UITSCHIETERS = os.environ.get('UITSCHIETERS', '1') == '1'
+PBASE = 0.5 * math.erfc(2.0 / math.sqrt(2.0)) * 1.5
+import baanfactor as bf
 BIAS_HL = float(os.environ.get('BIAS_HL', '45'))
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
 
@@ -67,7 +70,10 @@ def twee_t_w(u, Z):
 def kenm_verdeling(K):
     """Kenmerken voor de vorm van de foutverdeling: 1, exp(-niveau / 4%), niveau (0..0,4), jong."""
     gq = K['k_c'].clip(lower=0, upper=0.4).fillna(0.2).to_numpy()
-    return np.c_[np.ones(len(K)), np.exp(-gq / 0.04), gq, K['groep'].isin(JONG).to_numpy().astype(float)]
+    Z = [np.ones(len(K)), np.exp(-gq / 0.04), gq, K['groep'].isin(JONG).to_numpy().astype(float)]
+    if UITSCHIETERS and 'k_pf' in K:                    # historische deviatie: eigen kans op snelle / trage uitschieters (log t.o.v. de basis)
+        Z += [np.log(K['k_pf'].to_numpy() / PBASE), np.log(K['k_ps'].to_numpy() / PBASE)]
+    return np.column_stack(Z)
 
 JONG = ['jeugd', 'junior_C', 'junior_B', 'junior_A', 'neo']
 NIVEAU_INTERACTIE = True
@@ -78,8 +84,12 @@ def met_kalman(w, par):
     R, inv = kf.voorbereid(R); o = kf.pass_(inv, par)
     K = pd.read_parquet(os.path.join(w, 'kenmerken.parquet'), columns=KOL)
     assert len(K) == len(R) and (K['skater_id'].to_numpy() == R['skater_id'].to_numpy()).all() and np.array_equal(K['tijd'].to_numpy(float), R['tijd'].to_numpy(float), equal_nan=True)
-    for k in ('zh', 'vl', 'r', 'e', 'na', 'c', 'd', 'f', 'pc'):
-        K['k_' + k] = o[k]
+    for k in ('zh', 'vl', 'r', 'e', 'na', 'c', 'd', 'f', 'pc', 'pf', 'ps'):
+        if k in o:
+            K['k_' + k] = o[k]
+    if 'theta_rijder' not in K:
+        K['theta_rijder'] = K['theta']
+    K['rk_'] = inv['rk']
     K['k_val'] = o['val']; K['ref'] = inv['refq']; K['lf'] = inv['lf']
     K = K[K['afstand'].astype(str).isin(AF)].copy(); K['afstand'] = K['afstand'].astype(str)
     return K
@@ -104,8 +114,8 @@ def ontwerp(K):
     F['inv_n'] = 1.0 / (K['k_na'] + 1.0); F['logn'] = np.log1p(K['k_na']); F['nieuw_af'] = (K['k_na'] == 0).astype(float)
     F['onz'] = np.log(K['k_vl'] / K['k_r'])                   # onzekerheid van het niveau t.o.v. de ritruis
     F['seizoenstart'] = (K['gap'] > 150).astype(float); F['lgap'] = np.log1p(K['gap'].clip(0, 2000).fillna(2000))
-    dth = (K['th_hat'] - K['gm']).clip(-0.06, 0.06)
-    F['hoog_g'] = K['hoog'] * g_; F['dth_g'] = dth * g_; F['hoog'] = K['hoog']; F['dth'] = dth
+    if UITSCHIETERS and 'k_pf' in K:                    # historische deviatie als uitschieters (snel / traag), niet week-op-week
+        F['uit_snel'] = np.log(K['k_pf'] / PBASE); F['uit_traag'] = np.log(K['k_ps'] / PBASE)
     F['vrouw'] = (K['gender'] == 'v').astype(float)
     for a in AF[1:]:
         F['af_' + a] = (K['afstand'] == a).astype(float)
@@ -117,7 +127,7 @@ def ontwerp(K):
     S = pd.DataFrame(index=K.index)
     S['w'] = wg
     S['lv'] = np.log(K['k_vl'] + K['k_r']); S['lvr'] = F['onz']; S['lv_w'] = S['lv'] * wg; S['inv_n'] = F['inv_n']; S['lgapa'] = np.log1p(K['gapa'].clip(0, 2000).fillna(2000))
-    for c in ('seizoenstart', 'a1', 'a2', 'a3', 'leeftijd_onb', 'g', 'hoog', 'vrouw', 'nieuw_af') + tuple('af_' + a for a in AF[1:]):
+    for c in ('seizoenstart', 'a1', 'a2', 'a3', 'leeftijd_onb', 'g', 'vrouw', 'nieuw_af') + tuple('af_' + a for a in AF[1:]) + (('uit_snel', 'uit_traag') if 'uit_snel' in F else ()):
         S[c] = F[c]
     return F, S
 
@@ -125,8 +135,17 @@ def ontwerp(K):
 def draai(w, par, verbose=True, segment=True):
     t0 = time.time()
     K = met_kalman(w, par); K, c_ijs = ijs_voorspelling(K)
+    # universele baanfactor vooraf: zelfde functie als achteraf (baanfactor.py), op het voorspelde dagpeil
+    bfp = json.load(open(os.path.join(w, 'baanfactor_par.json'))) if os.path.exists(os.path.join(w, 'baanfactor_par.json')) else None
+    K['th_hat_veld'] = K['th_hat']
+    if bfp:
+        hv = K[(K['baan'] == 'Heerenveen (NED)') & (K['jaar'] <= 2019)].groupby(['gender', 'afstand_idx'])['theta'].median()
+        thv = np.array([hv.get((g, a), np.nan) for g, a in zip(K['gender'], K['afstand_idx'])])
+        gbar = bf.veldniveau(K['rk_'].to_numpy(), K['k_c'].to_numpy(), 1 / np.maximum((K['k_vl'] + K['k_r']).to_numpy(), 1e-6))
+        gg = np.where(np.isfinite(K['k_c']), K['k_c'], gbar); dd = (K['th_hat'] - thv).to_numpy()
+        K['th_hat'] = np.where(np.isfinite(dd), bf.factor(K['th_hat'].to_numpy(), dd, gg, gbar, bfp['A'], bfp['TM']), K['th_hat'])
     F, S = ontwerp(K)
-    zt = np.log(K['tijd']) - K['theta'] - K['ref']                  # z met het echte racepeil
+    zt = np.log(K['tijd']) - K['theta_rijder'] - K['ref']           # z met het echte racepeil (baanfactor per rijder)
     e = (zt - K['k_zh']).to_numpy()
     X = np.c_[np.ones(len(F)), F.to_numpy(float)]; Sx = np.c_[np.ones(len(S)), S.to_numpy(float)]
     # ok: alle ritten met een voorspelling (ook wat dit model als valpartij ziet; de toets mag niet afhangen van de eigen valvlag)
@@ -157,7 +176,7 @@ def draai(w, par, verbose=True, segment=True):
         K['pred'] = K['pred'] + K['bias']
     rc = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
     Ix = lambda d: np.c_[np.ones(len(d)), np.log1p(d['ijs_vn']), np.log1p(d['ijs_evn']), d['hoog'], np.log(d['v_theta'].clip(1e-7))]
-    rci = (rc['theta'] - rc['th_hat']).to_numpy()
+    rci = (rc['theta'] - rc['th_hat_veld']).to_numpy()                 # onzekerheid van het dagpeil zelf (op raceniveau)
     gi = np.linalg.lstsq(Ix(rc), np.log(np.abs(rci) + 1e-5), rcond=None)[0]
     sc_i = np.exp(Ix(K) @ gi); sc_i *= np.median(np.abs(rci) / np.exp(Ix(rc) @ gi)) / 0.6745
     K['sd'] = np.sqrt(sc_r ** 2 + sc_i ** 2)

@@ -12,7 +12,7 @@ AF = ['500m', '1000m', '1500m', '3000m', '5000m', '10000m']
 GROEP = {'500m': 'sprint', '1000m': 'sprint', '1500m': 'midden', '3000m': 'midden', '5000m': 'lang', '10000m': 'lang'}
 KOL = ['skater_id', 'skater_name', 'gender', 'groep', 'afstand', 'afstand_idx', 'dag', 'jaar', 'seizoen', 'event_id', 'baan', 'tijd', 'verdacht',
        'theta', 'v_theta', 'leeftijd', 'mu', 'n', 'gapa', 'gap', 'f', 'f2', 's', 'sa', 'pr', 'prraw', 'sb3', 'sbc', 'ela', 'elany', 'elage', 'e', 'val',
-       'y', 'ijs_vm', 'ijs_vn', 'ijs_ba', 'ijs_bn', 'ijs_ev', 'ijs_evn', 'ijs_gl', 'ijs_rec', 'ijs_recn', 'hoog'] + ['mu_' + a for a in AF] + ['n_' + a for a in AF]
+       'y', 'ijs_vm', 'ijs_vn', 'ijs_ba', 'ijs_bn', 'ijs_ev', 'ijs_evn', 'ijs_gl', 'ijs_rec', 'ijs_recn', 'hoog', 'theta_rijder'] + ['mu_' + a for a in AF] + ['n_' + a for a in AF]
 
 
 def huber(X, y, w=None, c=1.345, n_iter=30):

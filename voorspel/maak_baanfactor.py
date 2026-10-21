@@ -17,11 +17,12 @@ gbar = bf.veldniveau(inv['rk'], g, wv)
 hv = bf.hv_peil(df); thv = np.array([hv.get((gg, a), np.nan) for gg, a in zip(df['gender'], df['afstand_idx'])])
 d = df['theta'].to_numpy() - thv
 e = o['e']; ok = np.isfinite(e) & ~o['val'] & (df['afstand_idx'].to_numpy() >= 2) & (df['jaar'].to_numpy() <= 2019)
-A, TM, rss, r2 = bf.schat_m(e[ok], d[ok], g[ok], gbar[ok], tm_grid=(0.015, 0.02, 0.03, 0.04, 0.06, 0.08, 0.12, 0.2, 0.3, 0.5))
-print('baanfactor: A %.3f TM %.3f (verklaarde fractie %.5f)' % (A, TM, r2))
+A, TM, rss, r2, B, TB = bf.schat_m(e[ok], d[ok], g[ok], gbar[ok], tm_grid=(0.015, 0.02, 0.03, 0.04, 0.06, 0.08, 0.12, 0.2, 0.3, 0.5),
+                                   tb_grid=(0.02, 0.03, 0.05, 0.08, 0.12, 0.2))
+print('baanfactor: A %.3f TM %.3f B %.4f TB %.3f (verklaarde fractie %.5f)' % (A, TM, B, TB, r2))
 gg = np.where(np.isfinite(g), g, gbar)
-df['theta_rijder'] = np.where(np.isfinite(d), bf.factor(df['theta'].to_numpy(), d, gg, gbar, A, TM), df['theta'].to_numpy())
-json.dump({'A': float(A), 'TM': float(TM)}, open(os.path.join(w, 'baanfactor_par.json'), 'w'))
+df['theta_rijder'] = np.where(np.isfinite(d), bf.factor(df['theta'].to_numpy(), d, gg, gbar, A, TM, B, TB), df['theta'].to_numpy())
+json.dump({'A': float(A), 'TM': float(TM), 'B': float(B), 'TB': float(TB)}, open(os.path.join(w, 'baanfactor_par.json'), 'w'))
 df.to_parquet(os.path.join(w, 'ritten_cat.parquet'))
 x = df[np.isfinite(d)]
 print('verschil baanfactor per rijder - veldpeil (%%): p1 %.3f  p50 %.3f  p99 %.3f' % tuple(100 * np.nanquantile(x['theta_rijder'] - x['theta'], [0.01, 0.5, 0.99])))

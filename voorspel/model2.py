@@ -143,7 +143,7 @@ def draai(w, par, verbose=True, segment=True):
         thv = np.array([hv.get((g, a), np.nan) for g, a in zip(K['gender'], K['afstand_idx'])])
         gbar = bf.veldniveau(K['rk_'].to_numpy(), K['k_c'].to_numpy(), 1 / np.maximum((K['k_vl'] + K['k_r']).to_numpy(), 1e-6))
         gg = np.where(np.isfinite(K['k_c']), K['k_c'], gbar); dd = (K['th_hat'] - thv).to_numpy()
-        K['th_hat'] = np.where(np.isfinite(dd), bf.factor(K['th_hat'].to_numpy(), dd, gg, gbar, bfp['A'], bfp['TM']), K['th_hat'])
+        K['th_hat'] = np.where(np.isfinite(dd), bf.factor(K['th_hat'].to_numpy(), dd, gg, gbar, bfp['A'], bfp['TM'], bfp.get('B', 0.0), bfp.get('TB', 0.05)), K['th_hat'])
     F, S = ontwerp(K)
     zt = np.log(K['tijd']) - K['theta_rijder'] - K['ref']           # z met het echte racepeil (baanfactor per rijder)
     e = (zt - K['k_zh']).to_numpy()

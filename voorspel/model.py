@@ -7,6 +7,7 @@ import numpy as np, pandas as pd
 from scipy.optimize import minimize
 from scipy.stats import t as T
 
+VELD_IJS = os.environ.get('VELD_IJS', '1') == '1'          # ijsbonus voor sterke velden (beter geprepareerd ijs)
 FIT_TOT = int(os.environ.get('FIT_TOT', '2019'))      # fit op de jaren t/m FIT_TOT (2019: toets op 2020+; 2026: alles, voor voorspellingen nu)
 AF = ['500m', '1000m', '1500m', '3000m', '5000m', '10000m']
 GROEP = {'500m': 'sprint', '1000m': 'sprint', '1500m': 'midden', '3000m': 'midden', '5000m': 'lang', '10000m': 'lang'}
@@ -36,7 +37,8 @@ def laad(w):
 
 
 def ijs_voorspelling(K):
-    """Racepeil vooraf: lopend baangemiddelde (afstand x geslacht, gekrompen naar de baan), eerdere toernooidagen, algemene stand."""
+    """Racepeil vooraf: lopend baangemiddelde (afstand x geslacht, gekrompen naar de baan), eerdere toernooidagen, algemene stand,
+    en (VELD_IJS) een ijsbonus als functie van het niveau van het veld t.o.v. het gewone veld op die baan."""
     fit = (K['jaar'] <= FIT_TOT) & np.isfinite(K['theta'])
     gm = K[fit].groupby(['gender', 'afstand_idx'])['theta'].median().rename('gm')
     K = K.join(gm, on=['gender', 'afstand_idx'])
@@ -45,6 +47,18 @@ def ijs_voorspelling(K):
     K['ijs_evw'] = K['ijs_ev'] * K['ijs_evn'] / (K['ijs_evn'] + 2)
     K['ijs_recw'] = K['ijs_rec'] * (1 - np.exp(-K['ijs_recn'] / 3.0))
     IJS = ['ijs_basis', 'ijs_evw', 'ijs_gl', 'ijs_recw']
+    if VELD_IJS and 'k_c' in K:
+        # elite rijden vaak op beter geprepareerd ijs: verwachte ijsbonus = f(niveau van het veld van de race) - f(gewoon veldniveau op die baan),
+        # f(g) = exp(-g / T) voor T = 5% en 15% (functies, geen groepen). Het veld is vooraf bekend (startlijst); de baan alleen uit eerdere dagen.
+        rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+        gR = K.groupby(rk)['k_c'].transform('median').clip(-0.05, 0.5)
+        ev = K.assign(gR=gR).drop_duplicates(rk)[rk + ['baan', 'gR']].sort_values(['baan', 'dag'], kind='stable')
+        ev['gV'] = ev.groupby('baan')['gR'].transform(lambda x: x.shift(1).ewm(alpha=0.05, adjust=True).mean())
+        K = K.join(ev.set_index(rk)['gV'], on=rk)
+        gV = K['gV'].fillna(gR).fillna(0.2); gR = gR.fillna(gV)
+        for T, nm in ((0.05, 'ijs_veld05'), (0.15, 'ijs_veld15')):
+            K[nm] = np.exp(-gR / T) - np.exp(-gV / T)
+        IJS += ['ijs_veld05', 'ijs_veld15']
     r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
     X = np.c_[np.ones(len(r)), r[IJS].to_numpy()]
     c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]

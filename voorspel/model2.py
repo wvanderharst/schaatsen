@@ -10,7 +10,7 @@ from numba import njit
 import importlib
 kf = importlib.import_module(os.environ.get('KALMAN', 'kalman_mv2'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'elite'))
-from model import huber, twee_t, t_nll, t_cdf, ijs_voorspelling, vergelijk, AF, GROEP, FIT_TOT, KOL
+from model import huber, twee_t, t_nll, t_cdf, ijs_voorspelling, vergelijk, AF, GROEP, FIT_TOT, KOL, WAT_ALS_EVENT
 from scipy.optimize import minimize
 from scipy.stats import t as T
 HUBER_C = float(os.environ.get('HUBER_C', '0.7'))
@@ -24,7 +24,6 @@ SZ_TOP = os.environ.get('SZ_TOP', '1') == '1'
 BAAN_FUNCTIE = os.environ.get('BAAN_FUNCTIE', '1') == '1'
 HOOG_SCHAAL = os.environ.get('HOOG_SCHAAL', '0') == '1'
 SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter in correcties/schaal/vorm (niet geldig getoetst; vervangen door de vormlaag)
-WAT_ALS_EVENT = -100000                               # event_id <= dit: denkbeeldige rit alleen voor de rijder zelf (geen veld)
 VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (vormlaag.py)
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)

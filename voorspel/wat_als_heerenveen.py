@@ -24,11 +24,11 @@ def kans(p):
 def main(w, par_pad, uit, keuzes):
     os.makedirs(uit, exist_ok=True)
     R = pd.read_parquet(os.path.join(w, 'ritten_cat.parquet')); R['afstand'] = R['afstand'].astype(str)
-    V = pd.read_parquet(os.path.join(w, 'voorspel2_uitkomst.parquet'), columns=['skater_id', 'skater_name', 'dag', 'baan', 'afstand', 'tijd', 'pred', 'pit', 'ok'])
+    V = pd.read_parquet(os.path.join(w, 'voorspel2_uitkomst.parquet'), columns=['skater_id', 'skater_name', 'dag', 'baan', 'afstand', 'tijd', 'pred', 'pit', 'ok', 'k_val'])
     V['afstand'] = V['afstand'].astype(str); V['skater_name'] = V['skater_name'].astype(str)
     echt = []
     for naam, af, n in keuzes:
-        echt.append(V[(V['skater_name'] == naam) & (V['afstand'] == af) & V['ok']].sort_values('dag').tail(n))
+        echt.append(V[(V['skater_name'] == naam) & (V['afstand'] == af) & V['ok'] & ~V['k_val']].sort_values('dag').tail(n))     # valpartijen tellen niet mee
     E = pd.concat(echt, ignore_index=True)
     # denkbeeldige ritten: kopie van de echte rit, in Heerenveen, zonder tijd en dagpeil, eigen race per rit
     sel = R.merge(E[['skater_id', 'dag', 'afstand', 'tijd']], on=['skater_id', 'dag', 'afstand', 'tijd'])

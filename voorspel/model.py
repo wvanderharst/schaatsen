@@ -9,6 +9,7 @@ from scipy.stats import t as T
 
 VELD_IJS = os.environ.get('VELD_IJS', '1') == '1'
 SEIZOEN_IJS = os.environ.get('SEIZOEN_IJS', '0') == '1'      # (bijna geen effect op alle races; het seizoensverloop zit bij de toppers, zie model2.seizoen_top)      # seizoensverloop van het ijs per baan
+WAT_ALS_EVENT = -100000   # event_id <= dit: denkbeeldige rit (wat_als_heerenveen.py), alleen de rijder zelf, zonder veldaanpassing
 SZ_BW = 3.0          # ijsbonus voor sterke velden (beter geprepareerd ijs)
 FIT_TOT = int(os.environ.get('FIT_TOT', '2019'))      # fit op de jaren t/m FIT_TOT (2019: toets op 2020+; 2026: alles, voor voorspellingen nu)
 AF = ['500m', '1000m', '1500m', '3000m', '5000m', '10000m']
@@ -54,12 +55,13 @@ def ijs_voorspelling(K):
         # f(g) = exp(-g / T) voor T = 5% en 15% (functies, geen groepen). Het veld is vooraf bekend (startlijst); de baan alleen uit eerdere dagen.
         rk = ['dag', 'event_id', 'gender', 'afstand_idx']
         gR = K.groupby(rk)['k_c'].transform('median').clip(-0.05, 0.5)
-        ev = K.assign(gR=gR).drop_duplicates(rk)[rk + ['baan', 'gR']].sort_values(['baan', 'dag'], kind='stable')
+        nep = (K['event_id'] <= WAT_ALS_EVENT).to_numpy()            # denkbeeldige wat-als-ritten: niet in het gewone veld van de baan
+        ev = K[~nep].assign(gR=gR[~nep]).drop_duplicates(rk)[rk + ['baan', 'gR']].sort_values(['baan', 'dag'], kind='stable')
         ev['gV'] = ev.groupby('baan')['gR'].transform(lambda x: x.shift(1).ewm(alpha=0.05, adjust=True).mean())
         K = K.join(ev.set_index(rk)['gV'], on=rk)
         gV = K['gV'].fillna(gR).fillna(0.2); gR = gR.fillna(gV)
         for T, nm in ((0.05, 'ijs_veld05'), (0.15, 'ijs_veld15')):
-            K[nm] = np.exp(-gR / T) - np.exp(-gV / T)
+            K[nm] = np.where(nep, 0.0, np.exp(-gR / T) - np.exp(-gV / T))         # wat-als: zonder veldaanpassing
         IJS += ['ijs_veld05', 'ijs_veld15']
     r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
     X = np.c_[np.ones(len(r)), r[IJS].to_numpy()]

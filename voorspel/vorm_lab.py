@@ -51,13 +51,13 @@ if __name__ == '__main__':
     toets = (jr >= 2020) & np.isfinite(V['ll'].to_numpy())
     M = ['m7', 'm30', 'm90', 'neg7', 'neg30', 'neg90', 'pos7', 'pos30', 'pos90']
     varianten = {
-        'rijder': (M, vl.SCH, None),
-        'rijder + veld': (vl.LOC, vl.SCH, None),
-        'rijder + veld, toppers x3': (vl.LOC, vl.SCH, 1 + 2 * (wg > 0.3)),
-        'alleen locatie': (vl.LOC, [], None),
+        'rijder + veld (geen niveauterm)': (vl.LOC, vl.SCH, None, False),
+        'rijder (geen niveauterm)': (M, vl.SCH, None, False),
+        'rijder + veld, toppers x3 (geen niveauterm)': (vl.LOC, vl.SCH, 1 + 2 * (wg > 0.3), False),
+        'alleen schaal': ([], vl.SCH, None, False),
     }
-    for nm, (loc, sch, w) in varianten.items():
-        Xm, Xs, nm_m, nm_s = vl.ontwerp(F, wg, loc, sch)
+    for nm, (loc, sch, w, const) in varianten.items():
+        Xm, Xs, nm_m, nm_s = vl.ontwerp(F, wg, loc, sch, const)
         p = vl.fit(z[fitm], Xm[fitm], Xs[fitm], None if w is None else w[fitm])
         mu, sg, pit2, d = vl.pas_toe(p, z, Xm, Xs)
         verslag(V, pit2, d, toets, nm)

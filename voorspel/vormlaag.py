@@ -15,7 +15,7 @@ from scipy.optimize import minimize
 
 TS = (7.0, 30.0, 90.0)
 LOC = ['m7', 'm30', 'm90', 'neg7', 'neg30', 'neg90', 'pos7', 'pos30', 'pos90', 'veld_m7', 'veld_m30', 'veld_m90']
-SCH = ['v7', 'v30', 'v90', 'n30']
+SCH = ['v7', 'v30', 'v90']
 
 
 @njit(cache=True)
@@ -68,10 +68,16 @@ def kenmerken(rijder, dag, z, val, race, k0=2.0):
     return F
 
 
-def ontwerp(F, wg, loc=LOC, sch=SCH):
+def ontwerp(F, wg, loc=LOC, sch=SCH, const=False):
+    """const=False: geen vaste termen (1, w) in locatie en schaal, alleen de vormkenmerken. De fitjaren zijn voor het basismodel
+    binnen de steekproef: vaste termen leren daar een niveau en breedte die in de toetsjaren niet kloppen (elite 0,05 sd te traag,
+    toppers sigma 0,94: trage staart te dik)."""
     Xm = np.column_stack([np.ones(len(F))] + [F[c].to_numpy() for c in loc] + [wg] + [F[c].to_numpy() * wg for c in loc])
     Xs = np.column_stack([np.ones(len(F))] + [F[c].to_numpy() for c in sch] + [wg] + [F[c].to_numpy() * wg for c in sch])
     nm_m = ['1'] + list(loc) + ['w'] + [c + '_w' for c in loc]; nm_s = ['1'] + list(sch) + ['w'] + [c + '_w' for c in sch]
+    if not const:
+        h = [i for i, n in enumerate(nm_m) if n not in ('1', 'w')]; Xm = Xm[:, h]; nm_m = [nm_m[i] for i in h]
+        h = [i for i, n in enumerate(nm_s) if n not in ('1', 'w')]; Xs = Xs[:, h]; nm_s = [nm_s[i] for i in h]
     return np.nan_to_num(Xm), np.nan_to_num(Xs), nm_m, nm_s
 
 

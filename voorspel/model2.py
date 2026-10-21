@@ -19,7 +19,28 @@ import baanfactor as bf
 BIAS_HL = float(os.environ.get('BIAS_HL', '45'))
 BAAN_TOP_HL = float(os.environ.get('BAAN_TOP_HL', '365'))   # 0 = uit
 BAAN_TOP_K = 30.0
+SZ_TOP = os.environ.get('SZ_TOP', '1') == '1'
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
+
+
+def seizoen_top(K, r, ok, w, bw=2.0, hl=2.0, k0=60.0):
+    """Per rit: gewogen (w) gemiddelde fout op deze baan in deze week van het seizoen in eerdere seizoenen (kernel bw weken, halfwaardetijd
+    hl seizoenen, krimp k0)."""
+    r = np.clip(np.nan_to_num(r), -0.03, 0.03); ww = np.where(ok & np.isfinite(r), w, 0.0)
+    wk = ((K['dag'] - ((K['seizoen'] - 1970) * 365.25 + 181)) // 7).clip(0, 51).astype(int).to_numpy()
+    seiz = np.sort(K['seizoen'].unique()); W = np.arange(52); Kw = np.exp(-(W[:, None] - W[None, :]) ** 2 / (2 * bw * bw))
+    out = np.zeros(len(K))
+    for b, idx in K.groupby('baan').indices.items():
+        if len(idx) < 200: continue
+        si = np.searchsorted(seiz, K['seizoen'].to_numpy()[idx])
+        S_ = np.zeros((len(seiz), 52)); C_ = np.zeros((len(seiz), 52))
+        np.add.at(S_, (si, wk[idx]), ww[idx] * r[idx]); np.add.at(C_, (si, wk[idx]), ww[idx])
+        for j in np.unique(si):
+            if j == 0: continue
+            a = 0.5 ** ((seiz[j] - 1 - seiz[:j]) / hl)
+            sw = (a[:, None] * S_[:j]).sum(0) @ Kw.T; cw = (a[:, None] * C_[:j]).sum(0) @ Kw.T
+            m = idx[si == j]; out[m] = (sw / (cw + k0))[wk[m]]
+    return out
 
 
 def online_baan(dag, r, ok, w, hl):
@@ -204,6 +225,11 @@ def draai(w, par, verbose=True, segment=True):
                 bt[idx] = bb_ * nb_ / (nb_ + BAAN_TOP_K)
             K['bias_baan'] = wb * bt
             K['pred'] = K['pred'] + K['bias_baan']
+        if SZ_TOP:
+            # seizoensverloop per baan voor de toppers: functie van de week in het seizoen, uit EERDERE seizoenen op die baan
+            # (kernel 2 weken, halfwaardetijd 2 seizoenen, krimp 60); één ronde (herhalen gaat toevallige seizoenen naspelen)
+            K['bias_seizoen'] = wb * seizoen_top(K, (np.log(K['tijd']) - K['pred']).to_numpy(), fit_b, wb)
+            K['pred'] = K['pred'] + K['bias_seizoen']
     rc = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
     Ix = lambda d: np.c_[np.ones(len(d)), np.log1p(d['ijs_vn']), np.log1p(d['ijs_evn']), d['hoog'], np.log(d['v_theta'].clip(1e-7))]
     rci = (rc['theta'] - rc['th_hat_veld']).to_numpy()                 # onzekerheid van het dagpeil zelf (op raceniveau)

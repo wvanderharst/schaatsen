@@ -7,7 +7,9 @@ import numpy as np, pandas as pd
 from scipy.optimize import minimize
 from scipy.stats import t as T
 
-VELD_IJS = os.environ.get('VELD_IJS', '1') == '1'          # ijsbonus voor sterke velden (beter geprepareerd ijs)
+VELD_IJS = os.environ.get('VELD_IJS', '1') == '1'
+SEIZOEN_IJS = os.environ.get('SEIZOEN_IJS', '0') == '1'      # (bijna geen effect op alle races; het seizoensverloop zit bij de toppers, zie model2.seizoen_top)      # seizoensverloop van het ijs per baan
+SZ_BW = 3.0          # ijsbonus voor sterke velden (beter geprepareerd ijs)
 FIT_TOT = int(os.environ.get('FIT_TOT', '2019'))      # fit op de jaren t/m FIT_TOT (2019: toets op 2020+; 2026: alles, voor voorspellingen nu)
 AF = ['500m', '1000m', '1500m', '3000m', '5000m', '10000m']
 GROEP = {'500m': 'sprint', '1000m': 'sprint', '1500m': 'midden', '3000m': 'midden', '5000m': 'lang', '10000m': 'lang'}
@@ -63,7 +65,51 @@ def ijs_voorspelling(K):
     X = np.c_[np.ones(len(r)), r[IJS].to_numpy()]
     c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]
     K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
+    if SEIZOEN_IJS:
+        # seizoensverloop van het ijs per baan: vloeiende functie van de week in het seizoen, uit EERDERE seizoenen op dezelfde baan
+        # (kernel van SZ_BW weken, recente seizoenen zwaarder), gekrompen naar het verloop over alle banen
+        K['ijs_seizoen'] = seizoen_ijs(K)
+        IJS = IJS + ['ijs_seizoen']
+        r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
+        X = np.c_[np.ones(len(r)), r[IJS].to_numpy()]
+        c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]
+        K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
     return K, c
+
+
+def seizoen_ijs(K, bw=3.0, hl=3.0, k0=40.0):
+    """Per race: verwachte afwijking van het ijs t.o.v. de basisvoorspelling th_hat in deze week van het seizoen op deze baan, uit eerdere
+    seizoenen (gewicht 0,5^(seizoenen geleden / hl) x exp(-(weekverschil)^2 / (2 bw^2))), gekrompen naar alle banen samen (k0 races)."""
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    r = K.drop_duplicates(rk)[rk + ['baan', 'seizoen', 'theta', 'th_hat']].copy()
+    r['wk'] = ((r['dag'] - ((r['seizoen'] - 1970) * 365.25 + 181)) // 7).clip(0, 51).astype(int)
+    r['res'] = (r['theta'] - r['th_hat']).clip(-0.03, 0.03)
+    ok = np.isfinite(r['res'])
+    agg = r[ok].groupby(['baan', 'seizoen', 'wk'])['res'].agg(['sum', 'count']).reset_index()
+    W = np.arange(52); Kw = np.exp(-(W[:, None] - W[None, :]) ** 2 / (2 * bw * bw))      # Kw[doelweek, bronweek]
+    seizoenen = np.sort(r['seizoen'].unique()); out = np.zeros(len(r))
+    def kernel_tabel(sub):
+        S_ = np.zeros((len(seizoenen), 52)); C_ = np.zeros((len(seizoenen), 52))
+        si = np.searchsorted(seizoenen, sub['seizoen'].to_numpy())
+        np.add.at(S_, (si, sub['wk'].to_numpy()), sub['sum'].to_numpy()); np.add.at(C_, (si, sub['wk'].to_numpy()), sub['count'].to_numpy())
+        res = {}
+        for j, S in enumerate(seizoenen):
+            w = 0.5 ** ((S - 1 - seizoenen[:j]) / hl)                      # alleen eerdere seizoenen
+            sw = (w[:, None] * S_[:j]).sum(0) @ Kw.T if j else np.zeros(52); cw = (w[:, None] * C_[:j]).sum(0) @ Kw.T if j else np.zeros(52)
+            res[S] = (sw, cw)
+        return res
+    alg = kernel_tabel(agg.groupby(['seizoen', 'wk'])[['sum', 'count']].sum().reset_index())
+    for b, sub in agg.groupby('baan'):
+        tb = kernel_tabel(sub)
+        m = (r['baan'] == b).to_numpy()
+        for S in np.unique(r.loc[m, 'seizoen']):
+            mm = m & (r['seizoen'] == S).to_numpy()
+            sw, cw = tb[S]; sa, ca = alg[S]
+            mu_a = np.where(ca > 0, sa / np.maximum(ca, 1e-9), 0.0)
+            mu_b = (sw + k0 * mu_a) / (cw + k0)
+            out[mm] = mu_b[r.loc[mm, 'wk'].to_numpy()]
+    r['ijs_seizoen'] = out
+    return K[rk].merge(r[rk + ['ijs_seizoen']], on=rk, how='left')['ijs_seizoen'].fillna(0.0).to_numpy()
 
 
 def kenmerken(K, D=None, ref=None):

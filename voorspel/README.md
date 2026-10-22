@@ -248,3 +248,25 @@ uit eerdere dagen (halfwaardetijd 1 jaar, krimp naar 1). De kwantielen in `voors
 
 Toppers met de staartijking: alle tellingen van rijders met meerdere snelle ritten kloppen (≥3: 274 tegen 289; ≥4: 142 tegen 136;
 ≥8: 7 tegen 3,3). Ervoor waren ≥3 en ≥4 fout (237 en 105).
+
+## Backtest: afstand tot de internationale top (`backtest.py`)
+
+Internationale topraces (wereldbekers, WK's, EK's, Spelen; herkend aan het veld: minstens 10 rijders binnen 5% van de wereldtop uit
+minstens 5 landen): 2.777 races, 106.850 ritten, waarvan 31.057 in 2020+.
+- **Maatstaf:** afstand tot de top g = ln tijd − gemiddelde ln tijd van de 5 snelsten zonder de rijder zelf. De ligging en schaal per
+  rijder × afstand komen uit eerdere internationale races, met een logistische of scheef logistische verdeling. Negatieve afstanden zijn
+  geen probleem, want de verdeling loopt over alle getallen. De variant met GAS-update gebruikt de score van de logistische verdeling,
+  met een eigen leersnelheid voor de eerste races. Alle parameters zijn geschat op 2008–2019.
+- **Onze methode met dezelfde informatie:** onze voorspelling + de gemiddelde afwijking van diezelfde 5 rijders t.o.v. onze voorspelling.
+
+| (2020+, log loss ln tijd) | alle ritten | binnen 5% van de top | snel 1/1000, 1/100, 1/20 (binnen 5%) |
+|---|---|---|---|
+| maatstaf, logistisch | −2,521 | −2,779 | 1,32 / 0,91 / 0,90 |
+| maatstaf GAS, logistisch | −2,549 | −2,807 | 2,59 / 1,25 / 0,97 |
+| onze methode met top 5, scheef logistisch | **−3,120** | **−3,244** | 0,27 / 0,60 / 0,85 |
+| onze methode vooraf (zonder top 5) | −3,037 | −3,130 | **1,14 / 1,11 / 1,02** |
+
+Onze methode vooraf, met de onzekerheid van het ijs, is veel beter dan de maatstaf die de top 5 achteraf al kent. De afstand tot de top 5
+hangt sterk af van wie er in de race zit en hoe die rijders die dag rijden. Wel scheidt de maatstaf ijs van rijder: Leerdams 1:12,35 in
+Salt Lake City was t.o.v. de top 5 gewoon (maatstaf 1 op 2, onze methode met top 5 1 op 10); de 1 op 160 vooraf komt vooral van het ijs.
+Lollobrigida's 3:54,28 in Milano was ook t.o.v. de top 5 uitzonderlijk (maatstaf GAS 1 op 267, onze methode met top 5 1 op 837).

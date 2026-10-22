@@ -26,6 +26,7 @@ HOOG_SCHAAL = os.environ.get('HOOG_SCHAAL', '0') == '1'
 SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter in correcties/schaal/vorm (niet geldig getoetst; vervangen door de vormlaag)
 VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (vormlaag.py)
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
+STAART_IJK = os.environ.get('STAART_IJK', '1') == '1'      # lopende ijking van de snelle staart (staartijking.py), na de vormlaag
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
@@ -190,6 +191,9 @@ def kwantiel_u(K, par_t, Zq, q):
     """Kwantiel q (per rit) van de gestandaardiseerde fout u, inclusief de vormlaag en de staartcorrectie (in omgekeerde volgorde)."""
     q = np.broadcast_to(np.asarray(q, float), (len(K),))
     from scipy.stats import norm as _n
+    if 'staart_b1' in K:                                 # lopende staartijking terugdraaien
+        import staartijking as si
+        q = si.terug(q, [K['staart_b1'].to_numpy(), K['staart_b2'].to_numpy()])
     if 'vorm_mu' in K:                                   # vormlaag: z' = (z - mu) / sigma, dus z = mu + sigma z'
         q = _n.cdf(K['vorm_mu'].to_numpy() + K['vorm_sg'].to_numpy() * _n.ppf(q))
     b_r = K['staart_br'].to_numpy() if 'staart_br' in K else np.ones(len(K))
@@ -431,6 +435,12 @@ def draai(w, par, verbose=True, segment=True):
         K['bias_vorm'] = np.nan_to_num((u1 - u0) * K['sd'].to_numpy())
         K['pred'] = K['pred'] + K['bias_vorm']
         K['err'] = np.log(K['tijd']) - K['pred']
+    if STAART_IJK:
+        import staartijking as si
+        pit = K['pit'].to_numpy(); okp = ok & np.isfinite(pit)
+        p2, d, bs = si.ijk(K['dag'].to_numpy(), K['k_c'].to_numpy(), np.where(okp, pit, np.nan), okp & ~K['k_val'].to_numpy())
+        K['pit'] = np.where(okp, p2, pit); K['nll'] = np.where(okp, K['nll'] + d, K['nll'])
+        K['staart_b1'] = bs[0]; K['staart_b2'] = bs[1]
     if verbose:
         print('staart b (snel, voorbij %.0f%%): b0 %.3f  b1 (x exp(-niveau/4%%)) %.3f' % (100 * Q, bb[0], bb[1]))
         print('ijs-coef', np.round(c_ijs, 3), '| tijd', round(time.time() - t0), 's', flush=True)

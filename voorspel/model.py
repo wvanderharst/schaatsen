@@ -94,16 +94,6 @@ def ijs_voorspelling(K):
     return K, c
 
 
-def toernooidag(K, gat=2):
-    """Dag in het toernooi (vooraf bekend): per baan aaneengesloten wedstrijddagen (hoogstens gat dagen ertussen). dag1 = exp(-dagnummer)."""
-    d = K[['baan', 'dag']].drop_duplicates().sort_values(['baan', 'dag'], kind='stable')
-    nieuw = (d['baan'] != d['baan'].shift()) | (d['dag'] - d['dag'].shift() > gat)
-    d['_t'] = nieuw.cumsum().to_numpy(); d['dagnr'] = d['dag'] - d.groupby('_t')['dag'].transform('min')
-    K = K.drop(columns=[c for c in ('dagnr', 'dag1') if c in K]).join(d.set_index(['baan', 'dag'])['dagnr'], on=['baan', 'dag'])
-    K['dag1'] = np.exp(-K['dagnr'].fillna(0).clip(0, 10))
-    return K
-
-
 def startpeil_kenmerken(K, IJS, tb=5.0):
     """Startpeil van een nieuwe baan: zonder geschiedenis begon de baan op het gemiddelde van alle banen (veel trage en buitenbanen).
     Nu een functie van het niveau van het veld (een olympisch of wereldbekerveld rijdt op snel ijs) en van de hoogte (ln gewone druk /

@@ -399,7 +399,7 @@ def draai(w, par, verbose=True, segment=True):
     rci = (rc['theta'] - rc['th_hat_veld']).to_numpy()                 # onzekerheid van het dagpeil zelf (op raceniveau)
     gi = np.linalg.lstsq(Ix(rc), np.log(np.abs(rci) + 1e-5), rcond=None)[0]
     sc_i = np.exp(Ix(K) @ gi); sc_i *= np.median(np.abs(rci) / np.exp(Ix(rc) @ gi)) / 0.6745
-    K['sd'] = np.sqrt(sc_r ** 2 + sc_i ** 2)
+    K['sd'] = np.sqrt(sc_r ** 2 + sc_i ** 2); K['sd_rijder'] = sc_r; K['sd_ijs'] = sc_i
     K['err'] = np.log(K['tijd']) - K['pred']; K['u'] = K['err'] / K['sd']
     K['ag'] = K['afstand'].map(GROEP); K['nll'] = np.nan; K['pit'] = np.nan; par_t = {}
     Zq = kenm_verdeling(K); wq = Zq[:, 1]                        # vorm van de foutverdeling als functie van niveau en leeftijd
@@ -461,4 +461,4 @@ if __name__ == '__main__':
         fout, rg, nr_, nk = em.toets(x, vanaf_seizoen=2019)
         print(f'kalibratie {nm}: {nr_} ritten van {nk} rijders, {fout} fouten', *[r for r in rg if 'FOUT' in r or 'kans<=' in r], sep='\n  ')
     K[['skater_id', 'skater_name', 'gender', 'groep', 'dag', 'jaar', 'seizoen', 'baan', 'afstand', 'tijd', 'pred', 'pred_basis', 'sd', 'u', 'pit', 'nll', 'ok',
-       'th_hat', 'theta', 'k_c', 'k_val', 'rk_', 'lf']].to_parquet(os.path.join(w, 'voorspel2_uitkomst.parquet'))
+       'th_hat', 'th_hat_veld', 'theta', 'k_c', 'k_val', 'rk_', 'lf', 'sd_rijder', 'sd_ijs']].to_parquet(os.path.join(w, 'voorspel2_uitkomst.parquet'))

@@ -11,7 +11,7 @@ spec = importlib.util.spec_from_file_location('em', os.path.join(os.path.dirname
 em = importlib.util.module_from_spec(spec); spec.loader.exec_module(em)
 
 pad = sys.argv[1]; w = os.path.dirname(pad) or '.'
-V = pq.read_table(pad, columns=['skater_id', 'groep', 'dag', 'jaar', 'seizoen', 'afstand', 'tijd', 'pit', 'nll', 'ok', 'k_val', 'k_c', 'pred', 'theta', 'th_hat_veld']).to_pandas()
+V = pq.read_table(pad, columns=['skater_id', 'groep', 'dag', 'jaar', 'seizoen', 'afstand', 'tijd', 'pit', 'nll', 'ok', 'k_val', 'k_c', 'pred', 'theta', 'th_hat_veld', 'lf']).to_pandas()
 V['afstand'] = V['afstand'].astype(str)
 K = pd.read_parquet(os.path.join(w, 'kenmerken.parquet'), columns=['skater_id', 'dag', 'afstand', 'tijd', 'gap']); K['afstand'] = K['afstand'].astype(str)
 V = V.merge(K.drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']), on=['skater_id', 'dag', 'afstand', 'tijd'], how='left')
@@ -62,6 +62,13 @@ for v in VARS:
         if pre not in cache:
             if laag in RUST:
                 pr, dr, _, _ = rl.rust(dag, g, gap, p_, geb, **RUST[laag])
+            elif laag.startswith('leeftijd'):
+                kw_ = {'leeftijd': {}, 'leeftijd k0=30': {'k0': 30.0}, 'leeftijd bw=3': {'bw_x': 3.0}, 'leeftijd hl=2190': {'hl': 2190.0}}[laag]
+                kw_ = {'bw_x': 1.5, 'k0': 100.0, **kw_}; bwx = kw_.pop('bw_x')
+                pr, dr, _, _ = rl.laag(dag, g, V['lf'].to_numpy(), p_, geb, np.linspace(8.0, 60.0, 53), bwx, **kw_)
+            elif laag in ('plafond lft', 'plafond2 lft'):
+                xg = pgat if laag == 'plafond lft' else pgat2
+                pr, dr, _, _ = rl.laag(dag, V['lf'].to_numpy(), xg, p_, geb, pf.GX, 0.5, k0=30.0, G1=np.linspace(8.0, 60.0, 53), bw=1.5)
             elif laag.startswith('piek'):
                 kw_ = {'piek': {}, 'piek k0=10': {'k0': 10.0}, 'piek k0=100': {'k0': 100.0}, 'piek hl=2190': {'hl': 2190.0}, 'piek zonder schaal': {'schaal': False}}[laag]
                 pr, dr, _, _ = rl.laag(dag, g, xpiek, p_, geb, np.array([0.0, 1.0]), 0.5, **{'k0': 30.0, **kw_})

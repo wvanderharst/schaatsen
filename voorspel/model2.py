@@ -29,6 +29,7 @@ VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 STAART_IJK = os.environ.get('STAART_IJK', '1') == '1'
 HOOG_AFF = os.environ.get('HOOG_AFF', '1') == '1'         # persoonlijke hooglandaffiniteit per rijder x afstand (ligging en schaal op de kansschaal)
 RUST = os.environ.get('RUST', '1') == '1'                 # rust en taper: verschuiving en schaal op de kansschaal naar ln(1 + rustdagen) x niveau (rustlaag.py)
+LEEFTIJD = os.environ.get('LEEFTIJD', '1') == '1'         # leeftijd: jonge toprijders onderschat, oudere overschat; mu en sigma naar niveau x leeftijd
 PIEK = os.environ.get('PIEK', '1') == '1'                 # piekmomenten (alleen WK's en Olympische Spelen): eigen verschuiving en spreiding naar niveau
 PLAFOND = os.environ.get('PLAFOND', '1') == '1'           # bewezen niveau (lange-termijngeheugen): op een na beste gecorrigeerde rit in 1 en 3 jaar t.o.v. de verwachting (plafond.py)
 RIJDER_STAART = os.environ.get('RIJDER_STAART', '1') == '1'   # staartmassa per rijder (staart_np.rijder): clustering van snelle ritten bij stijgende rijders
@@ -206,7 +207,7 @@ def kwantiel_u(K, par_t, Zq, q):
     if 'rijder_lam' in K:                                # staartmassa per rijder
         import staart_np as sn
         q = sn.rijder_terug(q, K['rijder_lam'].to_numpy())
-    for c in ('piek', 'plaf2', 'plaf1', 'rust'):         # piekmoment, bewezen niveau (3 en 1 jaar) en rustlaag, in omgekeerde volgorde
+    for c in ('lft', 'piek', 'plaf2', 'plaf1', 'rust'):  # leeftijd, piekmoment, bewezen niveau (3 en 1 jaar) en rust, in omgekeerde volgorde
         if c + '_mu' in K:
             q = _n.cdf(K[c + '_mu'].to_numpy() + K[c + '_sg'].to_numpy() * _n.ppf(q))
     if 'staart_b1' in K:                                 # lopende staartijking terugdraaien
@@ -580,7 +581,7 @@ def draai(w, par, verbose=True, segment=True):
         p2, d, bs = si.ijk(K['dag'].to_numpy(), K['k_c'].to_numpy(), np.where(okp, pit, np.nan), okp & ~K['k_val'].to_numpy())
         K['pit'] = np.where(okp, p2, pit); K['nll'] = np.where(okp, K['nll'] + d, K['nll'])
         K['staart_b1'] = bs[0]; K['staart_b2'] = bs[1]
-    if RUST or PLAFOND or PIEK or RIJDER_STAART or STAART_NP:
+    if RUST or PLAFOND or PIEK or LEEFTIJD or RIJDER_STAART or STAART_NP:
         # rijen met een voorspelling (ook denkbeeldige ritten zonder tijd) krijgen de lagen; alleen echte ritten zonder eigen val werken ze bij
         rij = (np.isfinite(K['pred']) & np.isfinite(K['sd']) & K['ag'].notna()).to_numpy()
         pit = K['pit'].to_numpy(); okp = ok & np.isfinite(pit); geb = okp & ~K['k_val'].to_numpy()
@@ -601,6 +602,9 @@ def draai(w, par, verbose=True, segment=True):
             x = np.where(K['piek'].to_numpy(), 1.0, np.nan)
             pv, d, mu, sg = rl.laag(K['dag'].to_numpy(), K['k_c'].to_numpy(), x, pv, geb, np.array([0.0, 1.0]), 0.5, k0=30.0, rij=rij)
             dl += d; K['piek_mu'] = mu; K['piek_sg'] = sg
+        if LEEFTIJD and 'lf' in K:
+            pv, d, mu, sg = rl.laag(K['dag'].to_numpy(), K['k_c'].to_numpy(), K['lf'].to_numpy(float), pv, geb, np.linspace(8.0, 60.0, 53), 1.5, k0=30.0, rij=rij)
+            dl += d; K['lft_mu'] = mu; K['lft_sg'] = sg
         if RIJDER_STAART or STAART_NP:
             import staart_np as sn
         if RIJDER_STAART:
@@ -612,9 +616,9 @@ def draai(w, par, verbose=True, segment=True):
             for c, qq in enumerate(sn.QS):
                 K['np_inv_%02d' % round(100 * qq)] = np.where(rij, inv[:, c], qq)
         K['pit'] = np.where(okp, pv, K['pit']); K['nll'] = np.where(okp, K['nll'] + dl, K['nll'])
-    if VORM or HOOG_AFF or RUST or PLAFOND or PIEK or RIJDER_STAART or STAART_NP:
+    if VORM or HOOG_AFF or RUST or PLAFOND or PIEK or LEEFTIJD or RIJDER_STAART or STAART_NP:
         # voorspelde tijd = mediaan van de nieuwe verdeling (verschuiving t.o.v. de mediaan zonder de lagen op de kansschaal)
-        lagen = ('vorm_mu', 'vorm_sg', 'aff_mu', 'aff_sg', 'rust_mu', 'rust_sg', 'plaf1_mu', 'plaf1_sg', 'plaf2_mu', 'plaf2_sg', 'piek_mu', 'piek_sg', 'rijder_lam', 'np_inv_10', 'np_inv_50', 'np_inv_90')
+        lagen = ('vorm_mu', 'vorm_sg', 'aff_mu', 'aff_sg', 'rust_mu', 'rust_sg', 'plaf1_mu', 'plaf1_sg', 'plaf2_mu', 'plaf2_sg', 'piek_mu', 'piek_sg', 'lft_mu', 'lft_sg', 'rijder_lam', 'np_inv_10', 'np_inv_50', 'np_inv_90')
         bewaar = {c: K.pop(c) for c in lagen if c in K}
         u0 = kwantiel_u(K, par_t, Zq, 0.5)
         for c, v in bewaar.items():

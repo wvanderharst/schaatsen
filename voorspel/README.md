@@ -433,3 +433,25 @@ alleen voor piekritten, online uit eerdere piekmomenten (krimp 30 ritten, halfwa
 
 Op de piekritten van 2020+ schiet de laag iets door (snel 1/20 1,09 → 0,90×, traag 0,68 → 1,10×): het piekeffect was in 2008–2019 groter dan
 daarna. Milano 2026: Lollobrigida 3000 m 1 op 894 (was 1 op 1134), Leerdam 1000 m 1 op 47 (was 64), Kok 1000 m 1 op 98 (was 137).
+
+## Leeftijd (`rustlaag.laag` met x = leeftijd) en kalibratie van kampioenen (`kampioenen.py`)
+
+**Kampioenen.** `kampioenen.py` bepaalt alle wereld- en olympisch kampioenen 2007–2026 (268 titels, 75 rijders; WK afstanden en Spelen:
+snelste tijd per afstand; WK allround en sprint: eindstand in samalog-punten) en hun persoonlijke kalibratie over alle ritten, valpartijen
+inbegrepen, ook zonder de titelraces zelf (die zijn op de uitkomst gekozen: gemiddeld z −0,37). Als groep goed gekalibreerd (2020+, zonder
+titelraces: gem. z −0,03, snel 1/20 · 1/100 · 1/1000 = 288/257 · 55/51 · 5/5, aantallen per rijder goed). Valpartijen (0,5% van de ritten)
+zitten niet in de voorspelde verdeling: met valpartijen traag 1/1000 32 tegen 5 (zonder: 5 tegen 5). Per kampioen hangt de afwijking samen
+met de loopbaanfase: jonge stijgers onderschat (Jílek, Wennemars, De Boo, Kongshaug), oudere rijders overschat (Bowe, Jackson, Golikova).
+
+**Leeftijdslaag** (na de piekmomenten): z' = (z − μ) / σ, μ en σ een gladde functie van niveau × leeftijd op de racedag (Gauss-kernels:
+niveau 2%, leeftijd 1,5 jaar), online, krimp 30 ritten. Gemiddelde z van de top < 3,5% (2020+) naar leeftijd: ≤ 18 jaar −0,072 → −0,045,
+18–20 −0,036 → −0,018, 28–30 +0,080 → +0,059, > 35 +0,135 → +0,067. Een laag bewezen niveau × leeftijd (in plaats van of naast niveau) was
+voor de elite slechter.
+
+| (2020+, log loss) | alle | toppers | elite | senior | elite vooraf | mediane fout elite |
+|---|---|---|---|---|---|---|
+| zonder leeftijdslaag | −2,3635 | −3,0642 | −3,1880 | −2,8015 | −3,1782 | 0,627% |
+| met leeftijdslaag | **−2,3652** | **−3,0647** | **−3,1886** | −2,8012 | **−3,1792** | 0,628% |
+
+Kalibratie op het niveau vooraf: top < 2% 0 fouten. De oudere kampioenen schuiven naar 0 (Bowe +0,24 → +0,16), de jonge stijgers nauwelijks
+(Jílek −0,66 → −0,62, Wennemars −0,42 → −0,41, De Boo −0,42 → −0,39): zij groeien sneller dan hun leeftijdsgroep.

@@ -54,18 +54,19 @@ def _rust(dag, g, r, z, gebruik, GN, GR, bw, bw_r, hl, k0, schaal, mu_o, sg_o):
         laatst = dag[i]; i = j
 
 
-def laag(dag, g, x, p, gebruik, GX, bw_x, bw=0.02, hl=1095.0, k0=100.0, schaal=True, rij=None):
+def laag(dag, g, x, p, gebruik, GX, bw_x, bw=0.02, hl=1095.0, k0=100.0, schaal=True, rij=None, G1=None):
     """Algemene lopende laag op de kansschaal: mu en sigma als gladde functie van het niveau g en een kenmerk x (rooster GX,
     bandbreedte bw_x). Rijen met x = NaN krijgen mu = 0, sigma = 1 en werken de schatting niet bij. Geeft p', verandering in de log loss,
-    mu en sigma."""
+    mu en sigma. G1: eigen rooster voor de eerste dimensie (standaard het niveau, GN); dan is g bijv. de leeftijd en bw zijn bandbreedte."""
+    G1 = GN if G1 is None else G1
     ok = np.isfinite(p)
     rij = ok if rij is None else rij
-    heeft = np.isfinite(x)
+    heeft = np.isfinite(x) & (np.isfinite(g) if G1 is not GN else True)
     idx = np.flatnonzero(rij & heeft); o = idx[np.argsort(dag[idx], kind='stable')]
     z = norm.ppf(np.clip(p, 1e-15, 1 - 1e-15))
     mo = np.zeros(len(o)); so = np.ones(len(o))
-    _rust(dag[o].astype(np.float64), np.clip(np.nan_to_num(g[o], nan=0.2), -0.03, 0.45), np.clip(x[o], GX[0], GX[-1]), np.nan_to_num(z[o]),
-          (gebruik & ok)[o], GN, GX, bw, bw_x, hl, k0, schaal, mo, so)
+    _rust(dag[o].astype(np.float64), np.clip(np.nan_to_num(g[o], nan=0.2), G1[0], G1[-1]), np.clip(x[o], GX[0], GX[-1]), np.nan_to_num(z[o]),
+          (gebruik & ok)[o], G1, GX, bw, bw_x, hl, k0, schaal, mo, so)
     mu = np.zeros(len(p)); sg = np.ones(len(p)); mu[o] = mo; sg[o] = so
     z2 = (z - mu) / sg
     p2 = np.where(ok, norm.cdf(z2), p)

@@ -19,7 +19,7 @@ HOOGLAND = ('Salt Lake City (USA)', 'Calgary (CAN)')
 
 
 @njit(cache=True)
-def _ijs(rk_start, rk_end, baan, gsl, af, dag, theta, nb, w_min, w_baan, ev_dagen, glob_hl, w_rec,
+def _ijs(rk_start, rk_end, baan, gsl, af, dag, theta, nr, n_min, nb, w_min, w_baan, ev_dagen, glob_hl, w_rec,
          o_vm, o_vn, o_ba, o_bn, o_ev, o_evn, o_gl, o_rec, o_recn):
     """Per race (blokken rk_start..rk_end, gesorteerd op dag): lopend gemiddelde theta per baan x geslacht x afstand en per baan,
     afwijking op eerdere dagen van hetzelfde toernooi en de algemene afwijking (halfwaardetijd glob_hl dagen)."""
@@ -46,7 +46,7 @@ def _ijs(rk_start, rk_end, baan, gsl, af, dag, theta, nb, w_min, w_baan, ev_dage
             o_rec[q] = rec[b]; o_recn[q] = recn[b]
         for q in range(i, j):
             th = theta[q]
-            if th != th:
+            if th != th or nr[q] < n_min:                 # races met heel weinig rijders (trainingen, tijdritten) tellen niet mee
                 continue
             b = baan[q]; g = gsl[q]; a = af[q]
             ref = vm[b, g, a] if vn[b, g, a] >= 3 else (bm[b] if bn[b] >= 3 else th)
@@ -71,14 +71,17 @@ def _ijs(rk_start, rk_end, baan, gsl, af, dag, theta, nb, w_min, w_baan, ev_dage
     return 0
 
 
-def ijs_kenmerken(df, w_min=0.05, w_baan=0.02, ev_dagen=5, glob_hl=30.0, w_rec=0.2):
-    """Kenmerken van het racepeil vooraf per race; geeft een DataFrame op race-niveau (sleutel dag, event_id, gender, afstand_idx)."""
-    r = df.drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])[['dag', 'event_id', 'gender', 'afstand_idx', 'baan', 'theta', 'v_theta', 'seizoen']]
+def ijs_kenmerken(df, w_min=0.05, w_baan=0.02, ev_dagen=5, glob_hl=30.0, w_rec=0.2, n_min=5):
+    """Kenmerken van het racepeil vooraf per race; geeft een DataFrame op race-niveau (sleutel dag, event_id, gender, afstand_idx).
+    Races met minder dan n_min rijders met een tijd tellen niet mee in de geschiedenis van de baan."""
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    n_r = df.assign(_t=np.isfinite(df['tijd'].to_numpy(float))).groupby(rk)['_t'].sum().rename('ijs_n')
+    r = df.drop_duplicates(rk)[rk + ['baan', 'theta', 'v_theta', 'seizoen']].join(n_r, on=rk)
     r = r.sort_values(['dag', 'event_id', 'gender', 'afstand_idx'], kind='stable').reset_index(drop=True)
     bc, bu = pd.factorize(r['baan']); n = len(r)
     o = {k: np.zeros(n) for k in ('vm', 'vn', 'ba', 'bn', 'ev', 'evn', 'gl', 'rec', 'recn')}
     _ijs(np.arange(n), np.arange(n), bc.astype(np.int64), (r['gender'] == 'v').to_numpy().astype(np.int64), r['afstand_idx'].to_numpy().astype(np.int64),
-         r['dag'].to_numpy().astype(np.int64), r['theta'].to_numpy(float), len(bu), w_min, w_baan, ev_dagen, glob_hl, w_rec,
+         r['dag'].to_numpy().astype(np.int64), r['theta'].to_numpy(float), r['ijs_n'].to_numpy(float), float(n_min), len(bu), w_min, w_baan, ev_dagen, glob_hl, w_rec,
          o['vm'], o['vn'], o['ba'], o['bn'], o['ev'], o['evn'], o['gl'], o['rec'], o['recn'])
     for k, v in o.items():
         r['ijs_' + k] = v

@@ -8,6 +8,8 @@ from scipy.optimize import minimize
 from scipy.stats import t as T
 
 VELD_IJS = os.environ.get('VELD_IJS', '1') == '1'
+NIEUWE_BAAN = os.environ.get('NIEUWE_BAAN', '1') == '1'     # startpeil nieuwe baan (veld, hoogte), toernooidagen en snelle veranderingen t.o.v. de verwachting vooraf
+N_MIN = int(os.environ.get('N_MIN', '5'))                    # races met minder rijders tellen niet mee voor het ijs (trainingen, tijdritten)
 WEER = os.environ.get('WEER', '1') == '1'           # luchtdruk, wind en temperatuur per baan en dag (weer/weer_dag.csv, luchtdruk.py)
 WEER_PAD = os.environ.get('WEER_PAD', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'weer', 'weer_dag.csv'))
 SEIZOEN_IJS = os.environ.get('SEIZOEN_IJS', '0') == '1'      # (bijna geen effect op alle races; het seizoensverloop zit bij de toppers, zie model2.seizoen_top)      # seizoensverloop van het ijs per baan
@@ -18,7 +20,7 @@ AF = ['500m', '1000m', '1500m', '3000m', '5000m', '10000m']
 GROEP = {'500m': 'sprint', '1000m': 'sprint', '1500m': 'midden', '3000m': 'midden', '5000m': 'lang', '10000m': 'lang'}
 KOL = ['skater_id', 'skater_name', 'gender', 'groep', 'afstand', 'afstand_idx', 'dag', 'jaar', 'seizoen', 'event_id', 'baan', 'tijd', 'verdacht',
        'theta', 'v_theta', 'leeftijd', 'mu', 'n', 'gapa', 'gap', 'f', 'f2', 's', 'sa', 'pr', 'prraw', 'sb3', 'sbc', 'ela', 'elany', 'elage', 'e', 'val',
-       'y', 'ijs_vm', 'ijs_vn', 'ijs_ba', 'ijs_bn', 'ijs_ev', 'ijs_evn', 'ijs_gl', 'ijs_rec', 'ijs_recn', 'hoog', 'theta_rijder'] + ['mu_' + a for a in AF] + ['n_' + a for a in AF]
+       'y', 'ijs_vm', 'ijs_vn', 'ijs_ba', 'ijs_bn', 'ijs_ev', 'ijs_evn', 'ijs_gl', 'ijs_rec', 'ijs_recn', 'ijs_n', 'hoog', 'theta_rijder'] + ['mu_' + a for a in AF] + ['n_' + a for a in AF]
 
 
 def huber(X, y, w=None, c=1.345, n_iter=30):
@@ -45,6 +47,8 @@ def ijs_voorspelling(K):
     """Racepeil vooraf: lopend baangemiddelde (afstand x geslacht, gekrompen naar de baan), eerdere toernooidagen, algemene stand,
     en (VELD_IJS) een ijsbonus als functie van het niveau van het veld t.o.v. het gewone veld op die baan."""
     fit = (K['jaar'] <= FIT_TOT) & np.isfinite(K['theta'])
+    if 'ijs_n' in K:
+        fit &= K['ijs_n'].fillna(0) >= N_MIN
     gm = K[fit].groupby(['gender', 'afstand_idx'])['theta'].median().rename('gm')
     K = K.join(gm, on=['gender', 'afstand_idx'])
     ba = K['ijs_ba'].where(K['ijs_bn'] > 0, K['gm'])
@@ -67,10 +71,19 @@ def ijs_voorspelling(K):
         IJS += ['ijs_veld05', 'ijs_veld15']
     if WEER and os.path.exists(WEER_PAD):
         K, IJS = weer_kenmerken(K, IJS, fit)
+    if NIEUWE_BAAN:
+        K, IJS = startpeil_kenmerken(K, IJS)
     r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
     X = np.c_[np.ones(len(r)), r[IJS].to_numpy()]
     c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]
     K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
+    if NIEUWE_BAAN:
+        # tweede stap: afwijkingen van eerdere races t.o.v. hun verwachting vooraf (eerste stap): eerdere toernooidagen en de recente
+        # stand van de baan (7 en 60 dagen). Werkt ook op een nieuwe baan, waar de oude toernooiterm nog 0 is.
+        K, IJS = afwijking_kenmerken(K, IJS, fit)
+        r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
+        c = np.linalg.lstsq(np.c_[np.ones(len(r)), r[IJS].to_numpy()], r['theta'].to_numpy(), rcond=None)[0]
+        K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
     if SEIZOEN_IJS:
         # seizoensverloop van het ijs per baan: vloeiende functie van de week in het seizoen, uit EERDERE seizoenen op dezelfde baan
         # (kernel van SZ_BW weken, recente seizoenen zwaarder), gekrompen naar het verloop over alle banen
@@ -81,6 +94,70 @@ def ijs_voorspelling(K):
         c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]
         K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
     return K, c
+
+
+def startpeil_kenmerken(K, IJS, tb=5.0):
+    """Startpeil van een nieuwe baan: zonder geschiedenis begon de baan op het gemiddelde van alle banen (veel trage en buitenbanen).
+    Nu een functie van het niveau van het veld (een olympisch of wereldbekerveld rijdt op snel ijs) en van de hoogte (ln gewone druk /
+    1013 hPa, uit het weer), met gewicht nieuw = exp(-eerdere races op de baan / tb): weegt zwaar zolang de baan weinig geschiedenis heeft."""
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    gR = K.groupby(rk)['k_c'].transform('median').clip(-0.05, 0.5).fillna(0.2)
+    nieuw = np.exp(-K['ijs_bn'].fillna(0) / tb)
+    if os.path.exists(WEER_PAD):
+        W = pd.read_csv(WEER_PAD, usecols=['baan', 'druk'])
+        alt = np.log(W.groupby('baan')['druk'].mean() / 1013.25)
+        K['_alt'] = K['baan'].map(alt).fillna(0.0)
+    else:
+        K['_alt'] = 0.0
+    K['ijs_nieuw'] = nieuw; K['ijs_nieuw_v05'] = nieuw * np.exp(-gR / 0.05); K['ijs_nieuw_v15'] = nieuw * np.exp(-gR / 0.15)
+    K['ijs_nieuw_alt'] = nieuw * K['_alt']
+    return K.drop(columns='_alt'), IJS + ['ijs_nieuw', 'ijs_nieuw_v05', 'ijs_nieuw_v15', 'ijs_nieuw_alt']
+
+
+def afwijking_kenmerken(K, IJS, fit, ev_dagen=6, hl_kort=7.0, hl_lang=60.0, k_ev=1.0, k_rec=2.0, tb=10.0):
+    """Per race, uit EERDERE dagen (races met >= N_MIN rijders, gewicht min(rijders, 20)), de afwijking theta - verwachting vooraf:
+    - ijs_ev2: eerdere dagen van hetzelfde toernooi (event_id mod 10^6, binnen ev_dagen dagen), ook x nieuw = exp(-eerdere races / tb);
+    - ijs_r7 / ijs_r60: uitdovend gemiddelde op deze baan met halfwaardetijd 7 en 60 dagen (snel veranderende omstandigheden).
+    Gekrompen naar 0 met k_ev / k_rec races."""
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    R = K.drop_duplicates(rk)[rk + ['baan', 'theta', 'th_hat', 'ijs_n', 'ijs_bn']].sort_values(['baan', 'dag'], kind='stable').reset_index(drop=True)
+    e = (R['theta'] - R['th_hat']).clip(-0.03, 0.03).to_numpy()
+    w = np.where(np.isfinite(e) & (R['ijs_n'].fillna(0).to_numpy() >= N_MIN), np.minimum(R['ijs_n'].fillna(0).to_numpy(), 20.0), 0.0)
+    e = np.nan_to_num(e)
+    b_ = R['baan'].to_numpy(); d_ = R['dag'].to_numpy().astype(float); t_ = (R['event_id'].to_numpy() % 1000000)
+    ev2 = np.zeros(len(R)); r7 = np.zeros(len(R)); r60 = np.zeros(len(R))
+    i = 0; n = len(R)
+    while i < n:
+        j = i
+        while j < n and b_[j] == b_[i]:
+            j += 1
+        s7 = n7 = s60 = n60 = 0.0; laatst = None; q = i
+        while q < j:
+            p = q
+            while p < j and d_[p] == d_[q]:
+                p += 1
+            if laatst is not None:
+                f7 = 0.5 ** ((d_[q] - laatst) / hl_kort); f60 = 0.5 ** ((d_[q] - laatst) / hl_lang)
+                s7 *= f7; n7 *= f7; s60 *= f60; n60 *= f60
+            r7[q:p] = s7 / (n7 + k_rec * 10.0); r60[q:p] = s60 / (n60 + k_rec * 10.0)
+            # toernooi: eerdere dagen met hetzelfde toernooinummer op deze baan
+            lo = q
+            while lo > i and d_[lo - 1] >= d_[q] - ev_dagen:
+                lo -= 1
+            for t in range(q, p):
+                m = (t_[lo:q] == t_[t]) & (w[lo:q] > 0)
+                ww = w[lo:q][m]
+                ev2[t] = (ww * e[lo:q][m]).sum() / (ww.sum() + k_ev * 10.0) if m.any() else 0.0
+            s7 += (w[q:p] * e[q:p]).sum(); n7 += w[q:p].sum(); s60 += (w[q:p] * e[q:p]).sum(); n60 += w[q:p].sum()
+            laatst = d_[q]; q = p
+        i = j
+    nieuw = np.exp(-R['ijs_bn'].fillna(0).to_numpy() / tb)
+    R['ijs_ev2'] = ev2; R['ijs_ev2_nieuw'] = ev2 * nieuw; R['ijs_r7'] = r7; R['ijs_r60'] = r60
+    nm = ['ijs_ev2', 'ijs_ev2_nieuw', 'ijs_r7', 'ijs_r60']
+    K = K.drop(columns=[c for c in nm if c in K]).join(R.set_index(rk)[nm], on=rk)
+    for c in nm:
+        K[c] = K[c].fillna(0.0)
+    return K, IJS + nm
 
 
 def weer_kenmerken(K, IJS, fit, hl=730.0, k0=30.0):

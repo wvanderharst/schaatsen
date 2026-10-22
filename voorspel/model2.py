@@ -28,6 +28,9 @@ VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 STAART_IJK = os.environ.get('STAART_IJK', '1') == '1'
 HOOG_AFF = os.environ.get('HOOG_AFF', '1') == '1'         # persoonlijke hooglandaffiniteit per rijder x afstand (ligging en schaal op de kansschaal)
+RUST = os.environ.get('RUST', '1') == '1'                 # rust en taper: verschuiving en schaal op de kansschaal naar ln(1 + rustdagen) x niveau (rustlaag.py)
+RIJDER_STAART = os.environ.get('RIJDER_STAART', '1') == '1'   # staartmassa per rijder (staart_np.rijder): clustering van snelle ritten bij stijgende rijders
+STAART_NP = os.environ.get('STAART_NP', '1') == '1'       # niet-parametrische ijking van de kansen per niveau x afstand (staart_np.ijk), laatste laag
 IJS_ONLINE = os.environ.get('IJS_ONLINE', '0') == '1'     # lopende schatting van de ijsonzekerheid naar omstandigheden (veld, hoogland, eerste dag)
 GEZAMENLIJK = os.environ.get('GEZAMENLIJK', '0') == '1'    # per baan factor op de gezamenlijke onzekerheid: log loss beter, maar snelle staart elite 1,79x en Leerdam SLC 1 op 841; uit      # lopende ijking van de snelle staart (staartijking.py), na de vormlaag
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
@@ -192,8 +195,17 @@ def tw_ppf(p, q, w):
 
 def kwantiel_u(K, par_t, Zq, q):
     """Kwantiel q (per rit) van de gestandaardiseerde fout u, inclusief de vormlaag en de staartcorrectie (in omgekeerde volgorde)."""
-    q = np.broadcast_to(np.asarray(q, float), (len(K),))
     from scipy.stats import norm as _n
+    if 'np_inv_50' in K:                                 # niet-parametrische ijking (laatste laag): omkering bewaard voor 0,1 / 0,5 / 0,9
+        qq = float(np.asarray(q).ravel()[0])
+        assert np.allclose(q, qq) and qq in (0.1, 0.5, 0.9), 'met STAART_NP alleen de kwantielen 0,1 / 0,5 / 0,9'
+        q = K['np_inv_%02d' % round(100 * qq)].to_numpy().copy()
+    q = np.array(np.broadcast_to(np.asarray(q, float), (len(K),)))
+    if 'rijder_lam' in K:                                # staartmassa per rijder
+        import staart_np as sn
+        q = sn.rijder_terug(q, K['rijder_lam'].to_numpy())
+    if 'rust_mu' in K:                                   # rustlaag
+        q = _n.cdf(K['rust_mu'].to_numpy() + K['rust_sg'].to_numpy() * _n.ppf(q))
     if 'staart_b1' in K:                                 # lopende staartijking terugdraaien
         import staartijking as si
         q = si.terug(q, [K['staart_b1'].to_numpy(), K['staart_b2'].to_numpy()])
@@ -556,9 +568,36 @@ def draai(w, par, verbose=True, segment=True):
         K = vorm_toepassen(K, fit, ok, verbose)
     if HOOG_AFF:
         K = hoog_affiniteit(K, fit, ok, verbose)
-    if VORM or HOOG_AFF:
-        # voorspelde tijd = mediaan van de nieuwe verdeling (verschuiving t.o.v. de mediaan zonder vormlaag en affiniteit)
-        bewaar = {c: K.pop(c) for c in ('vorm_mu', 'vorm_sg', 'aff_mu', 'aff_sg') if c in K}
+    if STAART_IJK:
+        import staartijking as si
+        pit = K['pit'].to_numpy(); okp = ok & np.isfinite(pit)
+        p2, d, bs = si.ijk(K['dag'].to_numpy(), K['k_c'].to_numpy(), np.where(okp, pit, np.nan), okp & ~K['k_val'].to_numpy())
+        K['pit'] = np.where(okp, p2, pit); K['nll'] = np.where(okp, K['nll'] + d, K['nll'])
+        K['staart_b1'] = bs[0]; K['staart_b2'] = bs[1]
+    if RUST or RIJDER_STAART or STAART_NP:
+        # rijen met een voorspelling (ook denkbeeldige ritten zonder tijd) krijgen de lagen; alleen echte ritten zonder eigen val werken ze bij
+        rij = (np.isfinite(K['pred']) & np.isfinite(K['sd']) & K['ag'].notna()).to_numpy()
+        pit = K['pit'].to_numpy(); okp = ok & np.isfinite(pit); geb = okp & ~K['k_val'].to_numpy()
+        pv = np.where(okp, pit, np.nan); dl = np.zeros(len(K))
+        if RUST:
+            import rustlaag as rl
+            pv, d, mu, sg = rl.rust(K['dag'].to_numpy(), K['k_c'].to_numpy(), K['gap'].to_numpy(), pv, geb, rij=rij)
+            dl += d; K['rust_mu'] = mu; K['rust_sg'] = sg
+        if RIJDER_STAART or STAART_NP:
+            import staart_np as sn
+        if RIJDER_STAART:
+            pv, d, lam = sn.rijder(K['dag'].to_numpy(), K['skater_id'].to_numpy(), pv, geb, rij=rij)
+            dl += d; K['rijder_lam'] = lam
+        if STAART_NP:
+            pv, d, inv = sn.ijk(K['dag'].to_numpy(), K['k_c'].to_numpy(), K['afstand'].to_numpy(), pv, geb, rij=rij)
+            dl += d
+            for c, qq in enumerate(sn.QS):
+                K['np_inv_%02d' % round(100 * qq)] = np.where(rij, inv[:, c], qq)
+        K['pit'] = np.where(okp, pv, K['pit']); K['nll'] = np.where(okp, K['nll'] + dl, K['nll'])
+    if VORM or HOOG_AFF or RUST or RIJDER_STAART or STAART_NP:
+        # voorspelde tijd = mediaan van de nieuwe verdeling (verschuiving t.o.v. de mediaan zonder de lagen op de kansschaal)
+        lagen = ('vorm_mu', 'vorm_sg', 'aff_mu', 'aff_sg', 'rust_mu', 'rust_sg', 'rijder_lam', 'np_inv_10', 'np_inv_50', 'np_inv_90')
+        bewaar = {c: K.pop(c) for c in lagen if c in K}
         u0 = kwantiel_u(K, par_t, Zq, 0.5)
         for c, v in bewaar.items():
             K[c] = v
@@ -566,12 +605,6 @@ def draai(w, par, verbose=True, segment=True):
         K['bias_vorm'] = np.nan_to_num((u1 - u0) * K['sd'].to_numpy())
         K['pred'] = K['pred'] + K['bias_vorm']
         K['err'] = np.log(K['tijd']) - K['pred']
-    if STAART_IJK:
-        import staartijking as si
-        pit = K['pit'].to_numpy(); okp = ok & np.isfinite(pit)
-        p2, d, bs = si.ijk(K['dag'].to_numpy(), K['k_c'].to_numpy(), np.where(okp, pit, np.nan), okp & ~K['k_val'].to_numpy())
-        K['pit'] = np.where(okp, p2, pit); K['nll'] = np.where(okp, K['nll'] + d, K['nll'])
-        K['staart_b1'] = bs[0]; K['staart_b2'] = bs[1]
     if verbose:
         print('staart b (snel, voorbij %.0f%%): b0 %.3f  b1 (x exp(-niveau/4%%)) %.3f' % (100 * Q, bb[0], bb[1]))
         print('ijs-coef', np.round(c_ijs, 3), '| tijd', round(time.time() - t0), 's', flush=True)
@@ -591,5 +624,17 @@ if __name__ == '__main__':
     for nm, x in (('toppers >=90', M[M['niveau_pct'] >= 90]), ('elite >=97', M[M['niveau_pct'] >= 97])):
         fout, rg, nr_, nk = em.toets(x, vanaf_seizoen=2019)
         print(f'kalibratie {nm}: {nr_} ritten van {nk} rijders, {fout} fouten', *[r for r in rg if 'FOUT' in r or 'kans<=' in r], sep='\n  ')
+    # niveau_pct van het oude model is de rating NA de race (snelle rit -> hogere groep); daarom ook op het niveau vooraf (k_c)
+    Mv = M[~M['k_val']]                                 # eigen valpartijen tellen niet mee
+    for nm, x in (('top vooraf k_c<2%', Mv[Mv['k_c'] < 0.02]), ('top vooraf k_c<6%', Mv[Mv['k_c'] < 0.06])):
+        fout, rg, nr_, nk = em.toets(x, vanaf_seizoen=2019)
+        print(f'kalibratie {nm} (zonder valpartijen): {nr_} ritten van {nk} rijders, {fout} fouten, log loss {M.loc[M["k_c"] < float(nm.split("<")[1][:-1]) / 100, "nll"].mean():.4f}', *rg, sep='\n  ')
+    tel = lambda s: ' '.join(f'{(s < q).mean() / q:4.2f}' for q in (0.1, 0.05, 0.01, 0.001)) + ' | traag ' + ' '.join(f'{(s > 1 - q).mean() / q:4.2f}' for q in (0.05, 0.01))
+    print('tellingen 2020+ (waargenomen / verwacht), snel 1/10 1/20 1/100 1/1000 | traag 1/20 1/100:')
+    for lo_, hi_ in ((-1, 0.01), (0.01, 0.02), (0.02, 0.035), (0.035, 0.06), (0.06, 0.1), (0.1, 0.18), (0.18, 9)):
+        s_ = Mv[(Mv['k_c'] > lo_) & (Mv['k_c'] <= hi_)]['pit']; print(f'  niveau {max(lo_, 0) * 100:4.1f}-{min(hi_, 1) * 100:5.1f}%  n={len(s_):7d}  {tel(s_)}')
+    for a in ('500m', '1000m', '1500m', '3000m', '5000m', '10000m'):
+        s_ = Mv[Mv['afstand'] == a]['pit']; t_ = Mv[(Mv['afstand'] == a) & (Mv['k_c'] < 0.035)]['pit']
+        print(f'  {a:6s} n={len(s_):7d}  {tel(s_)}   top<3,5% n={len(t_):6d}  {tel(t_)}')
     K[['skater_id', 'skater_name', 'gender', 'groep', 'dag', 'jaar', 'seizoen', 'baan', 'afstand', 'tijd', 'pred', 'pred_basis', 'sd', 'u', 'pit', 'nll', 'ok',
        'th_hat', 'th_hat_veld', 'theta', 'k_c', 'k_val', 'rk_', 'lf', 'sd_rijder', 'sd_ijs']].to_parquet(os.path.join(w, 'voorspel2_uitkomst.parquet'))

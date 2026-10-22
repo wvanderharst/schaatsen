@@ -316,3 +316,55 @@ krijgt gewicht 0 en de gegeneraliseerde t kiest q ≈ 53 (sprint). Alleen de tra
 in de verre staart beter (ν ≤ 10: elite 1,02 / 1,04×), maar kost log loss en geeft te weinig rijders met meerdere snelle ritten. Het teveel
 aan snelle ritten in de toetsjaren zit al bij 1/20, dus in de schouder en niet in de verre staart: dat is een verschuiving in de tijd
 (waar de vormlaag en de lopende ijkingen voor zijn), geen vorm van de verdeling. Niet gebruikt.
+
+## Snelle staart op elk niveau en elke afstand: rust, rijder, niet-parametrische ijking (`rustlaag.py`, `staart_np.py`)
+
+**Let op bij de toets.** `niveau_pct` van het oude model (toppers ≥90, elite ≥97) is de rating NA de race (`x_post` in `do_analysis.py`):
+een snelle rit tilt de rijder in die groep. Daar zijn snelle uitschieters dus altijd oververtegenwoordigd (2020+, zelfde model: elite ≥97
+snel 1/20 1,11×, elite naar het niveau vooraf k_c < 1% 0,92×). De kalibratie hieronder is op het niveau vooraf (k_c), zonder valpartijen.
+De log loss-vergelijking op toppers/elite blijft op dezelfde ritten als het oude model, maar beloont een dikkere snelle staart.
+
+Na de vorige versie lag de snelle staart op het niveau vooraf op elk niveau te dik (2020+ 1/10 en 1/20: 0,87–0,95×; per afstand 3000 m 0,80×,
+500 m 0,88×), hing hij af van de rust en clusterde hij per rijder. Drie lagen na de staartijking, alle online (alleen eerdere dagen):
+
+1. **Rust en taper** (`rustlaag.py`): z' = (z − μ) / σ met μ en σ als gladde functie van het niveau en r = ln(1 + rustdagen) (Gauss-kernels,
+   halfwaardetijd 3 jaar, krimp 100 ritten). Bij de top (< 3,5%): na 4–10 dagen rust gemiddeld z −0,07 (vaker snel, taper), op dezelfde dag
+   +0,07 tot +0,19, de tweede toernooidag +0,05 tot +0,12, na 1–5 maanden zonder race +0,16 tot +0,19. Bij zwakkere rijders anders.
+2. **Staartmassa per rijder** (`staart_np.rijder`): λ = (waargenomen + 10) / (verwacht + 10) snelle ritten (p < 1/20) in eerdere ritten van de
+   rijder (halfwaardetijd 2 jaar); p' = λ p onder 1/20, daarboven lineair. Vangt jonge, stijgende rijders (Wennemars, Stolz, Daleman, Prins)
+   die jarenlang vaker snel rijden dan hun niveau zegt.
+3. **Niet-parametrische ijking** (`staart_np.ijk`), laatste laag: p' = G(p), G monotoon op knopen 0,5 / 0,3 / 0,2 / 0,1 / 0,05 / 0,02 / 0,01 /
+   0,005 / 0,002 / 0,001 / 0,0003 / 0,0001 aan beide kanten; per knoop de voorwaardelijke kans uit eerdere dagen (kernel in niveau, bandbreedte
+   2%, halfwaardetijd 2 jaar), gekrompen naar de geijkte verhouding (30 pseudo-ritten) en per afstand naar alle afstanden samen (100).
+   Log loss verandert exact met −ln G'(p). De omkering wordt per rit bewaard voor de kwantielen 0,1 / 0,5 / 0,9 (`kwantiel_u`).
+
+De voorspelde tijd is de mediaan na alle lagen (ook voor de denkbeeldige ritten in `voorspel_nu.py` en `wat_als_heerenveen.py`).
+
+| (2020+, log loss) | alle | toppers | elite | senior | toppers vooraf (k_c < 6%) | elite vooraf (k_c < 2%) | mediane fout elite |
+|---|---|---|---|---|---|---|---|
+| hooglandaffiniteit (vorige) | −2,3446 | −3,0526 | −3,1662 | −2,7868 | −3,0409 | −3,1550 | 0,641% |
+| + rust, rijder, niet-parametrisch | **−2,3571** | **−3,0564** | **−3,1733** | **−2,7960** | **−3,0480** | **−3,1648** | **0,638%** |
+
+Tellingen 2020+ (waargenomen / verwacht, zonder valpartijen), snel 1/10, 1/20, 1/100, 1/1000:
+
+| | vorige | nu |
+|---|---|---|
+| niveau < 1% | 0,91 / 0,92 / 0,86 / 0,63 | 0,99 / 0,98 / 0,95 / 0,94 |
+| niveau 1–2% | 0,92 / 0,92 / 0,89 / 0,86 | 1,01 / 1,03 / 1,01 / 0,93 |
+| niveau 2–3,5% | 0,90 / 0,87 / 0,77 / 0,84 | 0,99 / 0,98 / 0,87 / 0,80 |
+| niveau 3,5–6% | 0,91 / 0,90 / 0,82 / 0,69 | 0,99 / 1,00 / 0,92 / 0,73 |
+| niveau 6–10% | 0,91 / 0,90 / 0,91 / 0,73 | 0,99 / 0,98 / 0,98 / 0,67 |
+| niveau 10–18% | 0,95 / 0,95 / 0,96 / 1,08 | 1,00 / 1,00 / 1,00 / 0,98 |
+| niveau > 18% | 0,90 / 0,88 / 0,84 / 0,93 | 0,99 / 0,98 / 0,96 / 0,97 |
+| 500 m | 0,91 / 0,88 / 0,83 / 0,79 | 0,99 / 0,98 / 0,96 / 0,89 |
+| 1000 m | 0,97 / 0,97 / 0,99 / 1,08 | 1,00 / 1,00 / 0,99 / 0,92 |
+| 1500 m | 0,90 / 0,88 / 0,86 / 0,99 | 0,98 / 0,98 / 0,96 / 0,97 |
+| 3000 m | 0,83 / 0,80 / 0,78 / 0,96 | 0,97 / 0,96 / 0,93 / 1,00 |
+| 5000 m | 0,89 / 0,86 / 0,78 / 0,80 | 0,97 / 0,95 / 0,91 / 0,92 |
+| 10000 m (5.377 ritten) | 0,98 / 1,03 / 1,41 / 2,41 | 1,11 / 1,17 / 1,56 / 2,05 |
+
+Kalibratietoets op het niveau vooraf (zonder valpartijen): top < 2% **0 fouten** (snel 0,94 / 0,97 / 1,00×, traag 0,89 / 1,00 / 1,04×,
+alle aantallen per rijder goed; vorige versie 8 fouten), top < 6% 2 fouten (snel 1/100 0,93×, traag 1/1000 0,76×; aantallen per rijder goed).
+Nog niet goed: de 10 km (weinig ritten, te veel snelle uitschieters) en de top op de 3000 m (1/20 1,11×).
+Leerdam 1000 m SLC 14-11-2025: 1 op 95 (was 1 op 119); Lollobrigida 3000 m Milano: 1 op 1572 (was 1 op 3497).
+Proeven: `rust_staart_lab.py` (op een opgeslagen uitkomst).

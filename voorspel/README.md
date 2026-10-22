@@ -294,3 +294,25 @@ hoogland × niveau in schaal en vorm, een lopende regressie van de ijsonzekerhei
 | + hooglandaffiniteit | −2,3446 | **−3,0526** | **−3,1662** | **−2,7868** | **0,641%** | **1 op 119** |
 
 Snelle staart met hooglandaffiniteit: toppers 0,99 / 1,00 / 1,04×, elite 0,92 / 1,12 / 1,11×; de aantallen per rijder kloppen bij de elite.
+
+## Dikkere staarten geprobeerd (`verdeling_lab.py`)
+
+Proef op de opgeslagen fouten u van het huidige model: alleen de basisverdeling plus de vaste snelle-staartstap (zonder vormlaag en
+affiniteit), per afstandsgroep, parameters lineair in Z, geschat op 2008–2019, getoetst op 2020+. Families: de twee-delige Student-t
+(het model), een twee-delige gegeneraliseerde t (per kant los een piek p en een staart q; p = 2 is de Student-t), een t met een brede
+bijmenging, en de Student-t met de vrijheidsgraden aan de snelle kant geforceerd op hoogstens 10, 6 of 4.
+
+| (2020+, basisverdeling) | alle | toppers | elite | elite snel 1/1000, 1/100, 1/20 | elite ≥3 / ≥5 snelle ritten (verwacht 98,7 / 20,2) |
+|---|---|---|---|---|---|
+| twee-delige t (model) | −2,3311 | −3,0440 | **−3,1541** | 1,29 / 1,19 / 1,18 | 117 / 36 |
+| gegeneraliseerde t | −2,3307 | −3,0441 | −3,1536 | 1,12 / 1,21 / 1,18 | 120 / 38 |
+| t + brede bijmenging | −2,3312 | −3,0438 | −3,1537 | 1,34 / 1,20 / 1,19 | 118 / 36 |
+| snelle kant ν ≤ 10 | −2,3305 | −3,0421 | −3,1522 | 1,02 / 1,04 / 1,12 | 88 / 17 |
+| snelle kant ν ≤ 6 | −2,3281 | −3,0387 | −3,1487 | 0,82 / 0,78 / 1,00 | 51 / 6 |
+| snelle kant ν ≤ 4 | −2,3231 | −3,0325 | −3,1420 | 0,99 / 0,54 / 0,86 | 19 / 2 |
+
+De fitjaren willen aan de snelle kant geen dikke staart: bij de elite lopen de vrijheidsgraden tegen 30 aan (vrijwel normaal), de bijmenging
+krijgt gewicht 0 en de gegeneraliseerde t kiest q ≈ 53 (sprint). Alleen de trage kant is dik (ν ≈ 5–7). Geforceerd dikker maakt de tellingen
+in de verre staart beter (ν ≤ 10: elite 1,02 / 1,04×), maar kost log loss en geeft te weinig rijders met meerdere snelle ritten. Het teveel
+aan snelle ritten in de toetsjaren zit al bij 1/20, dus in de schouder en niet in de verre staart: dat is een verschuiving in de tijd
+(waar de vormlaag en de lopende ijkingen voor zijn), geen vorm van de verdeling. Niet gebruikt.

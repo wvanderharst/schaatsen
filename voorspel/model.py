@@ -8,6 +8,8 @@ from scipy.optimize import minimize
 from scipy.stats import t as T
 
 VELD_IJS = os.environ.get('VELD_IJS', '1') == '1'
+WEER = os.environ.get('WEER', '1') == '1'           # luchtdruk, wind en temperatuur per baan en dag (weer/weer_dag.csv, luchtdruk.py)
+WEER_PAD = os.environ.get('WEER_PAD', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'weer', 'weer_dag.csv'))
 SEIZOEN_IJS = os.environ.get('SEIZOEN_IJS', '0') == '1'      # (bijna geen effect op alle races; het seizoensverloop zit bij de toppers, zie model2.seizoen_top)      # seizoensverloop van het ijs per baan
 WAT_ALS_EVENT = -100000   # event_id <= dit: denkbeeldige rit (wat_als_heerenveen.py), alleen de rijder zelf, zonder veldaanpassing
 SZ_BW = 3.0          # ijsbonus voor sterke velden (beter geprepareerd ijs)
@@ -63,6 +65,8 @@ def ijs_voorspelling(K):
         for T, nm in ((0.05, 'ijs_veld05'), (0.15, 'ijs_veld15')):
             K[nm] = np.where(nep, 0.0, np.exp(-gR / T) - np.exp(-gV / T))         # wat-als: zonder veldaanpassing
         IJS += ['ijs_veld05', 'ijs_veld15']
+    if WEER and os.path.exists(WEER_PAD):
+        K, IJS = weer_kenmerken(K, IJS, fit)
     r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
     X = np.c_[np.ones(len(r)), r[IJS].to_numpy()]
     c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]
@@ -77,6 +81,56 @@ def ijs_voorspelling(K):
         c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]
         K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
     return K, c
+
+
+def weer_kenmerken(K, IJS, fit, hl=730.0, k0=30.0):
+    """Weer op de wedstrijddag (vooraf bekend: de weersverwachting van een dag of twee is nauwkeurig genoeg).
+    - ijs_dp: ln(druk) - ln(gewone druk op die baan): minder luchtweerstand bij lage druk; een coefficient voor alle banen.
+    - ijs_weer: per baan de gevoeligheid voor wind en temperatuur (buitenbanen: wind kost tijd, warmer is sneller; binnen bijna 0),
+      geschat uit EERDERE wedstrijddagen op die baan (fout van de ijsvoorspelling zonder wind/temperatuur, uitdovend met
+      halfwaardetijd hl dagen, gekrompen naar 0 met k0 races). Zo leert het model zelf welke banen buiten liggen en wanneer een
+      baan overdekt werd."""
+    W = pd.read_csv(WEER_PAD).drop_duplicates(['baan', 'dag'])
+    W['dag'] = W['dag'].astype(K['dag'].dtype)
+    ln_p = np.log(W['druk'])
+    W['dp'] = ln_p - ln_p.groupby(W['baan']).transform('mean')
+    W['dT'] = (W['temp'] - W.groupby('baan')['temp'].transform('mean')) / 10.0
+    W['wi'] = (W['wind'] - W.groupby('baan')['wind'].transform('mean')) / 10.0
+    K = K.drop(columns=[c for c in ('dp', 'dT', 'wi', 'ijs_dp', 'ijs_weer') if c in K])
+    K = K.join(W.set_index(['baan', 'dag'])[['dp', 'dT', 'wi']], on=['baan', 'dag'])
+    for c in ('dp', 'dT', 'wi'):
+        K[c] = K[c].fillna(0.0)
+    K['ijs_dp'] = K['dp']; IJS = IJS + ['ijs_dp']
+    # eerste stap: ijsvoorspelling met druk, zonder wind/temperatuur; de fout per race is de invoer voor de gevoeligheid per baan
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    r = K[fit].drop_duplicates(rk)
+    c = np.linalg.lstsq(np.c_[np.ones(len(r)), r[IJS].to_numpy()], r['theta'].to_numpy(), rcond=None)[0]
+    R = K.drop_duplicates(rk)[rk + ['baan', 'theta', 'dT', 'wi'] + IJS].sort_values(['baan', 'dag'], kind='stable')
+    e_ = (R['theta'] - np.c_[np.ones(len(R)), R[IJS].to_numpy()] @ c).to_numpy()
+    ok_ = np.isfinite(e_); e_ = np.clip(np.nan_to_num(e_), -0.03, 0.03)
+    X_ = R[['wi', 'dT']].to_numpy(); ok_ &= np.abs(X_).sum(1) > 0
+    b_ = R['baan'].to_numpy(); d_ = R['dag'].to_numpy().astype(float); corr = np.zeros(len(R)); lam = k0 * 0.5 * np.eye(2)
+    i = 0; n = len(R)
+    while i < n:                                        # per baan, per dag: eerst voorspellen met eerdere dagen, dan bijwerken
+        j = i
+        while j < n and b_[j] == b_[i]:
+            j += 1
+        A = np.zeros((2, 2)); bb = np.zeros(2); laatst = None; q = i
+        while q < j:
+            p = q
+            while p < j and d_[p] == d_[q]:
+                p += 1
+            if laatst is not None:
+                f = 0.5 ** ((d_[q] - laatst) / hl); A *= f; bb *= f
+            corr[q:p] = X_[q:p] @ np.linalg.solve(A + lam, bb)
+            m = ok_[q:p]
+            A += X_[q:p][m].T @ X_[q:p][m]; bb += X_[q:p][m].T @ e_[q:p][m]
+            laatst = d_[q]; q = p
+        i = j
+    R['ijs_weer'] = corr
+    K = K.join(R.set_index(rk)['ijs_weer'], on=rk)
+    K['ijs_weer'] = K['ijs_weer'].fillna(0.0)
+    return K, IJS + ['ijs_weer']
 
 
 def seizoen_ijs(K, bw=3.0, hl=3.0, k0=40.0):

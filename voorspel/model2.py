@@ -10,7 +10,7 @@ from numba import njit
 import importlib
 kf = importlib.import_module(os.environ.get('KALMAN', 'kalman_mv2'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'elite'))
-from model import huber, twee_t, t_nll, t_cdf, ijs_voorspelling, vergelijk, AF, GROEP, FIT_TOT, KOL, WAT_ALS_EVENT
+from model import huber, twee_t, t_nll, t_cdf, ijs_voorspelling, vergelijk, AF, GROEP, FIT_TOT, KOL, WAT_ALS_EVENT, toernooidag
 from scipy.optimize import minimize
 from scipy.stats import t as T
 HUBER_C = float(os.environ.get('HUBER_C', '0.7'))
@@ -27,6 +27,7 @@ SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter 
 VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (vormlaag.py)
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 STAART_IJK = os.environ.get('STAART_IJK', '1') == '1'
+DAG_SCHAAL = os.environ.get('DAG_SCHAAL', '1') == '1'      # dag in het toernooi en hoogland x niveau in schaal en vorm (elite op hoogland: verdeling te smal)
 GEZAMENLIJK = os.environ.get('GEZAMENLIJK', '0') == '1'    # per baan factor op de gezamenlijke onzekerheid: log loss beter, maar snelle staart elite 1,79x en Leerdam SLC 1 op 841; uit      # lopende ijking van de snelle staart (staartijking.py), na de vormlaag
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0
@@ -276,6 +277,9 @@ def kenm_verdeling(K):
     """Kenmerken voor de vorm van de foutverdeling: 1, exp(-niveau / 4%), niveau (0..0,4), jong."""
     gq = K['k_c'].clip(lower=0, upper=0.4).fillna(0.2).to_numpy()
     Z = [np.ones(len(K)), np.exp(-gq / 0.04), gq, K['groep'].isin(JONG).to_numpy().astype(float)]
+    if DAG_SCHAAL and 'dag1' in K:
+        hz = K['hoog'].fillna(0.0).to_numpy(); d1 = K['dag1'].fillna(1.0).to_numpy()
+        Z += [hz * Z[1], d1 * Z[1]]                       # elite op hoogland en op de eerste toernooidag: eigen vorm
     if HOOG_SCHAAL:
         hz = K['hoog'].fillna(0.0).to_numpy()
         Z += [hz, hz * Z[1]]
@@ -345,6 +349,8 @@ def ontwerp(K):
     S['lv'] = np.log(K['k_vl'] + K['k_r']); S['lvr'] = F['onz']; S['lv_w'] = S['lv'] * wg; S['inv_n'] = F['inv_n']; S['lgapa'] = np.log1p(K['gapa'].clip(0, 2000).fillna(2000))
     for c in ('seizoenstart', 'a1', 'a2', 'a3', 'leeftijd_onb', 'g', 'vrouw', 'nieuw_af') + tuple('af_' + a for a in AF[1:]) + (('uit_snel', 'uit_traag') if 'uit_snel' in F else ()):
         S[c] = F[c]
+    if DAG_SCHAAL:
+        S['dag1'] = K['dag1']; S['dag1_w'] = K['dag1'] * wg; S['hoog_w'] = K['hoog'] * wg; S['hoog_dag1'] = K['hoog'] * K['dag1']
     if HOOG_SCHAAL:
         # baansnelheid in de schaal (maakte de log loss beter maar de kalibratie van de elite slechter; standaard uit)
         dth_ = (K['th_hat'] - K['gm']).clip(-0.06, 0.06).fillna(0.0)
@@ -360,7 +366,7 @@ def ontwerp(K):
 
 def draai(w, par, verbose=True, segment=True):
     t0 = time.time()
-    K = met_kalman(w, par); K, c_ijs = ijs_voorspelling(K)
+    K = met_kalman(w, par); K, c_ijs = ijs_voorspelling(K); K = toernooidag(K)
     # universele baanfactor vooraf: zelfde functie als achteraf (baanfactor.py), op het voorspelde dagpeil
     bfp = json.load(open(os.path.join(w, 'baanfactor_par.json'))) if os.path.exists(os.path.join(w, 'baanfactor_par.json')) else None
     K['th_hat_veld'] = K['th_hat']

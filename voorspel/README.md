@@ -368,3 +368,27 @@ alle aantallen per rijder goed; vorige versie 8 fouten), top < 6% 2 fouten (snel
 Nog niet goed: de 10 km (weinig ritten, te veel snelle uitschieters) en de top op de 3000 m (1/20 1,11×).
 Leerdam 1000 m SLC 14-11-2025: 1 op 95 (was 1 op 119); Lollobrigida 3000 m Milano: 1 op 1572 (was 1 op 3497).
 Proeven: `rust_staart_lab.py` (op een opgeslagen uitkomst).
+
+## Onmogelijke ritten en diepere staart-ijking (`onmogelijk.py`, `staart_np.py`)
+
+**Onmogelijke ritten** worden als `verdacht` gemarkeerd en tellen dan nergens mee (net als valpartijen): een hele race waarvan het veld
+in de mediaan meer dan 20% sneller is dan verwacht, of een losse rit meer dan 40% sneller dan verwacht én meer dan 6 sd van het model
+(het patroon van een verkeerd afstandslabel: 3000 m als 5000 m is −51%). Alleen als de rijder binnen 2 jaar daarna op die afstand nooit
+binnen 15% van die tijd rijdt: zo blijven echte doorbraken staan waar de voorspelling fout zat (Brock Miron 1000 m Hamar 2007, Mike Ireland
+500 m, toen nog weinig geschiedenis). Resultaat: 188 ritten (110 in 2020+), vrijwel alle jeugd, 33–70% te snel, vooral Hailar en Daqing
+(bijv. Hailar 22-08-2024 '5000 m': twaalf rijders twee keer zo snel als verwacht). Lijst: `onmogelijk.csv`. Volgorde in de keten:
+modelrun → `onmogelijk.py` → `kenmerken.py` → modelrun.
+
+**Diepere staart-ijking**: de krimp in de niet-parametrische ijking neemt af met de diepte in de staart (k0 (x/0,5)^0,25 en k1 (x/0,5)^0,5
+pseudo-ritten), zodat afstanden en niveaus hun eigen extreme staart sneller leren. Poisson-deviantie van de snelle aantallen (1/100, 1/1000,
+1/5000) over 7 niveaus × 6 afstanden, 2020+, zonder valpartijen en verdachte ritten (~126 bij perfecte kalibratie): vorige versie 265, nu 230
+(het model zonder de drie lagen: 954).
+
+| (2020+, log loss) | alle | toppers | elite | senior | toppers vooraf | elite vooraf | mediane fout elite |
+|---|---|---|---|---|---|---|---|
+| rust + rijder + niet-parametrisch | −2,3571 | −3,0564 | −3,1733 | −2,7960 | −3,0480 | −3,1648 | 0,638% |
+| + onmogelijke ritten eruit, diepere staart-ijking | −2,3576* | −3,0563 | −3,1731 | −2,7956 | −3,0479 | −3,1648 | 0,637% |
+
+\* 110 ritten minder (de verdachte). Kalibratie op het niveau vooraf: top < 2% 0 fouten, top < 6% 3 fouten (snel en traag 1/1000 0,80×,
+snel 1/100 0,93×). Nog niet goed: voorbij 1/5000 bij zwakkere rijders (10–18%, > 18%) en op 1500 m, 3000 m en 10 km te veel extreme
+snelle ritten (alle niveaus 1/10.000: 160 tegen 110); bij de top ligt alles binnen de band.

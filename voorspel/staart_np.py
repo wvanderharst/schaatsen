@@ -21,12 +21,14 @@ QS = np.array([0.1, 0.5, 0.9])                         # kwantielen waarvoor de 
 
 
 @njit(cache=True)
-def _keten(c, cp, X, k0, k1, G, G0):
-    """Waarden op de knopen: G[0] = G0, daarna voorwaardelijke verhoudingen (eerst alle afstanden, dan deze afstand)."""
+def _keten(c, cp, X, k0, k1, a0, a1, G, G0):
+    """Waarden op de knopen: G[0] = G0, daarna voorwaardelijke verhoudingen (eerst alle afstanden, dan deze afstand). De krimp neemt af
+    met de diepte in de staart: k0 (x_j-1 / 0,5)^a0 en k1 (x_j-1 / 0,5)^a1 pseudo-ritten."""
     G[0] = G0
     for j in range(1, len(X)):
-        rp = (cp[j] + k0 * X[j] / X[j - 1]) / (cp[j - 1] + k0)
-        rd = (c[j] + k1 * rp) / (c[j - 1] + k1)
+        f = X[j - 1] / X[0]; k0j = k0 * f ** a0; k1j = k1 * f ** a1
+        rp = (cp[j] + k0j * X[j] / X[j - 1]) / (cp[j - 1] + k0j)
+        rd = (c[j] + k1j * rp) / (c[j - 1] + k1j)
         G[j] = G[j - 1] * rd
 
 
@@ -57,7 +59,7 @@ def _seg_inv(y, X, G):
 
 
 @njit(cache=True)
-def _ijk(dag, g, d, p, gebruik, GN, X, QS, bw, hl, k0, k1, nd, p_o, d_o, inv_o):
+def _ijk(dag, g, d, p, gebruik, GN, X, QS, bw, hl, k0, k1, a0, a1, nd, p_o, d_o, inv_o):
     n = len(p); a_ = len(GN); m = len(X)
     CL = np.zeros((a_, nd, m)); CU = np.zeros((a_, nd, m)); N = np.zeros((a_, nd))
     cl = np.zeros(m); cu = np.zeros(m); clp = np.zeros(m); cup = np.zeros(m); GL = np.zeros(m); GU = np.zeros(m)
@@ -84,8 +86,8 @@ def _ijk(dag, g, d, p, gebruik, GN, X, QS, bw, hl, k0, k1, nd, p_o, d_o, inv_o):
                     for dd in range(nd):
                         clp[jj] += wa * CL[aa, dd, jj]; cup[jj] += wa * CU[aa, dd, jj]
             gp = (clp[0] + k0 * X[0]) / (npool + k0); mm = (cl[0] + k1 * gp) / (nn + k1)
-            _keten(cl, clp, X, k0, k1, GL, mm)
-            _keten(cu, cup, X, k0, k1, GU, 1.0 - mm)
+            _keten(cl, clp, X, k0, k1, a0, a1, GL, mm)
+            _keten(cu, cup, X, k0, k1, a0, a1, GU, 1.0 - mm)
             for c in range(len(QS)):                   # omkering: welke p geeft p' = QS[c]
                 if QS[c] <= mm:
                     inv_o[q, c] = _seg_inv(QS[c], X, GL) if QS[c] < mm else 0.5
@@ -122,7 +124,7 @@ def pd_codes(afstand):
     return d
 
 
-def ijk(dag, g, afstand, p, gebruik, bw=0.02, hl=730.0, k0=30.0, k1=100.0, rij=None):
+def ijk(dag, g, afstand, p, gebruik, bw=0.02, hl=730.0, k0=30.0, k1=100.0, a0=0.25, a1=0.5, rij=None):
     """Rijen in willekeurige volgorde. rij: welke rijen een ijking krijgen (standaard: eindige p); gebruik: welke de schatting bijwerken.
     Geeft p', de verandering in de log loss en per rit de p die naar de kwantielen QS gaat (NaN buiten rij en andere afstanden)."""
     d = pd_codes(afstand)
@@ -131,7 +133,7 @@ def ijk(dag, g, afstand, p, gebruik, bw=0.02, hl=730.0, k0=30.0, k1=100.0, rij=N
     idx = np.flatnonzero(sel); o = idx[np.argsort(dag[idx], kind='stable')]
     po = np.zeros(len(o)); do = np.zeros(len(o)); io = np.zeros((len(o), len(QS)))
     _ijk(dag[o].astype(np.float64), np.clip(np.nan_to_num(g[o], nan=0.2), -0.03, 0.45), d[o].astype(np.int64), np.asarray(p, float)[o],
-         (gebruik & np.isfinite(p))[o], GN, X, QS, bw, hl, k0, k1, len(AFSTANDEN), po, do, io)
+         (gebruik & np.isfinite(p))[o], GN, X, QS, bw, hl, k0, k1, a0, a1, len(AFSTANDEN), po, do, io)
     p2 = np.array(p, dtype=float, copy=True); dl = np.zeros(len(p)); inv = np.full((len(p), len(QS)), np.nan)
     p2[o] = po; dl[o] = do; inv[o] = io
     return p2, dl, inv

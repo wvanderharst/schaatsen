@@ -18,6 +18,11 @@ V = V.merge(K.drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']), on=['ska
 O = pd.read_parquet(os.path.join(w, 'oud_vooraf.parquet'), columns=['skater_id', 'dag', 'afstand', 'tijd', 'll', 'niveau_pct'])
 O = O[np.isfinite(O['ll'])].drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']); O['afstand'] = O['afstand'].astype(str)
 V = V.merge(O, on=['skater_id', 'dag', 'afstand', 'tijd'], how='left')
+if os.environ.get('VERDACHT', '0') == '1':                  # ritten die in ritten_cat.parquet als verdacht staan (onmogelijk.py) weglaten
+    Rv = pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'), columns=['skater_id', 'dag', 'afstand', 'tijd', 'verdacht']); Rv['afstand'] = Rv['afstand'].astype(str)
+    Rv = Rv[Rv['verdacht']].drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd'])
+    V = V.merge(Rv, on=['skater_id', 'dag', 'afstand', 'tijd'], how='left'); V = V[V['verdacht'] != True].drop(columns='verdacht')
+    print('zonder verdachte ritten', flush=True)
 V = V[V['ok'] & np.isfinite(V['pit']) & V['afstand'].isin(sn.AFSTANDEN)].reset_index(drop=True)
 del K, O
 dag = V['dag'].to_numpy(); g = V['k_c'].to_numpy(); gap = V['gap'].to_numpy(); af = V['afstand'].to_numpy()
@@ -26,7 +31,9 @@ p0 = V['pit'].to_numpy(); n0 = V['nll'].to_numpy()
 
 var = {'model': (p0, n0)}
 RUST = {'rust': {}, 'rust schaal': {'schaal': True}, 'rust hl=365': {'hl': 365.0}, 'rust bw_r=.5': {'bw_r': 0.5}, 'rust k0=30': {'k0': 30.0}}
-NP = {'np': {}, 'np k1=30': {'k1': 30.0}, 'np k1=10': {'k1': 10.0}, 'np bw=.01': {'bw': 0.01}, 'np k0=10': {'k0': 10.0}}
+NP = {'np': {}, 'np k1=30': {'k1': 30.0}, 'np k1=10': {'k1': 10.0}, 'np bw=.01': {'bw': 0.01}, 'np k0=10': {'k0': 10.0},
+      'np oud': {'a0': 0.0, 'a1': 0.0}, 'np a1=.25': {'a1': 0.25}, 'np a1=.5': {'a1': 0.5}, 'np a1=.5 a0=.25': {'a1': 0.5, 'a0': 0.25}, 'np a1=.5 a0=.5': {'a1': 0.5, 'a0': 0.5},
+      'np a1=.75 a0=.25': {'a1': 0.75, 'a0': 0.25}, 'np a0=.25': {'a0': 0.25}, 'np a0=.5': {'a0': 0.5}, 'np a1=.25 a0=.25': {'a1': 0.25, 'a0': 0.25}, 'np a1=.5 a0=.25 hl=365': {'a1': 0.5, 'a0': 0.25, 'hl': 365.0}}
 VARS = os.environ.get('VARS', 'rust,np,rust+np').split(',')
 TOON = os.environ.get('TOON', 'model,rust,np,rust+np').split(',')
 RIJDER = {'rijder': {}, 'rijder Q=.1': {'Q': 0.1}, 'rijder k=10': {'k': 10.0}, 'rijder hl=365': {'hl': 365.0}, 'rijder hl=1460': {'hl': 1460.0}}
@@ -62,10 +69,25 @@ Tc = T & geb
 
 def tel(p, s):
     x = p[s]
-    return ' '.join(f'{(x < q).mean() / q:4.2f}' for q in (0.1, 0.05, 0.01, 0.001)) + ' | ' + ' '.join(f'{(x > 1 - q).mean() / q:4.2f}' for q in (0.05, 0.01))
+    return ' '.join(f'{(x < q).mean() / q:4.2f}' for q in (0.1, 0.05, 0.01, 0.001, 2e-4, 1e-4)) + ' | ' + ' '.join(f'{(x > 1 - q).mean() / q:4.2f}' for q in (0.05, 0.01))
 
 
-print('\ntellingen 2020+ (waargenomen / verwacht): snel 1/10 1/20 1/100 1/1000 | traag 1/20 1/100')
+def deviantie(p):
+    """Poisson-deviantie van de aantallen snelle ritten (kans <= 1/100, 1/1000, 1/5000) over niveau x afstand (2020+, zonder valpartijen)."""
+    D = 0.0
+    for lab in ['<1%', '1-2%', '2-3,5%', '3,5-6%', '6-10%', '10-18%', '>18%']:
+        for a in sn.AFSTANDEN:
+            x = p[Tc & (niv == lab) & (af == a)]
+            for q in (0.01, 0.001, 2e-4):
+                O = (x <= q).sum(); E = len(x) * q
+                D += 2 * ((O * np.log(O / E) if O > 0 else 0.0) - (O - E))
+    return D
+
+
+print('\nPoisson-deviantie snelle staart (1/100, 1/1000, 1/5000) over 7 niveaus x 6 afstanden (126 cellen; ~126 bij perfecte kalibratie):')
+for nm, (p, nl) in var.items():
+    print(f'  {nm:28s} {deviantie(p):7.1f}')
+print('\ntellingen 2020+ (waargenomen / verwacht): snel 1/10 1/20 1/100 1/1000 1/5000 1/10000 | traag 1/20 1/100')
 for nm, (p, nl) in var.items():
     if nm not in TOON:
         continue

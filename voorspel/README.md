@@ -198,12 +198,15 @@ Fout in het dagpeil vooraf tegen het weer van die dag (19 banen):
 - **Temperatuur:** buiten is warmer sneller (Breda −0,49%, Hoorn −0,43% per 10 graden); binnen iets trager (Hamar, Stavanger +0,2%).
 
 In de ijsvoorspelling:
-- `ijs_dp`: ln(druk) − ln(gewone druk op die baan), één coëfficiënt (0,071).
-- `ijs_weer`: per baan de gevoeligheid voor wind en temperatuur, alleen uit eerdere wedstrijddagen op die baan (halfwaardetijd 2 jaar, krimp naar 0). Het model leert zo zelf welke banen buiten liggen en wanneer een baan overdekt werd. Wordt voor 81% overgenomen.
+- `ijs_dp`: ln(druk) − ln(gewone druk op die baan), één coëfficiënt (0,058 met alle banen).
+- `ijs_weer`: per baan de gevoeligheid voor wind en temperatuur, alleen uit eerdere wedstrijddagen op die baan (halfwaardetijd 2 jaar, krimp naar 0). Het model leert zo zelf welke banen buiten liggen en wanneer een baan overdekt werd. Wordt voor 70% overgenomen.
 
-Toets (2020+, dezelfde ritten als het oude model), met weer voor 19 banen:
+Toets (2020+, dezelfde ritten als het oude model):
 
-| | log loss alle | toppers | elite | mediane fout elite | kalibratiefouten toppers / elite |
-|---|---|---|---|---|---|
-| met vormlaag | −2,3394 | −3,0408 | −3,1496 | 0,652% | 9 / 1 |
-| + weer | **−2,3422** | **−3,0451** | **−3,1548** | **0,648%** | **7 / 0** |
+| | log loss alle | toppers | elite | senior | mediane fout elite | kalibratiefouten toppers / elite |
+|---|---|---|---|---|---|---|
+| met vormlaag | −2,3394 | −3,0408 | −3,1496 | −2,7715 | 0,652% | 9 / 1 |
+| + weer, 19 banen | −2,3422 | −3,0451 | **−3,1548** | −2,7755 | 0,648% | 7 / 0 |
+| + weer, alle banen (98,6% van de ritten) | **−2,3434** | **−3,0457** | −3,1545 | **−2,7763** | 0,648% | 7 / **0** |
+
+Elite met weer: snel 1/1000 0,99×, 1/100 0,92×, 1/20 1,01×; traag 1,04×, 1,03×, 0,97×.

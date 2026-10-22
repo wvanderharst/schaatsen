@@ -10,7 +10,7 @@ from numba import njit
 import importlib
 kf = importlib.import_module(os.environ.get('KALMAN', 'kalman_mv2'))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'elite'))
-from model import huber, twee_t, t_nll, t_cdf, ijs_voorspelling, vergelijk, AF, GROEP, FIT_TOT, KOL, WAT_ALS_EVENT
+from model import huber, twee_t, t_nll, t_cdf, ijs_voorspelling, vergelijk, AF, GROEP, FIT_TOT, KOL, WAT_ALS_EVENT, toernooidag
 from scipy.optimize import minimize
 from scipy.stats import t as T
 HUBER_C = float(os.environ.get('HUBER_C', '0.7'))
@@ -27,6 +27,7 @@ SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter 
 VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (vormlaag.py)
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 STAART_IJK = os.environ.get('STAART_IJK', '1') == '1'
+IJS_ONLINE = os.environ.get('IJS_ONLINE', '1') == '1'     # lopende schatting van de ijsonzekerheid naar omstandigheden (veld, hoogland, eerste dag)
 GEZAMENLIJK = os.environ.get('GEZAMENLIJK', '0') == '1'    # per baan factor op de gezamenlijke onzekerheid: log loss beter, maar snelle staart elite 1,79x en Leerdam SLC 1 op 841; uit      # lopende ijking van de snelle staart (staartijking.py), na de vormlaag
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0
@@ -207,6 +208,39 @@ def kwantiel_u(K, par_t, Zq, q):
     return uq
 
 
+def ijs_schaal_online(K, sc_i, hl=730.0, k0=50.0, n_min=15, lo=0.6, hi=2.5):
+    """Lopende factor op de ijsonzekerheid naar omstandigheden. Het patroon verschuift in de tijd: elite op hoogland op de eerste dag
+    had in de fitjaren verhouding werkelijk/model 1,0, vanaf 2020 1,5; elite in het laagland juist 0,8-0,9. Per race: y = ln|ijsfout| + 0,635
+    - ln(sc_i) (verwachting 0 als sc_i klopt), gewogen kleinste kwadraten op X = [1, e, e*hoog, e*dag1, e*hoog*dag1, hoog, hoog*dag1, dag1],
+    e = exp(-veldniveau / 5%), alleen EERDERE dagen (halfwaardetijd hl), races met >= n_min rijders, gekrompen naar 0 (factor 1) met k0."""
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    gR = K.groupby(rk)['k_c'].transform('median').clip(-0.05, 0.5).fillna(0.2)
+    n = K.groupby(rk)['tijd'].transform(lambda x: np.isfinite(x).sum())
+    D = pd.DataFrame({'dag': K['dag'].to_numpy(), 'event_id': K['event_id'].to_numpy(), 'gender': K['gender'].to_numpy(), 'afstand_idx': K['afstand_idx'].to_numpy(),
+                      'e_v': np.exp(-gR.to_numpy() / 0.05), 'hoog': K['hoog'].fillna(0).to_numpy(), 'dag1': K['dag1'].fillna(1).to_numpy(), 'n': n.to_numpy(),
+                      'fout': (K['theta'] - K['th_hat_veld']).to_numpy(), 'sci': sc_i})
+    R = D.groupby(rk).first().reset_index().sort_values('dag', kind='stable').reset_index(drop=True)
+    e_, h_, d1 = R['e_v'].to_numpy(), R['hoog'].to_numpy(), R['dag1'].to_numpy()
+    X = np.column_stack([np.ones(len(R)), e_, e_ * h_, e_ * d1, e_ * h_ * d1, h_, h_ * d1, d1])
+    y = np.log(np.abs(R['fout'].to_numpy()) + 1e-5) + 0.635 - np.log(R['sci'].to_numpy())
+    bruik = np.isfinite(y) & (R['n'].to_numpy() >= n_min)
+    p = X.shape[1]; A = np.zeros((p, p)); b = np.zeros(p); dag = R['dag'].to_numpy().astype(float); fac = np.ones(len(R)); i = 0; laatst = None
+    while i < len(R):
+        j = i
+        while j < len(R) and dag[j] == dag[i]:
+            j += 1
+        if laatst is not None:
+            f = 0.5 ** ((dag[i] - laatst) / hl); A *= f; b *= f
+        beta = np.linalg.solve(A + k0 * np.eye(p), b)
+        fac[i:j] = np.exp(np.clip(X[i:j] @ beta, np.log(lo), np.log(hi)))
+        m = bruik[i:j]
+        if m.any():
+            Xm = X[i:j][m]; A += Xm.T @ Xm; b += Xm.T @ y[i:j][m]
+        laatst = dag[i]; i = j
+    R['fac'] = fac
+    return K[rk].merge(R[rk + ['fac']], on=rk, how='left')['fac'].fillna(1.0).to_numpy()
+
+
 def gezamenlijk_factor(K, r, sc_r, sc_i, ok, hl=730.0, k0=20.0, n_min=8, lo=0.6, hi=2.5):
     """Per baan: hoe groot is de gezamenlijke afwijking van een race (het hele veld samen sneller of trager dan voorspeld) t.o.v. de
     gezamenlijke onzekerheid in het model (sc_i)? Op buitenbanen en hoogland is die groter (tot 2x), op sommige binnenbanen kleiner.
@@ -360,7 +394,7 @@ def ontwerp(K):
 
 def draai(w, par, verbose=True, segment=True):
     t0 = time.time()
-    K = met_kalman(w, par); K, c_ijs = ijs_voorspelling(K)
+    K = met_kalman(w, par); K, c_ijs = ijs_voorspelling(K); K = toernooidag(K)
     # universele baanfactor vooraf: zelfde functie als achteraf (baanfactor.py), op het voorspelde dagpeil
     bfp = json.load(open(os.path.join(w, 'baanfactor_par.json'))) if os.path.exists(os.path.join(w, 'baanfactor_par.json')) else None
     K['th_hat_veld'] = K['th_hat']
@@ -434,6 +468,8 @@ def draai(w, par, verbose=True, segment=True):
     rci = (rc['theta'] - rc['th_hat_veld']).to_numpy()                 # onzekerheid van het dagpeil zelf (op raceniveau)
     gi = np.linalg.lstsq(Ix(rc), np.log(np.abs(rci) + 1e-5), rcond=None)[0]
     sc_i = np.exp(Ix(K) @ gi); sc_i *= np.median(np.abs(rci) / np.exp(Ix(rc) @ gi)) / 0.6745
+    if IJS_ONLINE:
+        sc_i = sc_i * ijs_schaal_online(K, sc_i)
     if GEZAMENLIJK:
         sc_i = sc_i * gezamenlijk_factor(K, (np.log(K['tijd']) - K['pred']).to_numpy(), sc_r, sc_i, ok & ~K['k_val'].to_numpy())
     K['sd'] = np.sqrt(sc_r ** 2 + sc_i ** 2); K['sd_rijder'] = sc_r; K['sd_ijs'] = sc_i

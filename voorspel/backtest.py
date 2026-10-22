@@ -16,6 +16,7 @@ Valpartijen (filtervlag) tellen niet mee. Gebruik: python backtest.py <werkmap>"
 import os, sys, importlib.util
 import numpy as np, pandas as pd, pyarrow.parquet as pq
 from scipy.optimize import minimize
+from numba import njit
 
 N_ELITE, N_LAND, GRENS = 10, 5, 0.05
 AF6 = ['500m', '1000m', '1500m', '3000m', '5000m', '10000m']
@@ -110,6 +111,50 @@ def maatstaf(I, hl=365.0, k=2.0, k_s=2.0, knip=0.04):
     return I
 
 
+@njit(cache=True)
+def _gas(nieuw, g, val, dag, par, mu_o, ls_o, ll_o):
+    """GAS(1,1) met logistische score per rijder x afstand (rijen gesorteerd). par: mu0, log s0, a_mu, a_s, b_s, log s_bar, c_t.
+    Voor elke rit eerst de voorspelling (mu, log s) en de log loss, daarna de update met de score (eigen valpartijen: geen update).
+    c_t: log s groeit met log(1 + dagen sinds de vorige race / 30) (lange pauze: onzekerder)."""
+    mu0, ls0, a_mu, a_s, b_s, lsb, c_t, a_mu2, a_s2 = par[0], par[1], par[2], par[3], par[4], par[5], par[6], par[7], par[8]
+    mu = mu0; ls = ls0; vorige = -1e9; nr = 0.0
+    for i in range(len(g)):
+        if nieuw[i]:
+            mu = mu0; ls = ls0; vorige = -1e9; nr = 0.0
+        lsi = ls + (c_t * np.log1p((dag[i] - vorige) / 30.0) if vorige > -1e8 else 0.0)
+        s = np.exp(lsi); z = (g[i] - mu) / s
+        mu_o[i] = mu; ls_o[i] = lsi
+        ll_o[i] = lsi + z + 2.0 * np.log1p(np.exp(-z)) if z > -30 else lsi - z
+        if not val[i]:
+            th = np.tanh(0.5 * z); fn = np.exp(-nr / 3.0)      # eerste races: eigen (snellere) leersnelheid
+            mu = mu + (a_mu + a_mu2 * fn) * s * th
+            ls = lsi + (a_s + a_s2 * fn) * (z * th - 1.0) + b_s * (lsb - lsi)
+            vorige = dag[i]; nr += 1.0
+    return 0
+
+
+def maatstaf_gas(I):
+    """Ligging en schaal per rijder x afstand met een score-gedreven (GAS) update onder de logistische verdeling; parameters met
+    maximale aannemelijkheid op 2008-2019."""
+    I = I.sort_values(['skater_id', 'afstand', 'dag'], kind='stable').reset_index(drop=True)
+    nieuw = (I.groupby(['skater_id', 'afstand']).cumcount() == 0).to_numpy()
+    g = I['g'].to_numpy(); val = I['k_val'].to_numpy(); dag = I['dag'].to_numpy().astype(float); fit = (I['jaar'] <= 2019).to_numpy() & ~val
+    mu = np.zeros(len(I)); ls = np.zeros(len(I)); ll = np.zeros(len(I))
+    def f(p):
+        q = np.array([p[0], p[1], np.exp(p[2]), np.exp(p[3]), 1 / (1 + np.exp(-p[4])), p[5], p[6], np.exp(p[7]), np.exp(p[8])])
+        _gas(nieuw, g, val, dag, q, mu, ls, ll)
+        return np.mean(ll[fit])
+    p0 = np.array([0.075, np.log(0.04), np.log(0.5), np.log(0.15), 0.3, np.log(0.005), 0.2, np.log(0.5), np.log(0.1)])
+    p = minimize(f, p0, method='Nelder-Mead', options={'maxiter': 12000, 'xatol': 1e-5, 'fatol': 1e-9}).x
+    p = minimize(f, p, method='Nelder-Mead', options={'maxiter': 12000, 'xatol': 1e-6, 'fatol': 1e-10}).x
+    f(p)
+    print(f'GAS: mu0 {100 * p[0]:.2f}%, s0 {100 * np.exp(p[1]):.2f}%, a_mu {np.exp(p[2]):.3f}, a_s {np.exp(p[3]):.3f}, '
+          f'b_s {1 / (1 + np.exp(-p[4])):.3f}, s_bar {100 * np.exp(p[5]):.2f}%, c_t {p[6]:.3f}, eerste races extra a_mu {np.exp(p[7]):.3f} a_s {np.exp(p[8]):.3f}'
+          f' | log loss fit {f(p):.4f}')
+    I['mu_g'] = mu; I['s_g'] = np.exp(ls)
+    return I
+
+
 def nll_vorm(par, z, skew):
     a, lb = par[0], par[1]; b = np.exp(lb); y = (z - a) / b
     if skew:
@@ -135,14 +180,14 @@ def kort(r):
 
 
 def main(w):
-    V = laad(w); I = maatstaf(referentie(internationaal(V)))
-    I['z_b'] = (I['g'] - I['mu_b']) / I['s_b']
+    V = laad(w); I = maatstaf_gas(maatstaf(referentie(internationaal(V))))
+    I['z_b'] = (I['g'] - I['mu_b']) / I['s_b']; I['z_g'] = (I['g'] - I['mu_g']) / I['s_g']
     I['e_o'] = I['res'] - I['Rres']; I['s_o'] = np.sqrt(I['sd_rijder'] ** 2 + I['Rvar']); I['z_o'] = I['e_o'] / I['s_o']
     fitm = (I['jaar'] <= 2019) & ~I['k_val']; toets = (I['jaar'] >= 2020) & ~I['k_val']
     print(f"internationale topraces: {I['rk_'].nunique()} races, {len(I)} ritten ({toets.sum()} in de toetsjaren);"
           f" afstand tot de top 5 (mediaan): {100 * I['g'].median():.2f}%, nieuwkomers {100 * I.loc[I.groupby(['skater_id', 'afstand']).cumcount() == 0, 'g'].median():.2f}%")
     res = {}
-    for nm, zc, sc in (('maatstaf', 'z_b', 's_b'), ('onze methode', 'z_o', 's_o')):
+    for nm, zc, sc in (('maatstaf', 'z_b', 's_b'), ('maatstaf GAS', 'z_g', 's_g'), ('onze methode', 'z_o', 's_o')):
         for skew in (False, True):
             p = fit_vorm(I.loc[fitm, zc].to_numpy(), skew)
             z = I[zc].to_numpy(); ll = nll_vorm(p, z, skew) + np.log(I[sc].to_numpy())
@@ -161,7 +206,7 @@ def main(w):
         print(f'  {lab:40s} fouten {fout:2d} | snel ' + ' '.join(kort(r) for r in rg[:8]) + ' | traag ' + ' '.join(kort(r) for r in rg[8:11]))
     # voorbeelden
     print('\nvoorbeelden (kans op zo snel of sneller):')
-    nm_b = 'maatstaf, scheef logistisch'; nm_o = 'onze methode, scheef logistisch'
+    nm_b = 'maatstaf GAS, logistisch'; nm_o = 'onze methode, scheef logistisch'
     I['p_b'] = res[nm_b][1]; I['p_o'] = res[nm_o][1]
     for naam, af, datum in (('Jutta LEERDAM', '1000m', '2025-11-14'), ('Jutta LEERDAM', '1000m', '2026-02-09'), ('Femke KOK', '1000m', '2026-02-09'),
                             ('Francesca LOLLOBRIGIDA', '3000m', '2026-02-07')):
@@ -169,8 +214,8 @@ def main(w):
         x = I[(I['skater_name'] == naam) & (I['afstand'] == af) & (I['dag'] == dg)]
         for _, r in x.iterrows():
             f = lambda p: f'1 op {1 / p:,.0f}'.replace(',', '.') if p < 0.5 else f'trager 1 op {1 / (1 - p):,.0f}'.replace(',', '.')
-            print(f"  {naam} {af} {datum} {r['baan']}: afstand tot top 5 {100 * r['g']:+.2f}% (verwacht {100 * r['mu_b']:+.2f}%, schaal {100 * r['s_b']:.2f}%)"
-                  f" | maatstaf {f(r['p_b'])} | onze methode met top 5 {f(r['p_o'])} | onze methode vooraf {f(r['pit'])}")
+            print(f"  {naam} {af} {datum} {r['baan']}: afstand tot top 5 {100 * r['g']:+.2f}% (GAS verwacht {100 * r['mu_g']:+.2f}%, schaal {100 * r['s_g']:.2f}%)"
+                  f" | maatstaf GAS {f(r['p_b'])} | onze methode met top 5 {f(r['p_o'])} | onze methode vooraf {f(r['pit'])}")
     I.to_parquet(os.path.join(w, 'backtest_uitkomst.parquet'))
 
 

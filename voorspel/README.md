@@ -414,3 +414,22 @@ Lollobrigida 3000 m Milano: 1 op 1134 (was 1 op 1236): haar sterke ritten (3:58,
 ervoor was haar op een na beste rit 4:00,2. Leerdam en Kok in Milano worden juist verrassender (1 op 64 en 1 op 137): hun verwachting lag al
 op of boven hun bewezen niveau, en gemiddeld vallen zulke rijders iets terug. Wat ontbreekt is het belang van de wedstrijd (pieken op de
 Spelen); de toernooinamen staan in de brondata (`data/`, kolom Toernooi).
+
+## Piekmomenten: WK's en Olympische Spelen (`piek.py`)
+
+Alleen de Spelen en de senioren-WK's (afstanden, allround, sprint) zijn piekmomenten. De brondata heeft geen toernooinamen, dus een kalender
+(jaar, baan, soort) plus herkenning in de data: een wereldveld (>= 10 landen, >= 2 van USA/CAN/JPN/CHN/KOR, dus geen EK) met het
+afstandspatroon van het soort toernooi (sprint 500/1000, allround zonder 1000 m, afstanden en Spelen alle zes); bij meerdere kandidaten het
+breedste veld. Alle 54 toernooien 2007–2026 gevonden (`python piek.py <werkmap>` drukt de lijst af); 11.210 ritten.
+
+Diagnose (zonder deze laag): op piekmomenten rijdt de top sneller dan voorspeld (top < 1%: z −0,24 in 2008–2019, −0,11 in 2020+) en zijn er
+half zoveel trage uitschieters. Laag op de kansschaal (na het bewezen niveau): z' = (z − μ) / σ, μ en σ een gladde functie van het niveau,
+alleen voor piekritten, online uit eerdere piekmomenten (krimp 30 ritten, halfwaardetijd 3 jaar).
+
+| (2020+, log loss) | alle | toppers | elite | senior | elite vooraf | piekritten (2.815) | piekritten top < 2% |
+|---|---|---|---|---|---|---|---|
+| zonder piekmomenten | −2,3634 | −3,0640 | −3,1873 | −2,8011 | −3,1775 | −3,2430 | −3,2819 |
+| met piekmomenten | **−2,3635** | **−3,0642** | **−3,1880** | **−2,8015** | **−3,1782** | **−3,2490** | **−3,2875** |
+
+Op de piekritten van 2020+ schiet de laag iets door (snel 1/20 1,09 → 0,90×, traag 0,68 → 1,10×): het piekeffect was in 2008–2019 groter dan
+daarna. Milano 2026: Lollobrigida 3000 m 1 op 894 (was 1 op 1134), Leerdam 1000 m 1 op 47 (was 64), Kok 1000 m 1 op 98 (was 137).

@@ -390,7 +390,8 @@ def draai(w, par, verbose=True, segment=True):
             K['bias_snel'] = wb * bs
             K['pred'] = K['pred'] + K['bias_snel']
     rc = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
-    Ix = lambda d: np.c_[np.ones(len(d)), np.log1p(d['ijs_vn']), np.log1p(d['ijs_evn']), d['hoog'], np.log(d['v_theta'].clip(1e-7))]
+    Ix = lambda d: np.c_[np.ones(len(d)), np.log1p(d['ijs_vn']), np.log1p(d['ijs_evn']), d['hoog'], np.log(d['v_theta'].clip(1e-7)),
+                         np.log1p(d['ijs_bn']), d['ijs_nieuw'] if 'ijs_nieuw' in d else np.zeros(len(d))]      # geschiedenis van de baan: nieuw vs gevestigd
     rci = (rc['theta'] - rc['th_hat_veld']).to_numpy()                 # onzekerheid van het dagpeil zelf (op raceniveau)
     gi = np.linalg.lstsq(Ix(rc), np.log(np.abs(rci) + 1e-5), rcond=None)[0]
     sc_i = np.exp(Ix(K) @ gi); sc_i *= np.median(np.abs(rci) / np.exp(Ix(rc) @ gi)) / 0.6745

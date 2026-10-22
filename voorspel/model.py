@@ -47,8 +47,6 @@ def ijs_voorspelling(K):
     """Racepeil vooraf: lopend baangemiddelde (afstand x geslacht, gekrompen naar de baan), eerdere toernooidagen, algemene stand,
     en (VELD_IJS) een ijsbonus als functie van het niveau van het veld t.o.v. het gewone veld op die baan."""
     fit = (K['jaar'] <= FIT_TOT) & np.isfinite(K['theta'])
-    if 'ijs_n' in K:
-        fit &= K['ijs_n'].fillna(0) >= N_MIN
     gm = K[fit].groupby(['gender', 'afstand_idx'])['theta'].median().rename('gm')
     K = K.join(gm, on=['gender', 'afstand_idx'])
     ba = K['ijs_ba'].where(K['ijs_bn'] > 0, K['gm'])
@@ -111,7 +109,11 @@ def startpeil_kenmerken(K, IJS, tb=5.0):
         K['_alt'] = 0.0
     K['ijs_nieuw'] = nieuw; K['ijs_nieuw_v05'] = nieuw * np.exp(-gR / 0.05); K['ijs_nieuw_v15'] = nieuw * np.exp(-gR / 0.15)
     K['ijs_nieuw_alt'] = nieuw * K['_alt']
-    return K.drop(columns='_alt'), IJS + ['ijs_nieuw', 'ijs_nieuw_v05', 'ijs_nieuw_v15', 'ijs_nieuw_alt']
+    # kleine races (tijdritten, trainingen) lopen anders: ze tellen niet mee in de geschiedenis van het ijs, maar wel in de schatting,
+    # met een functie van de grootte van de startlijst; denkbeeldige wat-als-ritten gelden als een gewone race
+    n_start = K.groupby(rk)['skater_id'].transform('size')
+    K['ijs_klein'] = np.where(K['event_id'] <= WAT_ALS_EVENT, 0.0, np.exp(-n_start / 5.0))
+    return K.drop(columns='_alt'), IJS + ['ijs_nieuw', 'ijs_nieuw_v05', 'ijs_nieuw_v15', 'ijs_nieuw_alt', 'ijs_klein']
 
 
 def afwijking_kenmerken(K, IJS, fit, ev_dagen=6, hl_kort=7.0, hl_lang=60.0, k_ev=1.0, k_rec=2.0, tb=10.0):

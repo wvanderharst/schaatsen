@@ -185,3 +185,25 @@ Elite met vormlaag: snel 1/1000 0,99×, 1/100 0,92×, 1/20 1,02×; traag 1,09×,
 (kans ≤ 1/50) kloppen. Nog niet goed:
 - **Toppers 90–97:** de verdeling is iets te breed (z-sd 0,977): er zijn minder snelle uitschieters dan voorspeld (1/100: 0,84×). Dat zat al in de basis.
 - **Trage reeksen per rijder:** te veel rijders met ≥ 5 trage ritten (toppers 83 tegen 60, elite 32 tegen 20).
+
+## Weer (`luchtdruk.py`, `model.weer_kenmerken`)
+
+Luchtdruk, temperatuur, wind en vocht per baan en wedstrijddag (Open-Meteo, ERA5; 10–20 uur lokale tijd), opgehaald op GitHub Actions
+(`.github/workflows/luchtdruk.yml`, in deze omgeving is het internet dicht) en vastgelegd in `voorspel/weer/weer_dag.csv`.
+Per baan staan plaats en hoogte in `weer/banen_locatie.csv`; waar de baan niet in de stad ligt, zijn ze met de hand gezet (Kearns 1423 m, Calgary 1105 m, ...).
+
+Fout in het dagpeil vooraf tegen het weer van die dag (19 banen):
+- **Luchtdruk:** op alle banen zo'n 0,04–0,12 × de relatieve drukafwijking (binnen ~0,1): 10 hPa lagere druk is ~0,1% sneller.
+- **Wind** telt alleen op buitenbanen: Utrecht +0,34% per 10 km/u, Deventer +0,28%, Amsterdam +0,26%; binnen ~0.
+- **Temperatuur:** buiten is warmer sneller (Breda −0,49%, Hoorn −0,43% per 10 graden); binnen iets trager (Hamar, Stavanger +0,2%).
+
+In de ijsvoorspelling:
+- `ijs_dp`: ln(druk) − ln(gewone druk op die baan), één coëfficiënt (0,071).
+- `ijs_weer`: per baan de gevoeligheid voor wind en temperatuur, alleen uit eerdere wedstrijddagen op die baan (halfwaardetijd 2 jaar, krimp naar 0). Het model leert zo zelf welke banen buiten liggen en wanneer een baan overdekt werd. Wordt voor 81% overgenomen.
+
+Toets (2020+, dezelfde ritten als het oude model), met weer voor 19 banen:
+
+| | log loss alle | toppers | elite | mediane fout elite | kalibratiefouten toppers / elite |
+|---|---|---|---|---|---|
+| met vormlaag | −2,3394 | −3,0408 | −3,1496 | 0,652% | 9 / 1 |
+| + weer | **−2,3422** | **−3,0451** | **−3,1548** | **0,648%** | **7 / 0** |

@@ -270,3 +270,27 @@ Onze methode vooraf, met de onzekerheid van het ijs, is veel beter dan de maatst
 hangt sterk af van wie er in de race zit en hoe die rijders die dag rijden. Wel scheidt de maatstaf ijs van rijder: Leerdams 1:12,35 in
 Salt Lake City was t.o.v. de top 5 gewoon (maatstaf 1 op 2, onze methode met top 5 1 op 10); de 1 op 160 vooraf komt vooral van het ijs.
 Lollobrigida's 3:54,28 in Milano was ook t.o.v. de top 5 uitzonderlijk (maatstaf GAS 1 op 267, onze methode met top 5 1 op 837).
+
+## Dagpeil zonder krimp en persoonlijke hooglandaffiniteit (Leerdam, SLC 14-11-2025)
+
+Leerdam reed 1:12,35 in SLC tegen 1:13,67 verwacht (1 op 257). T.o.v. de top 5 was de rit gewoon: het hele elite-veld reed die dag ~1%
+sneller dan voorspeld, terwijl het gemeten dagpeil zei dat het ijs normaal was.
+- **Krimp in het dagpeil.** Het dagpeil theta uit het oude model is een schatting die naar de verwachting voor de baan wordt getrokken
+  (en extreme afwijkingen worden afgekapt). Daardoor komt maar 40–60% van een gezamenlijke afwijking van het veld als ijs in theta
+  (helling 0,42 over alle races, 0,59 bij elitevelden, 0,43 in SLC en Calgary). De rest wordt de rijders toegerekend.
+  `dagpeil_veld.py` maakt een dagpeil zonder krimp: de verwachting vooraf plus het mediane residu van het veld, gewogen met n/(n + 3,5).
+  Met dat dagpeil was SLC op 14-11-2025 0,95–1,28% sneller dan het oude dagpeil.
+- **Persoonlijke hooglandaffiniteit** (`model2.hoog_affiniteit`). Leerdam rijdt de 1000 m op hoogland gemiddeld 0,47% sneller dan voorspeld
+  (13 ritten, waarvan 3 bij de snelste 5%), en wisselvalliger. Per rijder × afstand bepalen eerdere ritten op hoogland de ligging en de
+  schaal op de kansschaal (b = 0,41, krimp 2,1 ritten; schaal g = 0,76, krimp 23 ritten; geschat op 2008–2019).
+
+Geprobeerd en niet gebruikt (slechter of geen effect): een factor per baan op de gezamenlijke onzekerheid, de dag in het toernooi en
+hoogland × niveau in schaal en vorm, een lopende regressie van de ijsonzekerheid, een lopende ijking per baan.
+
+| (2020+, log loss) | alle | toppers | elite | senior | mediane fout elite | Leerdam SLC |
+|---|---|---|---|---|---|---|
+| met staartijking (oud dagpeil) | **−2,3465** | −3,0497 | −3,1557 | −2,7808 | 0,649% | 1 op 160 |
+| dagpeil zonder krimp | −2,3443 | −3,0509 | −3,1627 | −2,7849 | 0,644% | 1 op 257 |
+| + hooglandaffiniteit | −2,3446 | **−3,0526** | **−3,1662** | **−2,7868** | **0,641%** | **1 op 119** |
+
+Snelle staart met hooglandaffiniteit: toppers 0,99 / 1,00 / 1,04×, elite 0,92 / 1,12 / 1,11×; de aantallen per rijder kloppen bij de elite.

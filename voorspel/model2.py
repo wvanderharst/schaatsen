@@ -27,7 +27,7 @@ SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter 
 VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (vormlaag.py)
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 STAART_IJK = os.environ.get('STAART_IJK', '1') == '1'
-GEZAMENLIJK = os.environ.get('GEZAMENLIJK', '1') == '1'    # per baan lopende factor op de gezamenlijke (race-brede) onzekerheid      # lopende ijking van de snelle staart (staartijking.py), na de vormlaag
+GEZAMENLIJK = os.environ.get('GEZAMENLIJK', '0') == '1'    # per baan factor op de gezamenlijke onzekerheid: log loss beter, maar snelle staart elite 1,79x en Leerdam SLC 1 op 841; uit      # lopende ijking van de snelle staart (staartijking.py), na de vormlaag
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit

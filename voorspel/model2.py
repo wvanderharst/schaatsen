@@ -27,7 +27,8 @@ SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter 
 VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (vormlaag.py)
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
 STAART_IJK = os.environ.get('STAART_IJK', '1') == '1'
-IJS_ONLINE = os.environ.get('IJS_ONLINE', '1') == '1'     # lopende schatting van de ijsonzekerheid naar omstandigheden (veld, hoogland, eerste dag)
+HOOG_AFF = os.environ.get('HOOG_AFF', '1') == '1'         # persoonlijke hooglandaffiniteit per rijder x afstand (ligging en schaal op de kansschaal)
+IJS_ONLINE = os.environ.get('IJS_ONLINE', '0') == '1'     # lopende schatting van de ijsonzekerheid naar omstandigheden (veld, hoogland, eerste dag)
 GEZAMENLIJK = os.environ.get('GEZAMENLIJK', '0') == '1'    # per baan factor op de gezamenlijke onzekerheid: log loss beter, maar snelle staart elite 1,79x en Leerdam SLC 1 op 841; uit      # lopende ijking van de snelle staart (staartijking.py), na de vormlaag
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0
@@ -196,6 +197,8 @@ def kwantiel_u(K, par_t, Zq, q):
     if 'staart_b1' in K:                                 # lopende staartijking terugdraaien
         import staartijking as si
         q = si.terug(q, [K['staart_b1'].to_numpy(), K['staart_b2'].to_numpy()])
+    if 'aff_mu' in K:                                    # hooglandaffiniteit (na de vormlaag toegepast, dus eerst terug)
+        q = _n.cdf(K['aff_mu'].to_numpy() + K['aff_sg'].to_numpy() * _n.ppf(q))
     if 'vorm_mu' in K:                                   # vormlaag: z' = (z - mu) / sigma, dus z = mu + sigma z'
         q = _n.cdf(K['vorm_mu'].to_numpy() + K['vorm_sg'].to_numpy() * _n.ppf(q))
     b_r = K['staart_br'].to_numpy() if 'staart_br' in K else np.ones(len(K))
@@ -273,6 +276,57 @@ def gezamenlijk_factor(K, r, sc_r, sc_i, ok, hl=730.0, k0=20.0, n_min=8, lo=0.6,
         i = j
     R['fac'] = np.clip(fac, lo, hi)
     return K[rk].merge(R[rk + ['fac']], on=rk, how='left')['fac'].fillna(1.0).to_numpy()
+
+
+def hoog_affiniteit(K, fit, ok, verbose=True, hl=1095.0):
+    """Persoonlijke hooglandaffiniteit (SLC, Calgary) per rijder x afstand, op de kansschaal na de vormlaag. Uit EERDERE ritten van de
+    rijder op die afstand op hoogland (uitdovend, halfwaardetijd hl dagen; eigen valpartijen niet): S = som z, Q = som z^2, n = aantal.
+    Voor een rit op hoogland: mu = b S / (n + k), ln sigma = g / 2 ln((Q + k2) / (n + k2)); z' = (z - mu) / sigma.
+    b, k, g, k2 met maximale aannemelijkheid op de fitjaren. Voorbeeld: Leerdam 1000 m op hoogland gemiddeld 0,47% sneller dan voorspeld,
+    en wisselvalliger dan elders."""
+    from scipy.stats import norm as _n
+    pit = K['pit'].to_numpy(); hoog = K['hoog'].fillna(0).to_numpy() > 0.5; val = K['k_val'].to_numpy()
+    z = np.where(ok & np.isfinite(pit), _n.ppf(np.clip(pit, 1e-9, 1 - 1e-9)), np.nan).clip(-6, 6)
+    sleutel = pd.factorize(K['skater_id'].astype(str) + '|' + K['afstand'].astype(str))[0]
+    o = np.lexsort((K['dag'].to_numpy(), sleutel)); ko = sleutel[o]; do = K['dag'].to_numpy()[o].astype(float)
+    zo = z[o]; ho = hoog[o]; vo = val[o]
+    S = np.zeros(len(o)); Q = np.zeros(len(o)); N = np.zeros(len(o)); i = 0; n = len(o)
+    while i < n:
+        j = i
+        while j < n and ko[j] == ko[i]:
+            j += 1
+        s = q2 = c = 0.0; laatst = None; q = i
+        while q < j:
+            p = q
+            while p < j and do[p] == do[q]:
+                p += 1
+            if laatst is not None:
+                f = 0.5 ** ((do[q] - laatst) / hl); s *= f; q2 *= f; c *= f
+            S[q:p] = s; Q[q:p] = q2; N[q:p] = c
+            for t in range(q, p):
+                if ho[t] and not vo[t] and np.isfinite(zo[t]):
+                    zz = min(max(zo[t], -4.0), 4.0); s += zz; q2 += zz * zz; c += 1.0
+            laatst = do[q]; q = p
+        i = j
+    Sa = np.empty(n); Qa = np.empty(n); Na = np.empty(n); Sa[o] = S; Qa[o] = Q; Na[o] = N
+    def delen(p):
+        b, k, g, k2 = p[0], np.exp(p[1]), p[2], np.exp(p[3])
+        mu = np.where(hoog, b * Sa / (Na + k), 0.0); ls = np.where(hoog, g * 0.5 * np.log((Qa + k2) / (Na + k2)), 0.0)
+        return mu, ls
+    fm = fit & hoog & np.isfinite(z) & (K['jaar'].to_numpy() >= 2008)
+    def f(p):
+        mu, ls = delen(p); zp = (z[fm] - mu[fm]) * np.exp(-ls[fm])
+        return np.mean(0.5 * zp ** 2 + ls[fm] - 0.5 * z[fm] ** 2)
+    from scipy.optimize import minimize as _min
+    p = _min(f, np.array([0.4, np.log(2.0), 0.3, np.log(5.0)]), method='Nelder-Mead', options={'maxiter': 4000}).x
+    mu, ls = delen(p); sg = np.exp(ls); zp = (np.nan_to_num(z) - mu) / sg
+    goed = np.isfinite(z) & hoog
+    K['aff_mu'] = mu; K['aff_sg'] = sg
+    K['pit'] = np.where(goed, _n.cdf(zp), K['pit']); K['nll'] = np.where(goed, K['nll'] + np.log(sg) + 0.5 * (zp ** 2 - np.nan_to_num(z) ** 2), K['nll'])
+    K.attrs['hoog_aff'] = [float(v) for v in p]
+    if verbose:
+        print('hooglandaffiniteit: b %.3f k %.2f | schaal g %.3f k2 %.2f' % (p[0], np.exp(p[1]), p[2], np.exp(p[3])))
+    return K
 
 
 def vorm_toepassen(K, fit, ok, verbose=True):
@@ -500,10 +554,14 @@ def draai(w, par, verbose=True, segment=True):
     K['ok'] = ok
     if VORM:
         K = vorm_toepassen(K, fit, ok, verbose)
-        # voorspelde tijd = mediaan van de nieuwe verdeling (verschuiving t.o.v. de mediaan zonder vormlaag)
-        mu_, sg_ = K.pop('vorm_mu'), K.pop('vorm_sg')
+    if HOOG_AFF:
+        K = hoog_affiniteit(K, fit, ok, verbose)
+    if VORM or HOOG_AFF:
+        # voorspelde tijd = mediaan van de nieuwe verdeling (verschuiving t.o.v. de mediaan zonder vormlaag en affiniteit)
+        bewaar = {c: K.pop(c) for c in ('vorm_mu', 'vorm_sg', 'aff_mu', 'aff_sg') if c in K}
         u0 = kwantiel_u(K, par_t, Zq, 0.5)
-        K['vorm_mu'] = mu_; K['vorm_sg'] = sg_
+        for c, v in bewaar.items():
+            K[c] = v
         u1 = kwantiel_u(K, par_t, Zq, 0.5)
         K['bias_vorm'] = np.nan_to_num((u1 - u0) * K['sd'].to_numpy())
         K['pred'] = K['pred'] + K['bias_vorm']

@@ -233,3 +233,18 @@ Dagpeil vooraf (sd van de fout): toetsjaren 0,730% → 0,703%; banen met < 30 ee
 | + nieuwe banen, snelle veranderingen, kleine races | **−2,3461** | **−3,0495** | **−3,1557** | **−2,7803** | 0,649% |
 
 Snelle staart (de belangrijkste): toppers 1/1000 0,95×, 1/100 0,83×, 1/20 0,95×; elite 1,02×, 0,89×, 1,01×.
+
+## Lopende ijking van de snelle staart (`staartijking.py`)
+
+De snelle staart telt het zwaarst. Zijn vorm hangt niet-lineair af van het niveau en verschuift in de tijd. Een voorbeeld: toppers 90–97
+hadden bij 1/100 in de fitjaren 0,95×, in 2020–22 0,84× en vanaf 2023 0,77× zoveel snelle uitschieters als voorspeld. Daarom als laatste laag
+twee geneste stappen p' = Q (p/Q)^b (Q = 10%, daarna 1%). b is een gladde functie van het niveau (Gauss-kernel, bandbreedte 2%), geschat
+uit eerdere dagen (halfwaardetijd 1 jaar, krimp naar 1). De kwantielen in `voorspel_nu.py` draaien de ijking terug.
+
+| (2020+) | log loss alle | toppers | elite | toppers snel 1/1000, 1/100, 1/20 | elite snel 1/1000, 1/100, 1/20 |
+|---|---|---|---|---|---|
+| zonder staartijking | −2,3461 | −3,0495 | −3,1557 | 0,95 / 0,83 / 0,95 | 1,02 / 0,89 / 1,01 |
+| met staartijking | **−2,3465** | **−3,0497** | −3,1557 | **1,06 / 0,95 / 0,99** | 1,14 / 1,04 / 1,05 |
+
+Toppers met de staartijking: alle tellingen van rijders met meerdere snelle ritten kloppen (≥3: 274 tegen 289; ≥4: 142 tegen 136;
+≥8: 7 tegen 3,3). Ervoor waren ≥3 en ≥4 fout (237 en 105).

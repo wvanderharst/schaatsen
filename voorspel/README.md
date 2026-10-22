@@ -455,3 +455,27 @@ voor de elite slechter.
 
 Kalibratie op het niveau vooraf: top < 2% 0 fouten. De oudere kampioenen schuiven naar 0 (Bowe +0,24 → +0,16), de jonge stijgers nauwelijks
 (Jílek −0,66 → −0,62, Wennemars −0,42 → −0,41, De Boo −0,42 → −0,39): zij groeien sneller dan hun leeftijdsgroep.
+
+## Andere motoren dan het Kalman-filter (`motor_lab.py`, `gaslaag.py`)
+
+Zelfde doel als het filter: z = ln t − theta_rijder − ref (prestatie t.o.v. het peil van de race), per race eerst voorspellen en dan bijwerken,
+valpartijen niet in de update; parameters met maximale aannemelijkheid op 2008–2019 (een derde van de rijders), toets 2020+.
+- **GAS** (score-gedreven, robuust): niveau per afstand (koppeling rho^|afstand|), toestandsonzekerheid die groeit met de tijd, en per rijder
+  een eigen snelle en trage spreiding (log-schaal, score-gedreven). Geschat: nu 8,6, rho 0,78, terugtrekking spreiding 0,976 per rit.
+- **Bootstrap + variantielaag**: gewogen mengsel van de eigen eerdere ritten (gewicht exp(−dagen/τ), andere afstanden lager), per rit een
+  extra variantie, plus een brede component. Geschat: τ = 19 dagen, andere afstanden vrijwel gewicht 0, brede component 15%.
+
+Eerlijke vergelijking (elke motor levert midden en schaal; daarop dezelfde gekalibreerde twee-delige t naar niveau; log loss van z, 2020+):
+
+| motor | alle | top < 2% | top < 6% | > 18% |
+|---|---|---|---|---|
+| Kalman | −2,456 | **−3,275** | **−3,163** | −2,120 |
+| GAS | −2,038 | −3,102 | −2,966 | −1,598 |
+| GAS twee-delig | −2,082 | −3,106 | −2,974 | −1,661 |
+| bootstrap + variantielaag | −2,302 | −3,129 | −3,000 | −1,982 |
+| mengsel Kalman 0,85 + bootstrap 0,15 | **−2,471** | −3,272 | −3,161 | **−2,147** |
+
+Het filter is de beste motor (het heeft leeftijdsafhankelijke procesruis, volledige koppeling tussen afstanden, een groeisnelheid per rijder
+en een korte vormterm); de bootstrap voegt iets toe bij zwakkere rijders. **GAS als laag op de kansschaal** (`gaslaag.py`: per rijder een
+verschuiving en log-spreiding van z, robuust bijgewerkt, uitdovend): afgesteld op 2020–2022 (a 0,02, halfwaardetijd 365 dagen; de spreiding
+bijwerken helpt niet), toets 2023+: alle −2,3799 → −2,3808, elite vooraf −3,1708 → −3,1721; verschuiving Wennemars −0,18, Jílek −0,18.

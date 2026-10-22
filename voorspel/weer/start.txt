@@ -1,1 +1,1 @@
-Startbestand voor de luchtdruk-workflow; wijzigen start een nieuwe run. Laatste start: 2026-10-22T04:08Z (ontbrekende dagen afronden).
+Startbestand voor de luchtdruk-workflow; wijzigen start een nieuwe run. Laatste start: 2026-10-22T04:35Z (dagen binnen oude vensters).

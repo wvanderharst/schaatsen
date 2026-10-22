@@ -161,22 +161,20 @@ def dag_gemiddelde(j, dagen, van=10, tot=20):
     h = pd.DataFrame(j['hourly']); h['tijd'] = pd.to_datetime(h['time'])
     h = h[(h['tijd'].dt.hour >= van) & (h['tijd'].dt.hour <= tot)]                    # wedstrijduren (lokale tijd)
     h['dag'] = (h['tijd'].dt.normalize() - pd.Timestamp('1970-01-01')).dt.days
-    d = h[h['dag'].isin(dagen)].groupby('dag')[VARS].mean().reset_index().rename(columns=NAMEN)
-    return d
+    d = h[h['dag'].isin(dagen)].groupby('dag')[VARS].mean().reindex(sorted(set(int(x) for x in dagen)))    # opgevraagde dag zonder data: lege rij
+    return d.rename_axis('dag').reset_index().rename(columns=NAMEN)
 
 
 def haal(wm, budget=9000, per_uur=4500):
     L = pd.read_csv(os.path.join(wm, 'banen_locatie.csv')).sort_values('prio', ascending=False)
     D = pd.read_csv(os.path.join(wm, 'baan_dagen.csv'))
     f_dag = os.path.join(wm, 'weer_dag.csv'); f_klaar = os.path.join(wm, 'vensters_klaar.csv')
-    # al gedaan: dagen met weer, en dagen binnen een al opgehaald venster (ook als de dag geen uitkomst gaf)
+    # al gedaan: dagen in weer_dag.csv (ook lege rijen: opgevraagd, geen data). Een venster telt niet: oudere runs bewaarden alleen
+    # de wedstrijddagen van toen, en nieuwe racedagen binnen zo'n venster moeten nog worden opgehaald.
     gedaan = {}
     if os.path.exists(f_dag):
         for b_, g in pd.read_csv(f_dag, usecols=['baan', 'dag']).groupby('baan'):
             gedaan.setdefault(b_, set()).update(g['dag'].astype(int))
-    if os.path.exists(f_klaar):
-        for b_, s_, e_ in pd.read_csv(f_klaar)[['baan', 's', 'e']].itertuples(index=False):
-            gedaan.setdefault(b_, set()).update(range(int(s_), int(e_) + 1))
     gebruikt = 0; pauze = 3600.0 / per_uur; nieuw = []; nieuw_klaar = []
     try:
         for _, b in L.iterrows():

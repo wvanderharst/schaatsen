@@ -54,22 +54,29 @@ def _rust(dag, g, r, z, gebruik, GN, GR, bw, bw_r, hl, k0, schaal, mu_o, sg_o):
         laatst = dag[i]; i = j
 
 
-def rust(dag, g, gap, p, gebruik, bw=0.02, bw_r=0.3, hl=1095.0, k0=100.0, schaal=True, rij=None):
-    """Rijen in willekeurige volgorde. rij: welke rijen mu en sigma krijgen (standaard: eindige p); gebruik: welke de schatting bijwerken.
-    Geeft p', de verandering in de log loss, mu en sigma."""
+def laag(dag, g, x, p, gebruik, GX, bw_x, bw=0.02, hl=1095.0, k0=100.0, schaal=True, rij=None):
+    """Algemene lopende laag op de kansschaal: mu en sigma als gladde functie van het niveau g en een kenmerk x (rooster GX,
+    bandbreedte bw_x). Rijen met x = NaN krijgen mu = 0, sigma = 1 en werken de schatting niet bij. Geeft p', verandering in de log loss,
+    mu en sigma."""
     ok = np.isfinite(p)
     rij = ok if rij is None else rij
-    idx = np.flatnonzero(rij); o = idx[np.argsort(dag[idx], kind='stable')]
+    heeft = np.isfinite(x)
+    idx = np.flatnonzero(rij & heeft); o = idx[np.argsort(dag[idx], kind='stable')]
     z = norm.ppf(np.clip(p, 1e-15, 1 - 1e-15))
-    r = np.log1p(np.clip(np.nan_to_num(gap, nan=400.0), 0, 400.0))
     mo = np.zeros(len(o)); so = np.ones(len(o))
-    _rust(dag[o].astype(np.float64), np.clip(np.nan_to_num(g[o], nan=0.2), -0.03, 0.45), r[o], np.nan_to_num(z[o]), (gebruik & ok)[o],
-          GN, GR, bw, bw_r, hl, k0, schaal, mo, so)
+    _rust(dag[o].astype(np.float64), np.clip(np.nan_to_num(g[o], nan=0.2), -0.03, 0.45), np.clip(x[o], GX[0], GX[-1]), np.nan_to_num(z[o]),
+          (gebruik & ok)[o], GN, GX, bw, bw_x, hl, k0, schaal, mo, so)
     mu = np.zeros(len(p)); sg = np.ones(len(p)); mu[o] = mo; sg[o] = so
     z2 = (z - mu) / sg
     p2 = np.where(ok, norm.cdf(z2), p)
     d = np.where(ok, np.log(sg) + 0.5 * (z2 ** 2 - z ** 2), 0.0)
     return p2, d, mu, sg
+
+
+def rust(dag, g, gap, p, gebruik, bw=0.02, bw_r=0.3, hl=1095.0, k0=100.0, schaal=True, rij=None):
+    """Rust en taper: laag met x = ln(1 + rustdagen) (rooster GR)."""
+    r = np.log1p(np.clip(np.nan_to_num(gap, nan=400.0), 0, 400.0))
+    return laag(dag, g, r, p, gebruik, GR, bw_r, bw=bw, hl=hl, k0=k0, schaal=schaal, rij=rij)
 
 
 def rust_terug(q, mu, sg):

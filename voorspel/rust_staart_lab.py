@@ -11,7 +11,7 @@ spec = importlib.util.spec_from_file_location('em', os.path.join(os.path.dirname
 em = importlib.util.module_from_spec(spec); spec.loader.exec_module(em)
 
 pad = sys.argv[1]; w = os.path.dirname(pad) or '.'
-V = pq.read_table(pad, columns=['skater_id', 'groep', 'dag', 'jaar', 'seizoen', 'afstand', 'tijd', 'pit', 'nll', 'ok', 'k_val', 'k_c']).to_pandas()
+V = pq.read_table(pad, columns=['skater_id', 'groep', 'dag', 'jaar', 'seizoen', 'afstand', 'tijd', 'pit', 'nll', 'ok', 'k_val', 'k_c', 'pred', 'theta', 'th_hat_veld']).to_pandas()
 V['afstand'] = V['afstand'].astype(str)
 K = pd.read_parquet(os.path.join(w, 'kenmerken.parquet'), columns=['skater_id', 'dag', 'afstand', 'tijd', 'gap']); K['afstand'] = K['afstand'].astype(str)
 V = V.merge(K.drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']), on=['skater_id', 'dag', 'afstand', 'tijd'], how='left')
@@ -26,6 +26,14 @@ if os.environ.get('VERDACHT', '0') == '1':                  # ritten die in ritt
 V = V[V['ok'] & np.isfinite(V['pit']) & V['afstand'].isin(sn.AFSTANDEN)].reset_index(drop=True)
 del K, O
 dag = V['dag'].to_numpy(); g = V['k_c'].to_numpy(); gap = V['gap'].to_numpy(); af = V['afstand'].to_numpy()
+import plafond as pf
+pgat = pf.gat(V['skater_id'].to_numpy(), V['afstand'].to_numpy(), V['dag'].to_numpy(), V['tijd'].to_numpy(), V['theta'].to_numpy(),
+              (V['pred'] - V['th_hat_veld']).to_numpy(), ~V['k_val'].to_numpy() & np.isfinite(V['theta'].to_numpy()),
+              W=float(os.environ.get('PLAFOND_W', '730')), k=int(os.environ.get('PLAFOND_K', '2')))
+pgat2 = pf.gat(V['skater_id'].to_numpy(), V['afstand'].to_numpy(), V['dag'].to_numpy(), V['tijd'].to_numpy(), V['theta'].to_numpy(),
+               (V['pred'] - V['th_hat_veld']).to_numpy(), ~V['k_val'].to_numpy() & np.isfinite(V['theta'].to_numpy()),
+               W=float(os.environ.get('PLAFOND2_W', '1095')), k=int(os.environ.get('PLAFOND2_K', '2')))
+print('bewezen niveau: rijen met waarde', int(np.isfinite(pgat).sum()), 'mediaan %.2f%%' % np.nanmedian(pgat), flush=True)
 geb = ~V['k_val'].to_numpy()
 p0 = V['pit'].to_numpy(); n0 = V['nll'].to_numpy()
 
@@ -36,6 +44,7 @@ NP = {'np': {}, 'np k1=30': {'k1': 30.0}, 'np k1=10': {'k1': 10.0}, 'np bw=.01':
       'np a1=.75 a0=.25': {'a1': 0.75, 'a0': 0.25}, 'np a0=.25': {'a0': 0.25}, 'np a0=.5': {'a0': 0.5}, 'np a1=.25 a0=.25': {'a1': 0.25, 'a0': 0.25}, 'np a1=.5 a0=.25 hl=365': {'a1': 0.5, 'a0': 0.25, 'hl': 365.0}}
 VARS = os.environ.get('VARS', 'rust,np,rust+np').split(',')
 TOON = os.environ.get('TOON', 'model,rust,np,rust+np').split(',')
+PLAFOND = {'plafond': {}, 'plafond bw=1': {'bw_x': 1.0}, 'plafond k0=30': {'k0': 30.0}, 'plafond hl=730': {'hl': 730.0}, 'plafond zonder schaal': {'schaal': False}}
 RIJDER = {'rijder': {}, 'rijder Q=.1': {'Q': 0.1}, 'rijder k=10': {'k': 10.0}, 'rijder hl=365': {'hl': 365.0}, 'rijder hl=1460': {'hl': 1460.0}}
 sid = V['skater_id'].to_numpy()
 cache = {}
@@ -46,6 +55,11 @@ for v in VARS:
         if pre not in cache:
             if laag in RUST:
                 pr, dr, _, _ = rl.rust(dag, g, gap, p_, geb, **RUST[laag])
+            elif laag == 'plafond2':
+                pr, dr, _, _ = rl.laag(dag, g, pgat2, p_, geb, pf.GX, 0.5, k0=30.0)
+            elif laag in PLAFOND:
+                kw_ = dict(PLAFOND[laag]); bwx = kw_.pop('bw_x', 0.5)
+                pr, dr, _, _ = rl.laag(dag, g, pgat, p_, geb, pf.GX, bwx, **kw_)
             elif laag in RIJDER:
                 pr, dr, _ = sn.rijder(dag, sid, p_, geb, **RIJDER[laag])
             else:

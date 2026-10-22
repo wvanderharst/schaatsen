@@ -392,3 +392,25 @@ pseudo-ritten), zodat afstanden en niveaus hun eigen extreme staart sneller lere
 \* 110 ritten minder (de verdachte). Kalibratie op het niveau vooraf: top < 2% 0 fouten, top < 6% 3 fouten (snel en traag 1/1000 0,80×,
 snel 1/100 0,93×). Nog niet goed: voorbij 1/5000 bij zwakkere rijders (10–18%, > 18%) en op 1500 m, 3000 m en 10 km te veel extreme
 snelle ritten (alle niveaus 1/10.000: 160 tegen 110); bij de top ligt alles binnen de band.
+
+## Lange-termijngeheugen: bewezen niveau (`plafond.py`, `rustlaag.laag`)
+
+Diagnose (`geheugen_diag.py`, 2020+, top < 3,5%): de op een na beste gecorrigeerde rit (q = ln t − theta, achteraf gecorrigeerd voor baan,
+ijs, weer en hoogte) van de laatste 2 jaar op dezelfde afstand, t.o.v. de verwachting vooraf, voorspelt de afwijking sterk: 2–3% sneller
+bewezen → gemiddeld z −0,15 en 1,40× zoveel snelle ritten (1/20); 0–1% trager bewezen → z +0,16 en 0,66×. Ook de afwijking van 1–2 jaar
+terug hangt nog samen met nu (helling +0,10). Het model vergat dus te snel wat een rijder al eens heeft laten zien.
+
+Twee lagen op de kansschaal (na de rustlaag), elk z' = (z − μ) / σ met μ en σ een gladde functie van het niveau en het verschil in % tussen
+de op een na beste gecorrigeerde rit in het venster en de verwachting vooraf (Gauss-kernels: niveau 2%, verschil 0,5%; halfwaardetijd 3 jaar;
+krimp 30 ritten), online uit eerdere dagen: venster 1 jaar en venster 3 jaar. De op een na beste maakt het robuust tegen één meevaller.
+
+| (2020+, log loss) | alle | toppers | elite | senior | toppers vooraf | elite vooraf | mediane fout elite |
+|---|---|---|---|---|---|---|---|
+| zonder bewezen niveau | −2,3576 | −3,0563 | −3,1731 | −2,7956 | −3,0479 | −3,1648 | 0,637% |
+| met bewezen niveau (1 en 3 jaar) | **−2,3634** | **−3,0640** | **−3,1873** | **−2,8011** | **−3,0550** | **−3,1775** | **0,628%** |
+
+Kalibratie op het niveau vooraf: top < 2% 0 fouten, top < 6% 3 fouten (snel 1/1000 0,76×, 1/100 0,91×, traag 1/1000 0,78×).
+Lollobrigida 3000 m Milano: 1 op 1134 (was 1 op 1236): haar sterke ritten (3:58,4 in Heerenveen-termen) lagen 11–12 maanden terug; in het jaar
+ervoor was haar op een na beste rit 4:00,2. Leerdam en Kok in Milano worden juist verrassender (1 op 64 en 1 op 137): hun verwachting lag al
+op of boven hun bewezen niveau, en gemiddeld vallen zulke rijders iets terug. Wat ontbreekt is het belang van de wedstrijd (pieken op de
+Spelen); de toernooinamen staan in de brondata (`data/`, kolom Toernooi).

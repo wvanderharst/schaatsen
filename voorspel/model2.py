@@ -26,7 +26,8 @@ HOOG_SCHAAL = os.environ.get('HOOG_SCHAAL', '0') == '1'
 SCHOK = os.environ.get('SCHOK', '0') == '1'      # schokgeheugen uit het filter in correcties/schaal/vorm (niet geldig getoetst; vervangen door de vormlaag)
 VORM = os.environ.get('VORM', '1') == '1'          # vormlaag op de kansschaal (vormlaag.py)
 VORM_TOP = os.environ.get('VORM_TOP', '1') == '1'
-STAART_IJK = os.environ.get('STAART_IJK', '1') == '1'      # lopende ijking van de snelle staart (staartijking.py), na de vormlaag
+STAART_IJK = os.environ.get('STAART_IJK', '1') == '1'
+GEZAMENLIJK = os.environ.get('GEZAMENLIJK', '1') == '1'    # per baan lopende factor op de gezamenlijke (race-brede) onzekerheid      # lopende ijking van de snelle staart (staartijking.py), na de vormlaag
 SNEL_A = float(os.environ.get('SNEL_A', '0'))     # 0,2 haalt de baanbias weg (SLC -0,11 -> -0,04) maar maakt de log loss slechter (elite -3,149 -> -3,135)
 SNEL_K = 20.0
 Q_STAART = 0.02                                       # snelle staart voorbij deze kans krijgt een eigen (dikkere) vorm      # halfwaardetijd (dagen) van de online biascorrectie; 0 = uit
@@ -204,6 +205,40 @@ def kwantiel_u(K, par_t, Zq, q):
         if s_.any():
             uq[s_] = tw_ppf(p, q[s_], Zq[s_])
     return uq
+
+
+def gezamenlijk_factor(K, r, sc_r, sc_i, ok, hl=730.0, k0=20.0, n_min=8, lo=0.6, hi=2.5):
+    """Per baan: hoe groot is de gezamenlijke afwijking van een race (het hele veld samen sneller of trager dan voorspeld) t.o.v. de
+    gezamenlijke onzekerheid in het model (sc_i)? Op buitenbanen en hoogland is die groter (tot 2x), op sommige binnenbanen kleiner.
+    Per race c = mediaan residu van de rijders (>= n_min), met de ruis van de rijders eraf: c^2 - 1,57 gem(sc_r^2) / n.
+    Factor = wortel((som w (c^2 - ruis) + k0 gem sc_i^2) / (som w sc_i^2 + k0 gem sc_i^2)), alleen EERDERE dagen op die baan,
+    uitdovend met halfwaardetijd hl dagen, gekrompen naar 1 met k0 races, begrensd op [lo, hi]."""
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    D = pd.DataFrame({'baan': K['baan'].to_numpy(), 'dag': K['dag'].to_numpy(), 'event_id': K['event_id'].to_numpy(), 'gender': K['gender'].to_numpy(),
+                      'afstand_idx': K['afstand_idx'].to_numpy(), 'r': np.where(ok & np.isfinite(r), r, np.nan), 'v_r': sc_r ** 2, 'sci': sc_i})
+    R = D.groupby(rk).agg(baan=('baan', 'first'), c=('r', 'median'), n=('r', 'count'), v_r=('v_r', 'mean'), sci=('sci', 'mean')).reset_index()
+    R = R.sort_values(['baan', 'dag'], kind='stable').reset_index(drop=True)
+    bruik = (R['n'] >= n_min).to_numpy() & np.isfinite(R['c'].to_numpy())
+    x = np.where(bruik, np.clip(R['c'].to_numpy(), -0.04, 0.04) ** 2 - 1.57 * R['v_r'].to_numpy() / np.maximum(R['n'].to_numpy(), 1), 0.0)
+    m2 = np.where(bruik, R['sci'].to_numpy() ** 2, 0.0); m0 = np.nanmean(R['sci'].to_numpy() ** 2)
+    b_ = R['baan'].to_numpy(); d_ = R['dag'].to_numpy().astype(float); fac = np.ones(len(R)); i = 0; n = len(R)
+    while i < n:
+        j = i
+        while j < n and b_[j] == b_[i]:
+            j += 1
+        Sx = Sm = 0.0; laatst = None; q = i
+        while q < j:
+            p = q
+            while p < j and d_[p] == d_[q]:
+                p += 1
+            if laatst is not None:
+                f = 0.5 ** ((d_[q] - laatst) / hl); Sx *= f; Sm *= f
+            fac[q:p] = np.sqrt(max(Sx + k0 * m0, 1e-12) / (Sm + k0 * m0))
+            Sx += x[q:p].sum(); Sm += m2[q:p].sum()
+            laatst = d_[q]; q = p
+        i = j
+    R['fac'] = np.clip(fac, lo, hi)
+    return K[rk].merge(R[rk + ['fac']], on=rk, how='left')['fac'].fillna(1.0).to_numpy()
 
 
 def vorm_toepassen(K, fit, ok, verbose=True):
@@ -399,6 +434,8 @@ def draai(w, par, verbose=True, segment=True):
     rci = (rc['theta'] - rc['th_hat_veld']).to_numpy()                 # onzekerheid van het dagpeil zelf (op raceniveau)
     gi = np.linalg.lstsq(Ix(rc), np.log(np.abs(rci) + 1e-5), rcond=None)[0]
     sc_i = np.exp(Ix(K) @ gi); sc_i *= np.median(np.abs(rci) / np.exp(Ix(rc) @ gi)) / 0.6745
+    if GEZAMENLIJK:
+        sc_i = sc_i * gezamenlijk_factor(K, (np.log(K['tijd']) - K['pred']).to_numpy(), sc_r, sc_i, ok & ~K['k_val'].to_numpy())
     K['sd'] = np.sqrt(sc_r ** 2 + sc_i ** 2); K['sd_rijder'] = sc_r; K['sd_ijs'] = sc_i
     K['err'] = np.log(K['tijd']) - K['pred']; K['u'] = K['err'] / K['sd']
     K['ag'] = K['afstand'].map(GROEP); K['nll'] = np.nan; K['pit'] = np.nan; par_t = {}

@@ -7,10 +7,10 @@ import numpy as np, pandas as pd
 import kalman_mv2 as kf, baanfactor as bf
 from kalman import voorbereid
 w = sys.argv[1]; par = json.load(open(sys.argv[2]))
-basis = os.path.join(w, 'ritten_cat_basis.parquet')
+basis = os.path.join(w, os.environ.get('BASIS', 'ritten_cat_basis.parquet'))       # BASIS=ritten_cat_basis_veld.parquet: dagpeil zonder krimp (dagpeil_veld.py)
 if not os.path.exists(basis):
     shutil.copy(os.path.join(w, 'ritten_cat.parquet'), basis)
-R0 = pd.read_parquet(basis).drop(columns=['theta_rijder'], errors='ignore')
+R0 = pd.read_parquet(basis).drop(columns=['theta_rijder', 'theta_oud'], errors='ignore')
 df, inv = voorbereid(R0.copy()); o = kf.pass_(inv, par)
 g = o['c']; wv = 1 / np.maximum(o['vl'] + o['r'], 1e-6)
 gbar = bf.veldniveau(inv['rk'], g, wv)

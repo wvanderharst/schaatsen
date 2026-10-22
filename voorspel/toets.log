@@ -1,35 +1,36 @@
-vormlaag locatie m7 -0.063 m30 +0.010 m90 +0.202 neg7 +0.048 neg30 +0.056 neg90 -0.009 pos7 -0.141 pos30 -0.157 pos90 -0.047 veld_m7 +0.021 veld_m30 +0.107 veld_m90 +0.112 m7_w +0.116 m30_w -0.016 m90_w -0.078 neg7_w -0.003 neg30_w -0.034 neg90_w -0.100 pos7_w +0.001 pos30_w +0.026 pos90_w +0.082 veld_m7_w +0.074 veld_m30_w +0.031 veld_m90_w -0.027
-vormlaag schaal  v7 +0.112 v30 -0.119 v90 +0.217 v7_w +0.062 v30_w -0.046 v90_w -0.141
-staart b (snel, voorbij 2%): b0 0.915  b1 (x exp(-niveau/4%)) -0.012
-ijs-coef [ 0.     0.981  0.168  0.266  0.361  0.002 -0.005  0.058  0.701] | tijd 1462 s
+vormlaag locatie m7 -0.088 m30 +0.035 m90 +0.191 neg7 +0.028 neg30 +0.054 neg90 -0.004 pos7 -0.115 pos30 -0.145 pos90 -0.055 veld_m7 -0.107 veld_m30 +0.105 veld_m90 +0.105 m7_w +0.096 m30_w -0.013 m90_w -0.076 neg7_w -0.007 neg30_w -0.025 neg90_w -0.086 pos7_w +0.000 pos30_w +0.023 pos90_w +0.073 veld_m7_w +0.026 veld_m30_w +0.019 veld_m90_w -0.031
+vormlaag schaal  v7 +0.109 v30 -0.112 v90 +0.210 v7_w +0.064 v30_w -0.041 v90_w -0.151
+staart b (snel, voorbij 2%): b0 0.924  b1 (x exp(-niveau/4%)) -0.039
+ijs-coef [-0.     0.965  0.047  0.206  0.314  0.002 -0.004  0.059  0.719  0.037
+  0.011 -0.055  0.08   0.004  0.371 -1.125 -0.3    0.468] | tijd 1564 s
                   jong   ouder
-const           0.0025  0.0154
-g               0.0258 -0.0039
-g2             -0.0893 -0.0239
-f               0.2671  0.1570
+const           0.0026  0.0154
+g               0.0257 -0.0039
+g2             -0.0892 -0.0240
+f               0.2661  0.1568
 ela             0.0136  0.0386
 elany           0.0059  0.0433
-pr             -0.0927 -0.0589
-pr_n            0.6576  0.7125
-pr_geen        -0.0736 -0.0025
-prraw          -0.0427 -0.0189
-sb3             0.0920  0.0772
+pr             -0.0916 -0.0577
+pr_n            0.6586  0.7127
+pr_geen        -0.0737 -0.0027
+prraw          -0.0445 -0.0202
+sb3             0.0924  0.0773
 sb3_geen       -0.0028  0.0049
-sbc             0.0830  0.1787
+sbc             0.0829  0.1786
 sbc_geen        0.0004  0.0001
-a1              0.0078  0.1433
-a1_dt           0.0378 -1.0457
-a2             -0.0068 -0.0237
-a2_dt          -0.0623  0.1452
-a3             -0.0000 -0.0008
+a1              0.0078  0.1432
+a1_dt           0.0378 -1.0450
+a2             -0.0068 -0.0236
+a2_dt          -0.0623  0.1451
+a3              0.0000 -0.0008
 a3_dt           0.0000  0.0071
 a4              0.0000  0.0025
 a4_dt           0.0000 -0.0038
-leeftijd_onb   -0.0000 -0.0030
+leeftijd_onb    0.0000 -0.0030
 dt              0.0233 -0.0116
-inv_n          -0.0282 -0.0395
+inv_n          -0.0282 -0.0394
 logn           -0.0004 -0.0020
-nieuw_af        0.1281  0.0388
+nieuw_af        0.1282  0.0389
 onz             0.0006  0.0011
 seizoenstart    0.0036  0.0025
 lgap           -0.0001 -0.0004
@@ -38,83 +39,83 @@ uit_traag       0.0007  0.0015
 vrouw           0.0013  0.0008
 af_1000m       -0.0001  0.0001
 af_1500m        0.0005 -0.0002
-af_3000m        0.0017 -0.0004
+af_3000m        0.0016 -0.0004
 af_5000m        0.0048  0.0022
-af_10000m       0.0030  0.0016
-g_w            -0.0142 -0.0871
-g2_w            1.1214  1.3715
-f_w            -0.5964  0.0379
-ela_w           0.0003 -0.0112
-elany_w        -0.0958 -0.1276
-pr_w            0.7157  0.3416
-pr_n_w         -2.7554 -1.5256
-pr_geen_w       0.6878 -0.0981
-prraw_w         0.0329 -0.0697
-sb3_w          -0.2810 -0.0873
+af_10000m       0.0029  0.0016
+g_w            -0.0142 -0.0867
+g2_w            1.1196  1.3665
+f_w            -0.5961  0.0378
+ela_w           0.0002 -0.0112
+elany_w        -0.0959 -0.1277
+pr_w            0.7173  0.3437
+pr_n_w         -2.7596 -1.5244
+pr_geen_w       0.6889 -0.0983
+prraw_w         0.0332 -0.0718
+sb3_w          -0.2824 -0.0873
 sb3_geen_w      0.0015 -0.0095
-sbc_w          -0.2822 -0.3233
-sbc_geen_w     -0.0040 -0.0003
-a1_w           -0.0086 -0.5248
-a1_dt_w         0.0804  3.1635
-a2_w            0.0112  0.0901
-a2_dt_w         0.0550 -0.5160
-a3_w            0.0000  0.0065
+sbc_w          -0.2818 -0.3227
+sbc_geen_w     -0.0040 -0.0002
+a1_w           -0.0085 -0.5262
+a1_dt_w         0.0804  3.1623
+a2_w            0.0111  0.0904
+a2_dt_w         0.0551 -0.5161
+a3_w            0.0000  0.0066
 a3_dt_w         0.0000 -0.0321
-a4_w           -0.0000 -0.0687
-a4_dt_w         0.0000 -0.0095
-leeftijd_onb_w -0.0000  0.0145
-dt_w           -0.0258  0.0576
-inv_n_w         0.0817  0.0479
+a4_w            0.0000 -0.0686
+a4_dt_w         0.0000 -0.0100
+leeftijd_onb_w -0.0000  0.0146
+dt_w           -0.0258  0.0575
+inv_n_w         0.0818  0.0478
 logn_w          0.0024  0.0032
-nieuw_af_w     -0.8179  0.0721
+nieuw_af_w     -0.8192  0.0721
 onz_w           0.0016  0.0005
-seizoenstart_w -0.0004  0.0007
-lgap_w          0.0011  0.0011
+seizoenstart_w -0.0004  0.0006
+lgap_w          0.0011  0.0010
 uit_snel_w      0.0014  0.0015
 uit_traag_w    -0.0010 -0.0018
 vrouw_w        -0.0021 -0.0010
 af_1000m_w      0.0008  0.0011
-af_1500m_w     -0.0002  0.0013
-af_3000m_w     -0.0025  0.0010
+af_1500m_w     -0.0002  0.0014
+af_3000m_w     -0.0025  0.0011
 af_5000m_w     -0.0084 -0.0020
-af_10000m_w    -0.0043 -0.0013
-w              -0.0105 -0.0278
-alle            n=1107298 | mediaan |fout| %: oud 1.329  nieuw 1.279  basis 1.349 | gem |fout| %: oud 2.412 nieuw 2.270 | log loss: oud -2.3143 nieuw -2.3434 (verschil -0.0291)
-toppers >=90    n= 116337 | mediaan |fout| %: oud 0.741  nieuw 0.715  basis 0.727 | gem |fout| %: oud 0.970 nieuw 0.930 | log loss: oud -2.9888 nieuw -3.0457 (verschil -0.0569)
-elite >=97      n=  40226 | mediaan |fout| %: oud 0.657  nieuw 0.648  basis 0.652 | gem |fout| %: oud 0.848 nieuw 0.834 | log loss: oud -3.1123 nieuw -3.1545 (verschil -0.0422)
-jong (t/m neo)  n= 822266 | mediaan |fout| %: oud 1.340  nieuw 1.288  basis 1.348 | gem |fout| %: oud 2.379 nieuw 2.252 | log loss: oud -2.3104 nieuw -2.3415 (verschil -0.0311)
-senior          n=  57092 | mediaan |fout| %: oud 0.903  nieuw 0.862  basis 0.892 | gem |fout| %: oud 1.537 nieuw 1.405 | log loss: oud -2.7255 nieuw -2.7763 (verschil -0.0508)
-kalibratie toppers >=90: 116337 ritten van 2929 rijders, 7 fouten
-  snel  kans<=1/1000 :   103 ritten, verwacht   116.3 ±  10.8 (0.89x) ok
-  snel  kans<=1/100  :   980 ritten, verwacht  1163.4 ±  34.1 (0.84x) FOUT
-  snel  kans<=1/20   :  5507 ritten, verwacht  5816.9 ±  76.3 (0.95x) FOUT
-  snel  rijders met >=3 ritten kans<=1/50:  234, verwacht  289.2  FOUT
-  snel  rijders met >=4 ritten kans<=1/50:  120, verwacht  135.7  ok
-  snel  rijders met >=5 ritten kans<=1/50:   48, verwacht   59.7  ok
-  snel  rijders met >=6 ritten kans<=1/50:   24, verwacht   24.4  ok
-  snel  rijders met >=8 ritten kans<=1/50:    6, verwacht    3.3  ok
-  traag kans<=1/1000 :   130 ritten, verwacht   116.3 ±  10.8 (1.12x) ok
-  traag kans<=1/100  :  1198 ritten, verwacht  1163.4 ±  34.1 (1.03x) ok
-  traag kans<=1/20   :  5597 ritten, verwacht  5816.9 ±  76.3 (0.96x) FOUT
-  traag rijders met >=3 ritten kans<=1/50:  298, verwacht  289.2  ok
-  traag rijders met >=4 ritten kans<=1/50:  168, verwacht  135.7  FOUT
-  traag rijders met >=5 ritten kans<=1/50:   92, verwacht   59.7  FOUT
-  traag rijders met >=6 ritten kans<=1/50:   37, verwacht   24.4  FOUT
+af_10000m_w    -0.0042 -0.0012
+w              -0.0106 -0.0278
+alle            n=1107298 | mediaan |fout| %: oud 1.329  nieuw 1.275  basis 1.333 | gem |fout| %: oud 2.412 nieuw 2.267 | log loss: oud -2.3143 nieuw -2.3461 (verschil -0.0318)
+toppers >=90    n= 116337 | mediaan |fout| %: oud 0.741  nieuw 0.713  basis 0.715 | gem |fout| %: oud 0.970 nieuw 0.927 | log loss: oud -2.9888 nieuw -3.0495 (verschil -0.0607)
+elite >=97      n=  40226 | mediaan |fout| %: oud 0.657  nieuw 0.649  basis 0.644 | gem |fout| %: oud 0.848 nieuw 0.833 | log loss: oud -3.1123 nieuw -3.1557 (verschil -0.0434)
+jong (t/m neo)  n= 822266 | mediaan |fout| %: oud 1.340  nieuw 1.284  basis 1.332 | gem |fout| %: oud 2.379 nieuw 2.248 | log loss: oud -2.3104 nieuw -2.3439 (verschil -0.0335)
+senior          n=  57092 | mediaan |fout| %: oud 0.903  nieuw 0.859  basis 0.882 | gem |fout| %: oud 1.537 nieuw 1.401 | log loss: oud -2.7255 nieuw -2.7803 (verschil -0.0548)
+kalibratie toppers >=90: 116337 ritten van 2929 rijders, 8 fouten
+  snel  kans<=1/1000 :   111 ritten, verwacht   116.3 ±  10.8 (0.95x) ok
+  snel  kans<=1/100  :   965 ritten, verwacht  1163.4 ±  34.1 (0.83x) FOUT
+  snel  kans<=1/20   :  5538 ritten, verwacht  5816.9 ±  76.3 (0.95x) FOUT
+  snel  rijders met >=3 ritten kans<=1/50:  237, verwacht  289.2  FOUT
+  snel  rijders met >=4 ritten kans<=1/50:  105, verwacht  135.7  FOUT
+  snel  rijders met >=5 ritten kans<=1/50:   55, verwacht   59.7  ok
+  snel  rijders met >=6 ritten kans<=1/50:   25, verwacht   24.4  ok
+  snel  rijders met >=8 ritten kans<=1/50:    5, verwacht    3.3  ok
+  traag kans<=1/1000 :   152 ritten, verwacht   116.3 ±  10.8 (1.31x) FOUT
+  traag kans<=1/100  :  1245 ritten, verwacht  1163.4 ±  34.1 (1.07x) FOUT
+  traag kans<=1/20   :  5671 ritten, verwacht  5816.9 ±  76.3 (0.97x) ok
+  traag rijders met >=3 ritten kans<=1/50:  303, verwacht  289.2  ok
+  traag rijders met >=4 ritten kans<=1/50:  173, verwacht  135.7  FOUT
+  traag rijders met >=5 ritten kans<=1/50:   88, verwacht   59.7  FOUT
+  traag rijders met >=6 ritten kans<=1/50:   33, verwacht   24.4  ok
   traag rijders met >=8 ritten kans<=1/50:    6, verwacht    3.3  ok
-kalibratie elite >=97: 40226 ritten van 1042 rijders, 0 fouten
-  snel  kans<=1/1000 :    40 ritten, verwacht    40.2 ±   6.3 (0.99x) ok
-  snel  kans<=1/100  :   369 ritten, verwacht   402.3 ±  20.1 (0.92x) ok
-  snel  kans<=1/20   :  2035 ritten, verwacht  2011.3 ±  44.8 (1.01x) ok
-  snel  rijders met >=3 ritten kans<=1/50:   93, verwacht   98.7  ok
-  snel  rijders met >=4 ritten kans<=1/50:   39, verwacht   46.1  ok
-  snel  rijders met >=5 ritten kans<=1/50:   14, verwacht   20.2  ok
-  snel  rijders met >=6 ritten kans<=1/50:    5, verwacht    8.2  ok
-  snel  rijders met >=8 ritten kans<=1/50:    0, verwacht    1.1  ok
+kalibratie elite >=97: 40226 ritten van 1042 rijders, 2 fouten
+  snel  kans<=1/1000 :    41 ritten, verwacht    40.2 ±   6.3 (1.02x) ok
+  snel  kans<=1/100  :   358 ritten, verwacht   402.3 ±  20.1 (0.89x) FOUT
+  snel  kans<=1/20   :  2032 ritten, verwacht  2011.3 ±  44.8 (1.01x) ok
+  snel  rijders met >=3 ritten kans<=1/50:   88, verwacht   98.7  ok
+  snel  rijders met >=4 ritten kans<=1/50:   33, verwacht   46.1  ok
+  snel  rijders met >=5 ritten kans<=1/50:   18, verwacht   20.2  ok
+  snel  rijders met >=6 ritten kans<=1/50:    9, verwacht    8.2  ok
+  snel  rijders met >=8 ritten kans<=1/50:    1, verwacht    1.1  ok
   traag kans<=1/1000 :    42 ritten, verwacht    40.2 ±   6.3 (1.04x) ok
-  traag kans<=1/100  :   413 ritten, verwacht   402.3 ±  20.1 (1.03x) ok
-  traag kans<=1/20   :  1949 ritten, verwacht  2011.3 ±  44.8 (0.97x) ok
-  traag rijders met >=3 ritten kans<=1/50:   98, verwacht   98.7  ok
-  traag rijders met >=4 ritten kans<=1/50:   52, verwacht   46.1  ok
+  traag kans<=1/100  :   427 ritten, verwacht   402.3 ±  20.1 (1.06x) ok
+  traag kans<=1/20   :  2001 ritten, verwacht  2011.3 ±  44.8 (0.99x) ok
+  traag rijders met >=3 ritten kans<=1/50:   95, verwacht   98.7  ok
+  traag rijders met >=4 ritten kans<=1/50:   56, verwacht   46.1  ok
   traag rijders met >=5 ritten kans<=1/50:   30, verwacht   20.2  ok
-  traag rijders met >=6 ritten kans<=1/50:   12, verwacht    8.2  ok
+  traag rijders met >=6 ritten kans<=1/50:   15, verwacht    8.2  FOUT
   traag rijders met >=8 ritten kans<=1/50:    3, verwacht    1.1  ok

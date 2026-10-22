@@ -210,3 +210,26 @@ Toets (2020+, dezelfde ritten als het oude model):
 | + weer, alle banen (98,6% van de ritten) | **−2,3434** | **−3,0457** | −3,1545 | **−2,7763** | 0,648% | 7 / **0** |
 
 Elite met weer: snel 1/1000 0,99×, 1/100 0,92×, 1/20 1,01×; traag 1,04×, 1,03×, 0,97×.
+
+## Nieuwe banen en snel veranderende omstandigheden (`model.startpeil_kenmerken`, `model.afwijking_kenmerken`)
+
+Aanleiding: Milano 2026. Het model verwachtte de nieuwe olympische baan vooraf 1,2–1,5% trager dan Heerenveen; gemeten was het ongeveer even
+snel (op vijf sprintafstanden sneller dan het baanrecord van Heerenveen).
+- **Kleine races** (< 5 rijders met een tijd: trainingen, tijdritten) tellen niet mee in de geschiedenis van het ijs (`kenmerken._ijs`).
+  In de schatting tellen ze wel, met een functie van de startlijst exp(−rijders/5): kleine races lopen trager.
+- **Startpeil van een nieuwe baan:** eerst het gemiddelde van alle banen (veel trage en buitenbanen). Nu een functie van het niveau
+  van het veld en van de hoogte (gewone luchtdruk), met gewicht exp(−eerdere races op de baan / 5).
+- **Eerdere toernooidagen** gemeten t.o.v. de verwachting vooraf (eerst t.o.v. het eigen dagpeil, en dat is op een nieuwe baan altijd 0).
+- **Snel veranderende omstandigheden:** de afwijking van eerdere races op deze baan t.o.v. de verwachting vooraf, uitdovend met
+  halfwaardetijd 7 en 60 dagen, gewogen naar het aantal rijders.
+- De onzekerheid van het ijs hangt ook af van de geschiedenis van de baan.
+
+Dagpeil vooraf (sd van de fout): toetsjaren 0,730% → 0,703%; banen met < 30 eerdere races 1,84% → 1,45%. Milano, eerste olympische race:
++1,30% → +0,88% (de races van 4 februari, 13–18 rijders, waren 1,4% traag en trekken nog).
+
+| (2020+, log loss) | alle | toppers | elite | senior | mediane fout elite |
+|---|---|---|---|---|---|
+| met weer | −2,3434 | −3,0457 | −3,1545 | −2,7763 | 0,648% |
+| + nieuwe banen, snelle veranderingen, kleine races | **−2,3461** | **−3,0495** | **−3,1557** | **−2,7803** | 0,649% |
+
+Snelle staart (de belangrijkste): toppers 1/1000 0,95×, 1/100 0,83×, 1/20 0,95×; elite 1,02×, 0,89×, 1,01×.

@@ -106,13 +106,14 @@ const SOORT = { S: 'Spelen', W: 'WK', C: 'World Cup' };
 let IDX = null, META = null, rijders = [], blokken = new Map(), huidig = null;
 
 async function gz(pad) {
+  // data staat als base64-tekst van gzip-JSON (de artifact-host serveert geen .gz)
   const r = await fetch(pad);
   if (!r.ok) throw new Error(pad + ': ' + r.status);
-  if ('DecompressionStream' in window) {
-    const s = r.body.pipeThrough(new DecompressionStream('gzip'));
-    return JSON.parse(await new Response(s).text());
-  }
-  throw new Error('Deze browser kan de gecomprimeerde data niet openen.');
+  if (!('DecompressionStream' in window)) throw new Error('Deze browser kan de gecomprimeerde data niet openen.');
+  const bin = atob((await r.text()).trim()), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  const s = new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(s).text());
 }
 const tijd = s => { if (s == null) return ''; const m = Math.floor(s / 60), r = s - 60 * m; return (m ? m + ':' + r.toFixed(2).padStart(5, '0') : r.toFixed(2)).replace('.', ','); };
 const pct = (v, d = 1) => v == null ? '' : (v > 0 ? '+' : '') + v.toFixed(d).replace('.', ',') + '%';
@@ -123,7 +124,7 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;',
 
 async function start() {
   try {
-    const d = await gz('index.json.gz'); META = d.meta;
+    const d = await gz('index.txt'); META = d.meta;
     rijders = d.rijders.map(r => ({ id: r[0], naam: r[1], g: r[2], land: r[3], geb: r[4], van: r[5], tot: r[6], ritten: r[7], wk: r[8], os: r[9], wc: r[10], best: r[11], z: r[1].toLowerCase() }));
     const landen = [...new Set(rijders.map(r => r.land))].sort();
     document.getElementById('land').insertAdjacentHTML('beforeend', landen.map(l => `<option>${esc(l)}</option>`).join(''));
@@ -158,7 +159,7 @@ async function openRijder(id) {
   blad.innerHTML = `<div class="status">${esc(r.naam)} laden…</div>`;
   try { history.replaceState(null, '', '#r' + id); } catch (e) {}
   const b = id % META.nb;
-  if (!blokken.has(b)) blokken.set(b, await gz(`r/${b}.json.gz`));
+  if (!blokken.has(b)) blokken.set(b, await gz(`r/${b}.txt`));
   const d = blokken.get(b)[id]; huidig = { r, d, af: null, rpag: 0, rsz: '', raf: '' };
   const telling = {}; d.r.forEach(x => telling[x[1]] = (telling[x[1]] || 0) + 1);
   const seiz = Object.entries(d.s).map(([s, e]) => [+s, e]);
@@ -179,7 +180,7 @@ function tekenBlad() {
       <span>WK-titels <b>${r.wk}</b></span><span>Olympische titels <b>${r.os}</b></span><span>World Cup-zeges <b>${r.wc}</b></span></div>
     ${titels.length ? `<div class="titels">${titels.map(t => `<span class="pil goud">${esc(t)}</span>`).join('')}</div>` : ''}
     <section class="sectie"><h3>Loopbaan</h3>
-      <p class="uitleg">Achterstand op de top-10 van elk seizoen (niveau aan het eind van het seizoen, alleen afstanden met minstens drie ritten). Lager is beter; 0% is precies het niveau van de nummer 10 van de wereld dat jaar. Zo telt het stijgende niveau over de jaren mee.</p>
+      <p class="uitleg">Achterstand op de top-10 van elk seizoen (niveau aan het eind van het seizoen, alleen afstanden met minstens drie ritten). Hoger in de grafiek is beter; 0% is precies het niveau van de nummer 10 van de wereld dat jaar. Zo telt het stijgende niveau over de jaren mee.</p>
       <div class="grafiek" id="grafiek"></div></section>
     <section class="sectie"><h3>Per seizoen</h3>
       <div class="tabs" role="group" aria-label="Afstand">${afIn.map(a => `<button data-af="${a}" aria-pressed="${a === huidig.af}">${AFN[AFK.indexOf(a)]}</button>`).join('')}</div>

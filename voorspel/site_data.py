@@ -59,7 +59,9 @@ def main(w, uit):
     laatste = int(M['seizoen'].max())
     for j, a in enumerate(AF):
         x = M[['skater_id', 'seizoen', 'gender', 'leeftijd', 'x_' + a, 'na_' + a]].rename(columns={'x_' + a: 'x', 'na_' + a: 'na'})
-        x = x[x['na'] >= (2 if j < 2 else 2)].copy(); x['afstand'] = a
+        x = x[x['na'] >= 2].copy(); x['afstand'] = a
+        if a == '10000m':
+            x = x[x['gender'] != 'v']                  # geen officiele afstand bij de vrouwen: de 'top-10' zijn marathonrijdsters
         sen = x[(x['leeftijd'] >= 21) & (x['na'] >= 3)]
         t10 = sen.groupby(['gender', 'seizoen'])['x'].apply(lambda v: np.sort(v.to_numpy())[9] if len(v) >= 10 else np.nan).rename('t10')
         t10 = t10.groupby(level='gender').transform(lambda v: v.rolling(3, center=True, min_periods=1).mean())
@@ -87,7 +89,7 @@ def main(w, uit):
                                                          b=('geboren', 'last'), v=('seizoen', 'min'), t=('seizoen', 'max'), k=('tijd', 'size'))
     titels_rijder = per.groupby(level='skater_id')[['n_wk', 'n_os', 'n_wc']].sum()
     info = info.join(titels_rijder).fillna({'n_wk': 0, 'n_os': 0, 'n_wc': 0})
-    beste = Z[(Z['na'] >= 3)].groupby('skater_id')['achter_t10'].min()
+    beste = Z[(Z['na'] >= 3) & Z['afstand'].isin(AF[2:])].groupby('skater_id')['achter_t10'].min()
     info['best'] = beste
     info['blok'] = (info.index.to_numpy() % NB)
     banen = sorted(R['baan'].unique()); bidx = {b: i for i, b in enumerate(banen)}

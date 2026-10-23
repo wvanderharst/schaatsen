@@ -81,7 +81,7 @@ def momenten(w):
     return J.reset_index(drop=True)
 
 
-VARIANT = os.environ.get('TVAR', 'glad')
+VARIANT = os.environ.get('TVAR', 'rel+')
 
 
 def ontwerp(D):
@@ -235,9 +235,84 @@ def nu(J, per, tot):
     return uit.fillna(0.0)
 
 
+def ijk_kans(S, y):
+    """Gladde ijking p = 1 - exp(-c S^d) op voorspellingen buiten de steekproef (S = som van de verwachte eerste-zeges)."""
+    from scipy.optimize import minimize
+    S = np.clip(S, 1e-9, None)
+    def f(t):
+        p = np.clip(1 - np.exp(-np.exp(t[0]) * S ** t[1]), 1e-12, 1 - 1e-12)
+        return -np.sum(y * np.log(p) + (1 - y) * np.log(1 - p))
+    t = minimize(f, [0.0, 1.0], method='Nelder-Mead').x
+    return np.exp(t[0]), t[1]
+
+
+def ijk_aantal(S, n):
+    """Gladde ijking E = c S^d (Poisson) op voorspellingen buiten de steekproef."""
+    from scipy.optimize import minimize
+    S = np.clip(S, 1e-9, None)
+    f = lambda t: -np.sum(n * (t[0] + t[1] * np.log(S)) - np.exp(t[0]) * S ** t[1])
+    t = minimize(f, [0.0, 1.0], method='Nelder-Mead').x
+    return np.exp(t[0]), t[1]
+
+
+def alle(J, per, tot):
+    """Voor elke junior-momentopname de voorspelling over de hele carriere (tot en met MAX_LFT): kans op minstens een en verwacht aantal,
+    voor WK-titels, olympische titels en World Cup-zeges. Geschiedenis: buiten de steekproef (kruisfit even/oneven geboortejaren);
+    de jeugd van nu (momentopname in de laatste twee seizoenen): gefit op alles. IJking (kans en aantal) op de waargenomen seizoenen buiten
+    de steekproef."""
+    eind = int((J['geboren'] + MAX_LFT).max())
+    tt = toekomst_totalen(np.arange(LAATSTE + 1, eind + 1))
+    tt['n_wc'] = float(np.mean([tot['n_wc'].get((g, s), np.nan) for g in ('m', 'v') for s in range(2022, LAATSTE + 1)]))
+    nu_ = (J['seizoen'] >= LAATSTE - 1).to_numpy()
+    U = J[['skater_id', 'seizoen']].copy()
+    for doel, kort in (('n_wk', 'wk'), ('n_os', 'os'), ('n_wc', 'wc')):
+        som = {}
+        for eerste in (False, True):
+            if doel == 'n_os':
+                a, b = os_rijen(J, per, tot, eerste); Dfit = pd.concat([a, b], ignore_index=True)
+                _, Dall = os_rijen(J, per, tot, False, tt, eind)
+            else:
+                Dfit = rijen(J, per, tot, doel, eerste)
+                Dall = rijen(J, per, tot, doel, False, tt, eind)
+            Dall = Dall.copy(); Dall['mu'] = np.nan
+            for par in (0, 1):
+                m_ = (Dall['geboren'] % 2 == par).to_numpy()
+                Dall.loc[m_, 'mu'] = fit_voorspel(Dfit[Dfit['geboren'] % 2 != par], Dall[m_], extra=(doel == 'n_os'))
+            idx_nu = Dall['seizoen'].to_numpy() >= LAATSTE - 1
+            Dall['mu_alles'] = Dall['mu']
+            Dall.loc[idx_nu, 'mu_alles'] = fit_voorspel(Dfit, Dall[idx_nu], extra=(doel == 'n_os'))
+            Dall['obs'] = Dall['s'] <= LAATSTE
+            k = ['skater_id', 'seizoen']
+            som[eerste] = (Dall.groupby(k)['mu_alles'].sum().rename('carriere'),
+                           Dall[Dall['obs']].groupby(k).agg(venster=('mu', 'sum'), y=('y', 'sum')))
+        # ijking op het waargenomen venster (buiten de steekproef); voor de kans alleen wie nog niet eerder won
+        V0 = som[False][1]; V1 = som[True][1]
+        eerder = per[per[doel] > 0].reset_index().groupby('skater_id')['seizoen'].min()
+        V1 = V1.join(J.set_index(k)[[]], how='left')
+        al = V1.index.get_level_values(0).map(eerder).fillna(9999).to_numpy() <= V1.index.get_level_values(1).to_numpy()
+        ca, da = ijk_aantal(V0['venster'].to_numpy(), V0['y'].to_numpy())
+        ck, dk = ijk_kans(V1['venster'].to_numpy()[~al], (V1['y'].to_numpy()[~al] > 0).astype(float))
+        print(f'{doel}: ijking aantal c {ca:.3f} d {da:.3f} | kans c {ck:.3f} d {dk:.3f}', flush=True)
+        car0 = som[False][0]; car1 = som[True][0]
+        U = U.join((ca * np.clip(car0, 1e-12, None) ** da).rename('e_' + kort), on=k)
+        U = U.join((1 - np.exp(-ck * np.clip(car1, 1e-12, None) ** dk)).rename('p_' + kort), on=k)
+    return U.fillna({'e_wk': 0, 'p_wk': 0, 'e_os': 0, 'p_os': 0, 'e_wc': 0, 'p_wc': 0})
+
+
 if __name__ == '__main__' and os.environ.get('ALLEEN_TOETS'):
     w = sys.argv[1]; per, tot, T = uitkomsten(w); J = momenten(w)
     import pickle; pickle.dump((per, tot, J), open(os.path.join(w, 'titels_invoer.pkl'), 'wb'))
+    sys.exit(0)
+
+if __name__ == '__main__' and os.environ.get('ALLEEN_ALLE'):
+    import pickle
+    w = sys.argv[1]; per, tot, J = pickle.load(open(os.path.join(w, 'titels_invoer.pkl'), 'rb'))
+    U = alle(J, per, tot); U.to_parquet(os.path.join(w, 'titels_alle.parquet'))
+    N = U.merge(J[['skater_id', 'seizoen', 'naam', 'gender', 'land', 'geboren', 'leeftijd']], on=['skater_id', 'seizoen'])
+    N = N[N['seizoen'] >= LAATSTE - 1].sort_values('seizoen').groupby('skater_id').tail(1)
+    N.to_csv(os.path.join(HIER, f'titelkansen_junioren_{LAATSTE + 1}.csv'), index=False)
+    for g, x in N.groupby('gender'):
+        print(f'\n{g}:'); print(x.sort_values('p_wk', ascending=False).head(25)[['naam', 'land', 'geboren', 'leeftijd', 'p_wk', 'e_wk', 'p_os', 'e_os', 'p_wc', 'e_wc']].round(3).to_string(index=False))
     sys.exit(0)
 
 if __name__ == '__main__':
@@ -250,6 +325,10 @@ if __name__ == '__main__':
     print('\n'.join(regels))
     for doel, M in res.items():
         M.reset_index().to_parquet(os.path.join(w, f'titels_toets_{doel}.parquet'))
-    U = nu(J, per, tot)
-    U.reset_index().to_parquet(os.path.join(w, 'titels_nu.parquet'))
-    print(U.sort_values('n_wk_kans', ascending=False).groupby('gender').head(15).to_string())
+    U = alle(J, per, tot)
+    U.to_parquet(os.path.join(w, 'titels_alle.parquet'))
+    N = U.merge(J[['skater_id', 'seizoen', 'naam', 'gender', 'land', 'geboren', 'leeftijd']], on=['skater_id', 'seizoen'])
+    N = N[N['seizoen'] >= LAATSTE - 1].sort_values('seizoen').groupby('skater_id').tail(1)
+    N.to_csv(os.path.join(HIER, f'titelkansen_junioren_{LAATSTE + 1}.csv'), index=False)
+    for g, x in N.groupby('gender'):
+        print(f'\n{g}:'); print(x.sort_values('p_wk', ascending=False).head(25)[['naam', 'land', 'geboren', 'leeftijd', 'p_wk', 'e_wk', 'p_os', 'e_os', 'p_wc', 'e_wc']].round(3).to_string(index=False))

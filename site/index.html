@@ -1,0 +1,252 @@
+<title>Schaatsarchief</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: zoekkolom links, rijderpagina rechts (op de telefoon onder elkaar); het rijderblad leest als een wedstrijduitslag:
+   smalle cijferkolommen, tabular nums, het ijsblauw als achtergrond en het oranje van de baanmarkering als enige accent. */
+:root {
+  --bg: #f3f6f9; --paneel: #ffffff; --lijn: #d6dee6; --fg: #14202b; --zacht: #5a6b7a;
+  --accent: #d9480f; --accent-zacht: #fde6d9; --ijs: #2f6f9f; --goed: #2b8a3e; --slecht: #b42318;
+  --kop: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --tekst: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --cijfer: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1620; --paneel: #15212d; --lijn: #283847; --fg: #e3ebf2; --zacht: #8fa3b5;
+  --accent: #ff7a3d; --accent-zacht: #3a2116; --ijs: #7fb6e0; --goed: #5fd07a; --slecht: #ff8a7a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e1620; --paneel: #15212d; --lijn: #283847; --fg: #e3ebf2; --zacht: #8fa3b5;
+  --accent: #ff7a3d; --accent-zacht: #3a2116; --ijs: #7fb6e0; --goed: #5fd07a; --slecht: #ff8a7a; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font-family: var(--tekst); font-size: 15px; line-height: 1.45; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px }
+h1, h2, h3 { font-family: var(--kop); font-weight: 600; letter-spacing: .01em; text-wrap: balance; margin: 0 }
+h1 { font-size: 30px; text-transform: uppercase; letter-spacing: .04em }
+h2 { font-size: 26px }
+h3 { font-size: 18px; text-transform: uppercase; letter-spacing: .06em; color: var(--zacht) }
+.kop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin-bottom: 16px }
+.kop p { margin: 0; color: var(--zacht); max-width: 70ch }
+.raster { display: grid; grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 20px; align-items: start }
+@media (max-width: 860px) { .raster { grid-template-columns: minmax(0, 1fr) } }
+.paneel { background: var(--paneel); border: 1px solid var(--lijn); border-radius: 6px; padding: 14px; min-width: 0 }
+label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--zacht) }
+input, select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--lijn); border-radius: 4px; padding: 7px 9px; width: 100% }
+input:focus-visible, select:focus-visible, button:focus-visible, .rij:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px }
+.lijst { margin-top: 10px; max-height: 70vh; overflow-y: auto; border-top: 1px solid var(--lijn) }
+.rij { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 8px; padding: 8px 4px; border-bottom: 1px solid var(--lijn); cursor: pointer; background: none; border-left: 0; border-right: 0; border-top: 0; width: 100%; text-align: left; color: inherit; font: inherit }
+.rij:hover { background: var(--accent-zacht) }
+.rij .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.rij .m { color: var(--zacht); font-size: 13px }
+.rij .t { font-family: var(--cijfer); font-size: 12px; color: var(--accent); text-align: right }
+.leeg { color: var(--zacht); padding: 18px 4px }
+.naamkop { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline }
+.naamkop h2 { font-size: 34px; text-transform: uppercase; letter-spacing: .03em }
+.feiten { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--zacht); margin-top: 4px }
+.feiten b { color: var(--fg); font-weight: 600 }
+.titels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px }
+.pil { font-family: var(--kop); font-size: 14px; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--lijn); border-radius: 3px; padding: 2px 7px; background: var(--bg) }
+.pil.goud { border-color: var(--accent); color: var(--accent) }
+.sectie { margin-top: 22px; display: grid; gap: 10px }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px }
+.tabs button { font-family: var(--kop); font-size: 15px; letter-spacing: .03em; border: 1px solid var(--lijn); background: var(--bg); color: var(--fg); padding: 4px 10px; border-radius: 3px; cursor: pointer }
+.tabs button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg) }
+.tabelbak { overflow-x: auto; border: 1px solid var(--lijn); border-radius: 4px }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px }
+th, td { padding: 5px 8px; border-bottom: 1px solid var(--lijn); text-align: right; white-space: nowrap }
+th { font-family: var(--kop); font-weight: 600; font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--zacht); background: var(--paneel); position: sticky; top: 0 }
+td.l, th.l { text-align: left }
+td.c { font-family: var(--cijfer); font-variant-numeric: tabular-nums }
+tr.titelrij td { background: var(--accent-zacht) }
+.snel { color: var(--goed) } .traag { color: var(--slecht) }
+.uitleg { color: var(--zacht); font-size: 13px; max-width: 80ch; margin: 0 }
+.grafiek svg { width: 100%; height: auto; display: block }
+.grafiek text { fill: var(--zacht); font-family: var(--cijfer); font-size: 10px }
+.legenda { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--zacht) }
+.legenda span::before { content: ""; display: inline-block; width: 10px; height: 3px; margin-right: 5px; vertical-align: middle; background: var(--k) }
+.meer { margin-top: 8px; display: flex; gap: 8px; align-items: center; color: var(--zacht); font-size: 13px }
+.meer button { font: inherit; border: 1px solid var(--lijn); background: var(--bg); color: var(--fg); padding: 4px 10px; border-radius: 3px; cursor: pointer }
+.kans { font-family: var(--cijfer); font-size: 12.5px }
+.status { color: var(--zacht); font-size: 13px }
+@media (prefers-reduced-motion: no-preference) { .rij { transition: background .12s } }
+</style>
+
+<header class="kop">
+  <h1>Schaatsarchief</h1>
+  <p>Alle rijders en ritten sinds 2006. Elke tijd ook omgerekend naar een normale dag in Heerenveen, en elk seizoen gemeten tegen de wereldtop van dat jaar.</p>
+</header>
+
+<div class="raster">
+  <aside class="paneel" aria-label="Rijders zoeken">
+    <label for="zoek">Zoek een rijder</label>
+    <input id="zoek" type="search" placeholder="Naam, bijv. Leerdam" autocomplete="off">
+    <div class="filters">
+      <div><label for="geslacht">Geslacht</label>
+        <select id="geslacht"><option value="">Allen</option><option value="v">Vrouwen</option><option value="m">Mannen</option></select></div>
+      <div><label for="land">Land</label><select id="land"><option value="">Alle landen</option></select></div>
+      <div><label for="sorteer">Volgorde</label>
+        <select id="sorteer"><option value="best">Beste niveau ooit</option><option value="titels">Titels</option><option value="recent">Laatst actief</option><option value="naam">Naam</option></select></div>
+      <div><label for="actief">Actief in</label><select id="actief"><option value="">Alle jaren</option></select></div>
+    </div>
+    <div id="lijst" class="lijst" role="list"><div class="leeg">Rijders laden…</div></div>
+  </aside>
+
+  <main id="blad" class="paneel" aria-live="polite">
+    <div class="leeg">Kies een rijder.</div>
+  </main>
+</div>
+
+<script>
+const AFN = ['100 m', '300 m', '500 m', '1000 m', '1500 m', '3000 m', '5000 m', '10.000 m'];
+const AFK = ['100m', '300m', '500m', '1000m', '1500m', '3000m', '5000m', '10000m'];
+const KLEUR = ['#9aa9b6', '#7d8f9f', '#d9480f', '#e8890c', '#2f6f9f', '#5b8c2a', '#7b4fa3', '#a0306a'];
+const SOORT = { S: 'Spelen', W: 'WK', C: 'World Cup' };
+let IDX = null, META = null, rijders = [], blokken = new Map(), huidig = null;
+
+async function gz(pad) {
+  const r = await fetch(pad);
+  if (!r.ok) throw new Error(pad + ': ' + r.status);
+  if ('DecompressionStream' in window) {
+    const s = r.body.pipeThrough(new DecompressionStream('gzip'));
+    return JSON.parse(await new Response(s).text());
+  }
+  throw new Error('Deze browser kan de gecomprimeerde data niet openen.');
+}
+const tijd = s => { if (s == null) return ''; const m = Math.floor(s / 60), r = s - 60 * m; return (m ? m + ':' + r.toFixed(2).padStart(5, '0') : r.toFixed(2)).replace('.', ','); };
+const pct = (v, d = 1) => v == null ? '' : (v > 0 ? '+' : '') + v.toFixed(d).replace('.', ',') + '%';
+const datum = d => { const x = new Date(d * 864e5); return String(x.getUTCDate()).padStart(2, '0') + '-' + String(x.getUTCMonth() + 1).padStart(2, '0') + '-' + x.getUTCFullYear(); };
+const sz = s => s + '/' + String((s + 1) % 100).padStart(2, '0');
+const kans = p => p == null ? '' : p >= 0.995 ? '>99%' : p < 0.001 ? '<0,1%' : (100 * p).toFixed(p < 0.1 ? 1 : 0).replace('.', ',') + '%';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function start() {
+  try {
+    const d = await gz('index.json.gz'); META = d.meta;
+    rijders = d.rijders.map(r => ({ id: r[0], naam: r[1], g: r[2], land: r[3], geb: r[4], van: r[5], tot: r[6], ritten: r[7], wk: r[8], os: r[9], wc: r[10], best: r[11], z: r[1].toLowerCase() }));
+    const landen = [...new Set(rijders.map(r => r.land))].sort();
+    document.getElementById('land').insertAdjacentHTML('beforeend', landen.map(l => `<option>${esc(l)}</option>`).join(''));
+    const jaren = []; for (let j = META.laatste; j >= 2006; j--) jaren.push(`<option value="${j}">${sz(j)}</option>`);
+    document.getElementById('actief').insertAdjacentHTML('beforeend', jaren.join(''));
+    toonLijst();
+    const h = location.hash.match(/^#r(\d+)$/);
+    openRijder(h ? +h[1] : (rijders.find(r => r.naam.includes('LEERDAM')) || rijders[0]).id);
+  } catch (e) { document.getElementById('lijst').innerHTML = `<div class="leeg">De rijders konden niet laden: ${esc(e.message)}</div>`; }
+}
+
+function toonLijst() {
+  const q = document.getElementById('zoek').value.trim().toLowerCase(), g = document.getElementById('geslacht').value,
+        l = document.getElementById('land').value, s = document.getElementById('sorteer').value, a = +document.getElementById('actief').value || 0;
+  let x = rijders.filter(r => (!q || r.z.includes(q)) && (!g || r.g === g) && (!l || r.land === l) && (!a || (r.van <= a && r.tot >= a)));
+  const best = r => r.best == null ? 99 : r.best;
+  x.sort(s === 'naam' ? (p, q) => p.naam.localeCompare(q.naam) : s === 'recent' ? (p, q) => q.tot - p.tot || best(p) - best(q)
+       : s === 'titels' ? (p, q) => (q.wk + q.os) - (p.wk + p.os) || q.wc - p.wc || best(p) - best(q) : (p, q) => best(p) - best(q));
+  const n = x.length; x = x.slice(0, 200);
+  document.getElementById('lijst').innerHTML = n ? x.map(r => `<button class="rij" role="listitem" data-id="${r.id}">
+      <span class="n">${esc(r.naam)}</span><span class="t">${r.wk + r.os ? (r.wk + r.os) + '× titel' : r.wc ? r.wc + '× WC' : ''}</span>
+      <span class="m">${esc(r.land)} · ${r.g === 'v' ? 'vrouw' : 'man'}${r.geb ? ' · ' + r.geb : ''} · ${sz(r.van)}–${sz(r.tot)}</span>
+      <span class="t">${r.best != null ? pct(r.best) : ''}</span></button>`).join('') + (n > 200 ? `<div class="leeg">${n.toLocaleString('nl-NL')} rijders gevonden; de eerste 200 staan hier. Zoek op naam om te vernauwen.</div>` : '')
+    : '<div class="leeg">Geen rijders gevonden. Pas de zoekterm of de filters aan.</div>';
+}
+['zoek', 'geslacht', 'land', 'sorteer', 'actief'].forEach(id => document.getElementById(id).addEventListener('input', toonLijst));
+document.getElementById('lijst').addEventListener('click', e => { const b = e.target.closest('.rij'); if (b) openRijder(+b.dataset.id); });
+
+async function openRijder(id) {
+  const r = rijders.find(x => x.id === id); if (!r) return;
+  const blad = document.getElementById('blad');
+  blad.innerHTML = `<div class="status">${esc(r.naam)} laden…</div>`;
+  try { history.replaceState(null, '', '#r' + id); } catch (e) {}
+  const b = id % META.nb;
+  if (!blokken.has(b)) blokken.set(b, await gz(`r/${b}.json.gz`));
+  const d = blokken.get(b)[id]; huidig = { r, d, af: null, rpag: 0, rsz: '', raf: '' };
+  const telling = {}; d.r.forEach(x => telling[x[1]] = (telling[x[1]] || 0) + 1);
+  const seiz = Object.entries(d.s).map(([s, e]) => [+s, e]);
+  const best = {}; seiz.forEach(([s, e]) => Object.entries(e.af).forEach(([a, v]) => { if (v[1] != null && v[4] >= 3 && (best[a] == null || v[1] < best[a])) best[a] = v[1]; }));
+  const voorkeur = Object.entries(best).sort((p, q) => p[1] - q[1])[0];
+  huidig.af = voorkeur ? voorkeur[0] : AFK[(+Object.entries(telling).sort((p, q) => q[1] - p[1])[0]?.[0]) || 2];
+  tekenBlad();
+}
+
+function tekenBlad() {
+  const { r, d } = huidig, blad = document.getElementById('blad');
+  const titels = []; Object.entries(d.s).forEach(([s, e]) => (e.titels || []).forEach(t => titels.push(t)));
+  const afIn = AFK.filter(a => Object.values(d.s).some(e => e.af[a]));
+  blad.innerHTML = `
+    <div class="naamkop"><h2>${esc(r.naam)}</h2></div>
+    <div class="feiten"><span><b>${esc(r.land)}</b></span><span>${r.g === 'v' ? 'Vrouw' : 'Man'}</span>${r.geb ? `<span>Geboren <b>${r.geb}</b></span>` : ''}
+      <span>Actief <b>${sz(r.van)} – ${sz(r.tot)}</b></span><span><b>${r.ritten.toLocaleString('nl-NL')}</b> ritten</span>
+      <span>WK-titels <b>${r.wk}</b></span><span>Olympische titels <b>${r.os}</b></span><span>World Cup-zeges <b>${r.wc}</b></span></div>
+    ${titels.length ? `<div class="titels">${titels.map(t => `<span class="pil goud">${esc(t)}</span>`).join('')}</div>` : ''}
+    <section class="sectie"><h3>Loopbaan</h3>
+      <p class="uitleg">Achterstand op de top-10 van elk seizoen (niveau aan het eind van het seizoen, alleen afstanden met minstens drie ritten). Lager is beter; 0% is precies het niveau van de nummer 10 van de wereld dat jaar. Zo telt het stijgende niveau over de jaren mee.</p>
+      <div class="grafiek" id="grafiek"></div></section>
+    <section class="sectie"><h3>Per seizoen</h3>
+      <div class="tabs" role="group" aria-label="Afstand">${afIn.map(a => `<button data-af="${a}" aria-pressed="${a === huidig.af}">${AFN[AFK.indexOf(a)]}</button>`).join('')}</div>
+      <p class="uitleg">Niveau: de verwachte tijd op een normale dag in Heerenveen. "In niveau van nu": dezelfde achterstand op de top-10, omgerekend naar de top-10 van ${sz(META.laatste)}. Groei en titelkansen staan bij de junioren (15 tot en met 19 jaar). De kansen gelden voor de hele carrière, zoals het model ze aan het eind van dat seizoen gaf.</p>
+      <div class="tabelbak" id="seizoenen"></div></section>
+    <section class="sectie"><h3>Alle ritten</h3>
+      <div class="filters" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))">
+        <div><label for="rsz">Seizoen</label><select id="rsz"><option value="">Alle seizoenen</option>${[...new Set(d.r.map(x => seizoenVan(x[0])))].sort((a, b) => b - a).map(s => `<option value="${s}">${sz(s)}</option>`).join('')}</select></div>
+        <div><label for="raf">Afstand</label><select id="raf"><option value="">Alle afstanden</option>${[...new Set(d.r.map(x => x[1]))].sort((a, b) => a - b).map(a => `<option value="${a}">${AFN[a]}</option>`).join('')}</select></div>
+      </div>
+      <p class="uitleg">Heerenveen-tijd: de rit omgerekend naar een normale dag in Heerenveen (peil van die race achteraf, uit het hele veld). Eigen prestatie: alleen de rijder, met het ijs achteraf gecorrigeerd via de mediaan van het veld; positief is sneller dan verwacht. Kans: hoe zeldzaam zo'n eigen prestatie is.</p>
+      <div class="tabelbak" id="ritten"></div><div class="meer" id="meer"></div></section>`;
+  blad.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { huidig.af = b.dataset.af; tekenBlad(); }));
+  document.getElementById('rsz').value = huidig.rsz; document.getElementById('raf').value = huidig.raf;
+  document.getElementById('rsz').addEventListener('input', e => { huidig.rsz = e.target.value; huidig.rpag = 0; tekenRitten(); });
+  document.getElementById('raf').addEventListener('input', e => { huidig.raf = e.target.value; huidig.rpag = 0; tekenRitten(); });
+  tekenGrafiek(); tekenSeizoenen(); tekenRitten();
+}
+const seizoenVan = d => { const x = new Date(d * 864e5); return x.getUTCMonth() >= 6 ? x.getUTCFullYear() : x.getUTCFullYear() - 1; };
+
+function tekenGrafiek() {
+  const { d } = huidig, el = document.getElementById('grafiek');
+  const reeks = {}; let smin = 1e9, smax = -1e9, ymax = 0, ymin = 0;
+  Object.entries(d.s).forEach(([s, e]) => Object.entries(e.af).forEach(([a, v]) => { if (v[1] == null || v[4] < 3) return; (reeks[a] = reeks[a] || []).push([+s, v[1]]); smin = Math.min(smin, +s); smax = Math.max(smax, +s); ymax = Math.max(ymax, v[1]); ymin = Math.min(ymin, v[1]); }));
+  const ks = Object.keys(reeks);
+  if (!ks.length) { el.innerHTML = '<p class="uitleg">Nog geen afstand met minstens drie ritten in een seizoen.</p>'; return; }
+  ymax = Math.min(Math.max(ymax, 2), 40); ymin = Math.min(ymin, 0);
+  const W = 640, H = 220, L = 44, R = 12, T = 10, B = 26;
+  const xs = s => L + (smax === smin ? (W - L - R) / 2 : (s - smin) / (smax - smin) * (W - L - R)), ys = v => T + (Math.min(v, ymax) - ymin) / (ymax - ymin) * (H - T - B);
+  const stap = ymax - ymin > 20 ? 10 : ymax - ymin > 8 ? 4 : ymax - ymin > 4 ? 2 : 1;
+  let g = '';
+  for (let v = Math.ceil(ymin / stap) * stap; v <= ymax + 1e-9; v += stap) g += `<line x1="${L}" x2="${W - R}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--lijn)" stroke-width="${v === 0 ? 1.4 : .7}"/><text x="${L - 6}" y="${ys(v) + 3}" text-anchor="end">${v > 0 ? '+' : ''}${v}%</text>`;
+  const sstap = Math.max(1, Math.ceil((smax - smin) / 8));
+  for (let s = smin; s <= smax; s += sstap) g += `<text x="${xs(s)}" y="${H - 8}" text-anchor="middle">${sz(s)}</text>`;
+  ks.forEach(a => { const i = AFK.indexOf(a), p = reeks[a].sort((x, y) => x[0] - y[0]);
+    g += `<polyline fill="none" stroke="${KLEUR[i]}" stroke-width="${a === huidig.af ? 2.6 : 1.4}" points="${p.map(([s, v]) => xs(s) + ',' + ys(v)).join(' ')}"/>` + p.map(([s, v]) => `<circle cx="${xs(s)}" cy="${ys(v)}" r="${a === huidig.af ? 3 : 2}" fill="${KLEUR[i]}"><title>${AFN[i]} ${sz(s)}: ${pct(v)}</title></circle>`).join(''); });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Achterstand op de top-10 per seizoen">${g}</svg><div class="legenda">${ks.map(a => `<span style="--k:${KLEUR[AFK.indexOf(a)]}">${AFN[AFK.indexOf(a)]}</span>`).join('')}</div>`;
+}
+
+function tekenSeizoenen() {
+  const { d, af } = huidig;
+  const rijen = Object.entries(d.s).map(([s, e]) => [+s, e]).sort((a, b) => b[0] - a[0]);
+  const jeugd = rijen.some(([, e]) => e.kans || e.groei != null);
+  const kop = `<tr><th class="l">Seizoen</th><th>Leeftijd</th><th>Niveau (Heerenveen)</th><th>Achter top-10</th><th>In niveau van nu</th><th>Wereldrang</th><th>Ritten</th><th>WK</th><th>Spelen</th><th>WC-zeges</th>${jeugd ? '<th>Groei</th><th>Kans WK-titel</th><th>Verwacht WK</th><th>Kans olympisch</th><th>Kans WC-zege</th><th>Verwacht WC</th>' : ''}</tr>`;
+  const body = rijen.map(([s, e]) => { const v = e.af[af]; const k = e.kans;
+    return `<tr class="${(e.wk || e.os) ? 'titelrij' : ''}"><td class="l">${sz(s)}</td><td class="c">${e.lft ?? ''}</td>
+      <td class="c">${v ? tijd(v[0]) : ''}</td><td class="c">${v ? pct(v[1]) : ''}</td><td class="c">${v ? tijd(v[2]) : ''}</td><td class="c">${v && v[3] ? v[3] : ''}</td><td class="c">${v ? v[4] : ''}</td>
+      <td class="c">${e.wk || ''}</td><td class="c">${e.os || ''}</td><td class="c">${e.wc || ''}</td>
+      ${jeugd ? `<td class="c ${e.groei > 0 ? 'snel' : e.groei < 0 ? 'traag' : ''}">${e.groei != null ? pct(e.groei) : ''}</td><td class="c">${k ? kans(k.p_wk) : ''}</td><td class="c">${k ? k.e_wk.toFixed(2).replace('.', ',') : ''}</td><td class="c">${k ? kans(k.p_os) : ''}</td><td class="c">${k ? kans(k.p_wc) : ''}</td><td class="c">${k ? k.e_wc.toFixed(1).replace('.', ',') : ''}</td>` : ''}</tr>`; }).join('');
+  document.getElementById('seizoenen').innerHTML = `<table>${kop}${body}</table>`;
+}
+
+function tekenRitten() {
+  const { d } = huidig, P = 100;
+  let x = d.r.filter(v => (!huidig.rsz || seizoenVan(v[0]) === +huidig.rsz) && (huidig.raf === '' || v[1] === +huidig.raf)).slice().reverse();
+  const n = x.length, pag = Math.min(huidig.rpag, Math.max(0, Math.ceil(n / P) - 1)); x = x.slice(pag * P, pag * P + P);
+  const kop = '<tr><th class="l">Datum</th><th class="l">Afstand</th><th class="l">Baan</th><th class="l">Wedstrijd</th><th>Tijd</th><th>Heerenveen-tijd</th><th>Plaats</th><th>Eigen prestatie</th><th>Kans</th></tr>';
+  const body = x.map(v => { const sp = v[8], k = v[9];
+    const eig = sp == null ? '' : `<span class="${sp < 0 ? 'snel' : 'traag'}">${(sp < 0 ? '+' : '−') + Math.abs(sp).toFixed(1).replace('.', ',')}%</span>`;
+    const kk = k == null ? '' : k < 0.5 ? `1 op ${Math.round(1 / k).toLocaleString('nl-NL')} sneller` : `1 op ${Math.round(1 / (1 - k)).toLocaleString('nl-NL')} trager`;
+    return `<tr><td class="l c">${datum(v[0])}</td><td class="l">${AFN[v[1]]}</td><td class="l">${esc(META.banen[v[2]])}</td><td class="l">${SOORT[v[7]] || ''}${v[10] ? ' (verdacht)' : ''}</td>
+      <td class="c">${tijd(v[3])}</td><td class="c">${tijd(v[4])}</td><td class="c">${v[5] ? v[5] + '/' + v[6] : ''}</td><td class="c">${eig}</td><td class="kans">${kk}</td></tr>`; }).join('');
+  document.getElementById('ritten').innerHTML = n ? `<table>${kop}${body}</table>` : '<div class="leeg">Geen ritten met deze filters.</div>';
+  const m = document.getElementById('meer');
+  m.innerHTML = n > P ? `<button id="vorige" ${pag === 0 ? 'disabled' : ''}>Nieuwere</button><span>${(pag * P + 1).toLocaleString('nl-NL')}–${Math.min(n, pag * P + P).toLocaleString('nl-NL')} van ${n.toLocaleString('nl-NL')} ritten</span><button id="volgende" ${pag * P + P >= n ? 'disabled' : ''}>Oudere</button>` : n ? `<span>${n.toLocaleString('nl-NL')} ritten</span>` : '';
+  m.querySelector('#vorige')?.addEventListener('click', () => { huidig.rpag = pag - 1; tekenRitten(); });
+  m.querySelector('#volgende')?.addEventListener('click', () => { huidig.rpag = pag + 1; tekenRitten(); });
+}
+start();
+</script>

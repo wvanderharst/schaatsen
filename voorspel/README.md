@@ -479,3 +479,23 @@ Het filter is de beste motor (het heeft leeftijdsafhankelijke procesruis, volled
 en een korte vormterm); de bootstrap voegt iets toe bij zwakkere rijders. **GAS als laag op de kansschaal** (`gaslaag.py`: per rijder een
 verschuiving en log-spreiding van z, robuust bijgewerkt, uitdovend): afgesteld op 2020–2022 (a 0,02, halfwaardetijd 365 dagen; de spreiding
 bijwerken helpt niet), toets 2023+: alle −2,3799 → −2,3808, elite vooraf −3,1708 → −3,1721; verschuiving Wennemars −0,18, Jílek −0,18.
+
+## Soort wedstrijd: World Cups (`piek.internationaal`, `wc_kalibratie.py`)
+
+Diagnose (`wc_kalibratie.py`): op internationale topwedstrijden (≥ 10 landen, ≥ 2 van USA/CAN/JPN/CHN/KOR, november–maart, geen WK/Spelen;
+vooral World Cups) was iedereen sneller dan voorspeld en de spreiding te groot (2020+: gem. z −0,03 bij de top tot −0,18 bij > 10%, sd 1,05–1,09;
+snel 1/20 1,25–1,80×, 1/100 1,35–2,6×), ook al in 2008–2019; op overige wedstrijden juist iets trager (+0,01 tot +0,04). Ontleding: vooral op
+raceniveau (racegemiddelde WC −0,05 tegen overig +0,05; extra variantie tussen WC-races 0,30 tegen 0,21), nauwelijks binnen de race. Let op
+selectie: rijders die later dat seizoen een WK of de Spelen rijden, rijden op World Cups gemiddeld sneller (kwalificatie volgt de World Cups).
+
+Laag (na de piekmomenten): z' = (z − μ) / σ, μ en σ een gladde functie van het niveau, apart voor internationale en overige wedstrijden
+(piekmomenten houden hun eigen laag), online, krimp 30 ritten.
+
+| (2020+, log loss) | alle | toppers | elite | senior | toppers vooraf | elite vooraf |
+|---|---|---|---|---|---|---|
+| zonder laag soort wedstrijd | −2,3652 | −3,0647 | −3,1886 | −2,8012 | −3,0558 | −3,1792 |
+| met laag soort wedstrijd | **−2,3656** | **−3,0652** | **−3,1891** | **−2,8016** | **−3,0569** | **−3,1804** |
+
+World Cups 2020+ na de laag: top < 2% gem. z +0,008, sd 1,021, snel 1/20 · 1/100 = 1,04 · 1,06, traag 1,07 · 0,94; 3,5–6% en 6–10% goed;
+> 10% nog te veel snelle uitschieters (1,43 · 1,82). Kalibratie top < 2% vooraf: 0 fouten. Nog open: op WK's en Spelen rijdt de top sinds 2020
+iets trager dan de piekmoment-laag nu verwacht (gem. z +0,06, snel 1/20 0,80×): het piekeffect was vóór 2020 groter.

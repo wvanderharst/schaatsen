@@ -38,7 +38,8 @@ Rp = pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'), columns=['skater_id'
 eids = set(pk.toernooien(Rp)['eid'])
 ev = V[['skater_id', 'dag', 'afstand', 'tijd']].merge(Rp[['skater_id', 'dag', 'afstand', 'tijd', 'event_id']].drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']),
                                                     on=['skater_id', 'dag', 'afstand', 'tijd'], how='left')['event_id'].fillna(-1).astype(np.int64).to_numpy()
-xpiek = np.where(pk.markering(ev, eids), 1.0, np.nan); del Rp
+xpiek = np.where(pk.markering(ev, eids), 1.0, np.nan)
+xwc = np.where(np.isfinite(xpiek), np.nan, np.where(pk.markering(ev, pk.internationaal(Rp, eids)), 1.0, 0.0)); del Rp
 print('piekritten', int(np.isfinite(xpiek).sum()), flush=True)
 print('bewezen niveau: rijen met waarde', int(np.isfinite(pgat).sum()), 'mediaan %.2f%%' % np.nanmedian(pgat), flush=True)
 geb = ~V['k_val'].to_numpy()
@@ -62,6 +63,9 @@ for v in VARS:
         if pre not in cache:
             if laag in RUST:
                 pr, dr, _, _ = rl.rust(dag, g, gap, p_, geb, **RUST[laag])
+            elif laag.startswith('wc'):
+                kw_ = {'wc': {}, 'wc k0=30': {'k0': 30.0}, 'wc zonder schaal': {'schaal': False}}[laag]
+                pr, dr, _, _ = rl.laag(dag, g, xwc, p_, geb, np.array([0.0, 1.0]), 0.3, **{'k0': 100.0, **kw_})
             elif laag.startswith('leeftijd'):
                 kw_ = {'leeftijd': {}, 'leeftijd k0=30': {'k0': 30.0}, 'leeftijd bw=3': {'bw_x': 3.0}, 'leeftijd hl=2190': {'hl': 2190.0}}[laag]
                 kw_ = {'bw_x': 1.5, 'k0': 100.0, **kw_}; bwx = kw_.pop('bw_x')
@@ -99,6 +103,15 @@ print('\nlog loss 2020+ op WK en Spelen (ritten van het oude model):')
 for nm, (p, nl) in var.items():
     s_ = M & pk_
     print(f"  {nm:12s} | alle {np.nanmean(nl[s_]):.4f} (n={s_.sum()}) | top vooraf <2% {np.nanmean(nl[s_ & (g < 0.02)]):.4f} (n={(s_ & (g < 0.02)).sum()}) | snel 1/20 {(p[s_ & geb] < 0.05).mean() / 0.05:.2f} traag 1/20 {(p[s_ & geb] > 0.95).mean() / 0.05:.2f}")
+wc_ = xwc == 1.0
+print('\nkalibratie internationaal (WC) 2020+, zonder valpartijen: gem z, sd z, snel 1/20 1/100, traag 1/20 1/100 (top <2% | 3,5-10% | >10%)')
+from scipy.stats import norm as _nm
+for nm, (p, nl) in var.items():
+    r = f'  {nm:12s}'
+    for lab_, s_ in (('top<2%', g < 0.02), ('3,5-10%', (g >= 0.035) & (g < 0.1)), ('>10%', g >= 0.1)):
+        q_ = p[T & geb & wc_ & s_]; zq = _nm.ppf(np.clip(q_, 1e-12, 1 - 1e-12)).clip(-4, 4)
+        r += f' | {lab_} {zq.mean():+.3f} {zq.std():.3f} {(q_ <= 0.05).mean() / 0.05:.2f} {(q_ <= 0.01).mean() / 0.01:.2f} {(q_ >= 0.95).mean() / 0.05:.2f} {(q_ >= 0.99).mean() / 0.01:.2f}'
+    print(r)
 niv = pd.cut(V['k_c'], [-1, 0.01, 0.02, 0.035, 0.06, 0.1, 0.18, 9], labels=['<1%', '1-2%', '2-3,5%', '3,5-6%', '6-10%', '10-18%', '>18%']).to_numpy()
 Tc = T & geb
 

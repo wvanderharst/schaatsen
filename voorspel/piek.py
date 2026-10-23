@@ -52,6 +52,16 @@ def toernooien(R):
     return pd.DataFrame(uit)
 
 
+def internationaal(R, piek_eids=None):
+    """World Cups en andere internationale topwedstrijden: >= 10 landen, >= 2 van USA/CAN/JPN/CHN/KOR (geen EK), november t/m maart,
+    geen WK of Spelen. Geeft de eids."""
+    x = R[R['afstand'].astype(str).isin(ZES)].copy()
+    x['eid'] = x['event_id'] % 1000000; x['maand'] = pd.to_datetime(x['dag'], unit='D').dt.month
+    E = x.groupby('eid').agg(landen=('land', 'nunique'), buiten=('land', lambda s: len(set(s) & BUITEN_EU)), maand=('maand', 'first'))
+    piek_eids = set(toernooien(R)['eid']) if piek_eids is None else piek_eids
+    return set(E[(E['landen'] >= 10) & (E['buiten'] >= 2) & E['maand'].isin([11, 12, 1, 2, 3])].index) - set(piek_eids)
+
+
 def markering(event_id, eids):
     return np.isin(np.asarray(event_id) % 1000000, np.asarray(list(eids)))
 

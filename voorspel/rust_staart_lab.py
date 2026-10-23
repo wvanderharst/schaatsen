@@ -11,7 +11,7 @@ spec = importlib.util.spec_from_file_location('em', os.path.join(os.path.dirname
 em = importlib.util.module_from_spec(spec); spec.loader.exec_module(em)
 
 pad = sys.argv[1]; w = os.path.dirname(pad) or '.'
-V = pq.read_table(pad, columns=['skater_id', 'groep', 'dag', 'jaar', 'seizoen', 'afstand', 'tijd', 'pit', 'nll', 'ok', 'k_val', 'k_c', 'pred', 'theta', 'th_hat_veld', 'lf']).to_pandas()
+V = pq.read_table(pad, columns=['skater_id', 'groep', 'dag', 'jaar', 'seizoen', 'afstand', 'tijd', 'pit', 'nll', 'ok', 'k_val', 'k_c', 'pred', 'theta', 'th_hat_veld', 'lf', 'rk_', 'sd_rijder']).to_pandas()
 V['afstand'] = V['afstand'].astype(str)
 K = pd.read_parquet(os.path.join(w, 'kenmerken.parquet'), columns=['skater_id', 'dag', 'afstand', 'tijd', 'gap']); K['afstand'] = K['afstand'].astype(str)
 V = V.merge(K.drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']), on=['skater_id', 'dag', 'afstand', 'tijd'], how='left')
@@ -48,6 +48,10 @@ prg = pk.pr_gat(V['skater_id'].to_numpy(), gr_, V['afstand'].to_numpy(), V['dag'
 xpiekpr = np.where(np.isfinite(xpiek), np.log1p(np.nan_to_num(prg, nan=10.0).clip(0, 10)), np.nan); del Rp
 print('PR-afstand piekritten: mediaan %.2f%%' % np.nanmedian(prg[np.isfinite(xpiek)]), flush=True)
 p0 = V['pit'].to_numpy(); n0 = V['nll'].to_numpy()
+import volatlaag as vl
+xvol = {h: vl.eigen(V['skater_id'].to_numpy(), dag, V['rk_'].to_numpy(), (np.log(V['tijd']) - V['pred']).to_numpy(), V['sd_rijder'].to_numpy(), geb, hlr=h)
+        for h in (14.0, 30.0)}
+print('eigen spreiding: mediaan %.3f, p10 %.3f, p90 %.3f' % tuple(np.exp(np.nanpercentile(xvol[14.0], [50, 10, 90]))), flush=True)
 
 var = {'model': (p0, n0)}
 RUST = {'rust': {}, 'rust schaal': {'schaal': True}, 'rust hl=365': {'hl': 365.0}, 'rust bw_r=.5': {'bw_r': 0.5}, 'rust k0=30': {'k0': 30.0}}
@@ -77,6 +81,12 @@ for v in VARS:
             elif laag in ('plafond lft', 'plafond2 lft'):
                 xg = pgat if laag == 'plafond lft' else pgat2
                 pr, dr, _, _ = rl.laag(dag, V['lf'].to_numpy(), xg, p_, geb, pf.GX, 0.5, k0=30.0, G1=np.linspace(8.0, 60.0, 53), bw=1.5)
+            elif laag.startswith('vs'):
+                kw_ = {'vs': {}, 'vs k0=1000': {'k0': 1000.0}, 'vs Q=.1': {'Q': 0.1}, 'vs bw=.2': {'bw_x': 0.2}}[laag]
+                pr, dr, _, _ = vl.staart(dag, g, xvol[14.0], p_, geb, **kw_)
+            elif laag.startswith('vol'):
+                kw_ = {'vol': {}, 'vol snel': {'alleen_snel': True}, 'vol bw=.2': {'bw_x': 0.2}, 'vol k0=100': {'k0': 100.0}, 'vol hlr=30': {}}[laag]
+                pr, dr, _, _ = vl.laag(dag, g, xvol[30.0 if 'hlr=30' in laag else 14.0], p_, geb, **kw_)
             elif laag.startswith('piekpr'):
                 bwx = {'piekpr': 0.25, 'piekpr bw=.4': 0.4, 'piekpr bw=.15': 0.15}[laag]
                 pr, dr, _, _ = rl.laag(dag, g, xpiekpr, p_, geb, pk.GPR, bwx, k0=30.0)
@@ -174,3 +184,11 @@ if os.environ.get('PRBIN'):
         for per, m_ in (('alle jaren', pkr), ('2020+', pkr & (jr >= 2020))):
             d_ = pd.DataFrame({'b': b_[m_], 'z': zz[m_]}).groupby('b', observed=True)['z'].agg(['mean', 'count'])
             print(f'PRBIN {nm[:40]:40s} {per:10s}', ' '.join(f'{i}:{r["mean"]:+.3f}({int(r["count"])})' for i, r in d_.iterrows()))
+
+if os.environ.get('VOLBIN'):
+    jr = V['jaar'].to_numpy(); m_ = (jr >= 2020) & geb & (g < 0.06) & np.isfinite(xvol[14.0])
+    b_ = pd.qcut(xvol[14.0][m_], 5, labels=False)
+    print('\nkalibratie per kwintiel eigen spreiding (2020+, top vooraf < 6%, zonder val): snel 1/20 1/100 | traag 1/20 1/100')
+    for nm, (pp, nl) in var.items():
+        q = pp[m_]
+        print(f'  VOL {nm[:60]:60s}', ' | '.join(f'{(q[b_ == k] < .05).mean() / .05:.2f} {(q[b_ == k] < .01).mean() / .01:.2f} {(q[b_ == k] > .95).mean() / .05:.2f} {(q[b_ == k] > .99).mean() / .01:.2f}' for k in range(5)))

@@ -33,6 +33,7 @@ WEDSTRIJD = os.environ.get('WEDSTRIJD', '1') == '1'       # soort wedstrijd: Wor
 LEEFTIJD = os.environ.get('LEEFTIJD', '1') == '1'         # leeftijd: jonge toprijders onderschat, oudere overschat; mu en sigma naar niveau x leeftijd
 PIEK = os.environ.get('PIEK', '1') == '1'                 # piekmomenten (alleen WK's en Olympische Spelen): eigen verschuiving en spreiding naar niveau
 PLAFOND = os.environ.get('PLAFOND', '1') == '1'           # bewezen niveau (lange-termijngeheugen): op een na beste gecorrigeerde rit in 1 en 3 jaar t.o.v. de verwachting (plafond.py)
+VOLAT = os.environ.get('VOLAT', '1') == '1'               # eigen volatiliteit (volatlaag): scheve schaal naar niveau x eigen spreiding
 RIJDER_STAART = os.environ.get('RIJDER_STAART', '1') == '1'   # staartmassa per rijder (staart_np.rijder): clustering van snelle ritten bij stijgende rijders
 STAART_NP = os.environ.get('STAART_NP', '1') == '1'       # niet-parametrische ijking van de kansen per niveau x afstand (staart_np.ijk), laatste laag
 IJS_ONLINE = os.environ.get('IJS_ONLINE', '0') == '1'     # lopende schatting van de ijsonzekerheid naar omstandigheden (veld, hoogland, eerste dag)
@@ -205,6 +206,9 @@ def kwantiel_u(K, par_t, Zq, q):
         assert np.allclose(q, qq) and qq in (0.1, 0.5, 0.9), 'met STAART_NP alleen de kwantielen 0,1 / 0,5 / 0,9'
         q = K['np_inv_%02d' % round(100 * qq)].to_numpy().copy()
     q = np.array(np.broadcast_to(np.asarray(q, float), (len(K),)))
+    if 'vol_s1' in K:                                    # eigen volatiliteit
+        import volatlaag as vl
+        q = vl.terug(q, K['vol_s1'].to_numpy(), K['vol_s2'].to_numpy())
     if 'rijder_lam' in K:                                # staartmassa per rijder
         import staart_np as sn
         q = sn.rijder_terug(q, K['rijder_lam'].to_numpy())
@@ -585,7 +589,7 @@ def draai(w, par, verbose=True, segment=True):
         p2, d, bs = si.ijk(K['dag'].to_numpy(), K['k_c'].to_numpy(), np.where(okp, pit, np.nan), okp & ~K['k_val'].to_numpy())
         K['pit'] = np.where(okp, p2, pit); K['nll'] = np.where(okp, K['nll'] + d, K['nll'])
         K['staart_b1'] = bs[0]; K['staart_b2'] = bs[1]
-    if RUST or PLAFOND or PIEK or WEDSTRIJD or LEEFTIJD or RIJDER_STAART or STAART_NP:
+    if RUST or PLAFOND or PIEK or WEDSTRIJD or LEEFTIJD or RIJDER_STAART or VOLAT or STAART_NP:
         # rijen met een voorspelling (ook denkbeeldige ritten zonder tijd) krijgen de lagen; alleen echte ritten zonder eigen val werken ze bij
         rij = (np.isfinite(K['pred']) & np.isfinite(K['sd']) & K['ag'].notna()).to_numpy()
         pit = K['pit'].to_numpy(); okp = ok & np.isfinite(pit); geb = okp & ~K['k_val'].to_numpy()
@@ -618,15 +622,21 @@ def draai(w, par, verbose=True, segment=True):
         if RIJDER_STAART:
             pv, d, lam = sn.rijder(K['dag'].to_numpy(), K['skater_id'].to_numpy(), pv, geb, rij=rij)
             dl += d; K['rijder_lam'] = lam
+        if VOLAT:
+            import volatlaag as vl
+            x = vl.eigen(K['skater_id'].to_numpy(), K['dag'].to_numpy(), K['rk_'].to_numpy(), (np.log(K['tijd']) - K['pred']).to_numpy(),
+                         K['sd_rijder'].to_numpy(), geb & np.isfinite(K['tijd'].to_numpy()))
+            pv, d, s1, s2 = vl.laag(K['dag'].to_numpy(), K['k_c'].to_numpy(), x, pv, geb, rij=rij)
+            dl += d; K['vol_s1'] = s1; K['vol_s2'] = s2
         if STAART_NP:
             pv, d, inv = sn.ijk(K['dag'].to_numpy(), K['k_c'].to_numpy(), K['afstand'].to_numpy(), pv, geb, rij=rij)
             dl += d
             for c, qq in enumerate(sn.QS):
                 K['np_inv_%02d' % round(100 * qq)] = np.where(rij, inv[:, c], qq)
         K['pit'] = np.where(okp, pv, K['pit']); K['nll'] = np.where(okp, K['nll'] + dl, K['nll'])
-    if VORM or HOOG_AFF or RUST or PLAFOND or PIEK or WEDSTRIJD or LEEFTIJD or RIJDER_STAART or STAART_NP:
+    if VORM or HOOG_AFF or RUST or PLAFOND or PIEK or WEDSTRIJD or LEEFTIJD or RIJDER_STAART or VOLAT or STAART_NP:
         # voorspelde tijd = mediaan van de nieuwe verdeling (verschuiving t.o.v. de mediaan zonder de lagen op de kansschaal)
-        lagen = ('vorm_mu', 'vorm_sg', 'aff_mu', 'aff_sg', 'rust_mu', 'rust_sg', 'plaf1_mu', 'plaf1_sg', 'plaf2_mu', 'plaf2_sg', 'piek_mu', 'piek_sg', 'wc_mu', 'wc_sg', 'lft_mu', 'lft_sg', 'rijder_lam', 'np_inv_10', 'np_inv_50', 'np_inv_90')
+        lagen = ('vorm_mu', 'vorm_sg', 'aff_mu', 'aff_sg', 'rust_mu', 'rust_sg', 'plaf1_mu', 'plaf1_sg', 'plaf2_mu', 'plaf2_sg', 'piek_mu', 'piek_sg', 'wc_mu', 'wc_sg', 'lft_mu', 'lft_sg', 'rijder_lam', 'vol_s1', 'vol_s2', 'np_inv_10', 'np_inv_50', 'np_inv_90')
         bewaar = {c: K.pop(c) for c in lagen if c in K}
         u0 = kwantiel_u(K, par_t, Zq, 0.5)
         for c, v in bewaar.items():

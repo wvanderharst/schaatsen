@@ -594,3 +594,15 @@ Shumekova 44%, Lee Na-Hyun 39%. Varianten (`TVAR`): niveau t.o.v. een vaste were
 Alle rijders: per seizoen per afstand het niveau als tijd op een normale dag in Heerenveen, de achterstand op de top-10 van dat seizoen, hetzelfde
 niveau in het niveau van nu, wereldrang, titels, World Cup-zeges en bij junioren de groei en de titelkansen; alle ritten met de tijd omgerekend
 naar een normale dag in Heerenveen, plaats, soort wedstrijd en de prestatie van alleen de rijder (ijs achteraf).
+
+## Snelheidsverbetering door baan en materiaal (`baan_materiaal.py`)
+
+Het peil van een race (theta, uit het veld) vangt alles op wat het hele veld tegelijk sneller maakt (ijs, baan, weer, materiaal); het niveau
+van de rijders hun eigen vooruitgang. Regressie van het peil per race (>= 8 rijders, 500-5000 m) op baan x geslacht x afstand + seizoen:
+het gemeenschappelijke seizoenseffect daalt geleidelijk van ~+0,75% (2008) naar 0 (2025): materiaal en algemene ijsverbetering (niet te
+scheiden van gezamenlijke vooruitgang van de rijders). Per baan bovenop dat effect: Heerenveen ~+0,3% tot 2014 en ~-0,5 tot -0,7% vanaf 2018
+(renovatie Thialf), Inzell +2,4% -> ~0 (overkapping 2011), Tomaszów ~+3% -> -0,8% (overkapping 2017). De 10 snelste tijden per seizoen
+werden 2008-2025 ~2,3% sneller (baan en materiaal plus de rijders). Samen voor een normale dag in Heerenveen (`era`, glad over 3 seizoenen,
+t.o.v. 2025-26): 2008 +1,4%, 2014 +1,1%, 2018 +0,5%, 2021 +0,05%.
+Website: per rit en per seizoen "Heerenveen nu" (ijs en materiaal van nu) en "Heerenveen toen" (van dat seizoen); het verschil is de
+verbetering van baan en materiaal. De achterstand op de top-10 van het seizoen is los van baan en materiaal (alleen de rijders).

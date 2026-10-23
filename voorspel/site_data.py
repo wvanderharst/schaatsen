@@ -95,7 +95,9 @@ def main(w, uit):
     banen = sorted(R['baan'].unique()); bidx = {b: i for i, b in enumerate(banen)}
     idx = [[int(i), r['n'], r['g'], r['l'], (int(r['b']) if np.isfinite(r['b']) else None), int(r['v']), int(r['t']), int(r['k']), int(r['n_wk']), int(r['n_os']), int(r['n_wc']),
             (round(float(r['best']), 2) if np.isfinite(r['best']) else None)] for i, r in info.iterrows()]
-    meta = {'banen': banen, 'afstanden': AF, 'laatste': laatste, 'nb': NB,
+    import baan_materiaal as bm
+    era = bm.era(w)                                  # baan en materiaal: peil van Heerenveen per seizoen t.o.v. nu (ln; > 0 = toen trager)
+    meta = {'banen': banen, 'afstanden': AF, 'laatste': laatste, 'nb': NB, 'era': {str(k): round(float(v), 5) for k, v in era.items()},
             'kol': ['id', 'naam', 'geslacht', 'land', 'geboren', 'van', 'tot', 'ritten', 'wk', 'os', 'wc', 'best_achter_t10'],
             'peil_hv': {f'{g}|{a}': round(float(v), 5) for (g, a), v in thv.items()}}
     with gzip.open(os.path.join(uit, 'index.json.gz'), 'wt', encoding='utf-8') as f:

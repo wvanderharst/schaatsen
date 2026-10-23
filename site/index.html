@@ -184,14 +184,14 @@ function tekenBlad() {
       <div class="grafiek" id="grafiek"></div></section>
     <section class="sectie"><h3>Per seizoen</h3>
       <div class="tabs" role="group" aria-label="Afstand">${afIn.map(a => `<button data-af="${a}" aria-pressed="${a === huidig.af}">${AFN[AFK.indexOf(a)]}</button>`).join('')}</div>
-      <p class="uitleg">Niveau: de verwachte tijd op een normale dag in Heerenveen. "In niveau van nu": dezelfde achterstand op de top-10, omgerekend naar de top-10 van ${sz(META.laatste)}. Groei en titelkansen staan bij de junioren (15 tot en met 19 jaar). De kansen gelden voor de hele carrière, zoals het model ze aan het eind van dat seizoen gaf.</p>
+      <p class="uitleg">Niveau Heerenveen nu: de verwachte tijd op een normale dag in Heerenveen met het ijs en het materiaal van nu. Heerenveen toen: hetzelfde niveau op het ijs en met het materiaal van dat seizoen (Thialf en materiaal waren in 2008 ongeveer 1,4% trager; de renovatie van 2016 en nieuw materiaal maakten het verschil). "In niveau van nu": dezelfde achterstand op de top-10, omgerekend naar de top-10 van ${sz(META.laatste)}. Groei en titelkansen staan bij de junioren (15 tot en met 19 jaar). De kansen gelden voor de hele carrière, zoals het model ze aan het eind van dat seizoen gaf.</p>
       <div class="tabelbak" id="seizoenen"></div></section>
     <section class="sectie"><h3>Alle ritten</h3>
       <div class="filters" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))">
         <div><label for="rsz">Seizoen</label><select id="rsz"><option value="">Alle seizoenen</option>${[...new Set(d.r.map(x => seizoenVan(x[0])))].sort((a, b) => b - a).map(s => `<option value="${s}">${sz(s)}</option>`).join('')}</select></div>
         <div><label for="raf">Afstand</label><select id="raf"><option value="">Alle afstanden</option>${[...new Set(d.r.map(x => x[1]))].sort((a, b) => a - b).map(a => `<option value="${a}">${AFN[a]}</option>`).join('')}</select></div>
       </div>
-      <p class="uitleg">Heerenveen-tijd: de rit omgerekend naar een normale dag in Heerenveen (peil van die race achteraf, uit het hele veld). Eigen prestatie: alleen de rijder, met het ijs achteraf gecorrigeerd via de mediaan van het veld; positief is sneller dan verwacht. Kans: hoe zeldzaam zo'n eigen prestatie is.</p>
+      <p class="uitleg">Heerenveen nu: de rit omgerekend naar een normale dag in Heerenveen met het ijs en materiaal van nu (peil van die race achteraf, uit het hele veld). Heerenveen toen: met het ijs en materiaal van dat seizoen; het verschil is de verbetering van baan en materiaal sindsdien. Eigen prestatie: alleen de rijder, met het ijs achteraf gecorrigeerd via de mediaan van het veld; positief is sneller dan verwacht. Kans: hoe zeldzaam zo'n eigen prestatie is.</p>
       <div class="tabelbak" id="ritten"></div><div class="meer" id="meer"></div></section>`;
   blad.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { huidig.af = b.dataset.af; tekenBlad(); }));
   document.getElementById('rsz').value = huidig.rsz; document.getElementById('raf').value = huidig.raf;
@@ -199,6 +199,7 @@ function tekenBlad() {
   document.getElementById('raf').addEventListener('input', e => { huidig.raf = e.target.value; huidig.rpag = 0; tekenRitten(); });
   tekenGrafiek(); tekenSeizoenen(); tekenRitten();
 }
+const toen = (t, s) => t == null ? null : t * Math.exp((META.era && (META.era[s] ?? (s < 2007 ? META.era[2007] : 0))) || 0);
 const seizoenVan = d => { const x = new Date(d * 864e5); return x.getUTCMonth() >= 6 ? x.getUTCFullYear() : x.getUTCFullYear() - 1; };
 
 function tekenGrafiek() {
@@ -224,10 +225,10 @@ function tekenSeizoenen() {
   const { d, af } = huidig;
   const rijen = Object.entries(d.s).map(([s, e]) => [+s, e]).sort((a, b) => b[0] - a[0]);
   const jeugd = rijen.some(([, e]) => e.kans || e.groei != null);
-  const kop = `<tr><th class="l">Seizoen</th><th>Leeftijd</th><th>Niveau (Heerenveen)</th><th>Achter top-10</th><th>In niveau van nu</th><th>Wereldrang</th><th>Ritten</th><th>WK</th><th>Spelen</th><th>WC-zeges</th>${jeugd ? '<th>Groei</th><th>Kans WK-titel</th><th>Verwacht WK</th><th>Kans olympisch</th><th>Kans WC-zege</th><th>Verwacht WC</th>' : ''}</tr>`;
+  const kop = `<tr><th class="l">Seizoen</th><th>Leeftijd</th><th>Niveau Heerenveen nu</th><th>Heerenveen toen</th><th>Achter top-10</th><th>In niveau van nu</th><th>Wereldrang</th><th>Ritten</th><th>WK</th><th>Spelen</th><th>WC-zeges</th>${jeugd ? '<th>Groei</th><th>Kans WK-titel</th><th>Verwacht WK</th><th>Kans olympisch</th><th>Kans WC-zege</th><th>Verwacht WC</th>' : ''}</tr>`;
   const body = rijen.map(([s, e]) => { const v = e.af[af]; const k = e.kans;
     return `<tr class="${(e.wk || e.os) ? 'titelrij' : ''}"><td class="l">${sz(s)}</td><td class="c">${e.lft ?? ''}</td>
-      <td class="c">${v ? tijd(v[0]) : ''}</td><td class="c">${v ? pct(v[1]) : ''}</td><td class="c">${v ? tijd(v[2]) : ''}</td><td class="c">${v && v[3] ? v[3] : ''}</td><td class="c">${v ? v[4] : ''}</td>
+      <td class="c">${v ? tijd(v[0]) : ''}</td><td class="c">${v ? tijd(toen(v[0], s)) : ''}</td><td class="c">${v ? pct(v[1]) : ''}</td><td class="c">${v ? tijd(v[2]) : ''}</td><td class="c">${v && v[3] ? v[3] : ''}</td><td class="c">${v ? v[4] : ''}</td>
       <td class="c">${e.wk || ''}</td><td class="c">${e.os || ''}</td><td class="c">${e.wc || ''}</td>
       ${jeugd ? `<td class="c ${e.groei > 0 ? 'snel' : e.groei < 0 ? 'traag' : ''}">${e.groei != null ? pct(e.groei) : ''}</td><td class="c">${k ? kans(k.p_wk) : ''}</td><td class="c">${k ? k.e_wk.toFixed(2).replace('.', ',') : ''}</td><td class="c">${k ? kans(k.p_os) : ''}</td><td class="c">${k ? kans(k.p_wc) : ''}</td><td class="c">${k ? k.e_wc.toFixed(1).replace('.', ',') : ''}</td>` : ''}</tr>`; }).join('');
   document.getElementById('seizoenen').innerHTML = `<table>${kop}${body}</table>`;
@@ -237,12 +238,12 @@ function tekenRitten() {
   const { d } = huidig, P = 100;
   let x = d.r.filter(v => (!huidig.rsz || seizoenVan(v[0]) === +huidig.rsz) && (huidig.raf === '' || v[1] === +huidig.raf)).slice().reverse();
   const n = x.length, pag = Math.min(huidig.rpag, Math.max(0, Math.ceil(n / P) - 1)); x = x.slice(pag * P, pag * P + P);
-  const kop = '<tr><th class="l">Datum</th><th class="l">Afstand</th><th class="l">Baan</th><th class="l">Wedstrijd</th><th>Tijd</th><th>Heerenveen-tijd</th><th>Plaats</th><th>Eigen prestatie</th><th>Kans</th></tr>';
+  const kop = '<tr><th class="l">Datum</th><th class="l">Afstand</th><th class="l">Baan</th><th class="l">Wedstrijd</th><th>Tijd</th><th>Heerenveen nu</th><th>Heerenveen toen</th><th>Plaats</th><th>Eigen prestatie</th><th>Kans</th></tr>';
   const body = x.map(v => { const sp = v[8], k = v[9];
     const eig = sp == null ? '' : `<span class="${sp < 0 ? 'snel' : 'traag'}">${(sp < 0 ? '+' : '−') + Math.abs(sp).toFixed(1).replace('.', ',')}%</span>`;
     const kk = k == null ? '' : k < 0.5 ? `1 op ${Math.round(1 / k).toLocaleString('nl-NL')} sneller` : `1 op ${Math.round(1 / (1 - k)).toLocaleString('nl-NL')} trager`;
     return `<tr><td class="l c">${datum(v[0])}</td><td class="l">${AFN[v[1]]}</td><td class="l">${esc(META.banen[v[2]])}</td><td class="l">${SOORT[v[7]] || ''}${v[10] ? ' (verdacht)' : ''}</td>
-      <td class="c">${tijd(v[3])}</td><td class="c">${tijd(v[4])}</td><td class="c">${v[5] ? v[5] + '/' + v[6] : ''}</td><td class="c">${eig}</td><td class="kans">${kk}</td></tr>`; }).join('');
+      <td class="c">${tijd(v[3])}</td><td class="c">${tijd(v[4])}</td><td class="c">${tijd(toen(v[4], seizoenVan(v[0])))}</td><td class="c">${v[5] ? v[5] + '/' + v[6] : ''}</td><td class="c">${eig}</td><td class="kans">${kk}</td></tr>`; }).join('');
   document.getElementById('ritten').innerHTML = n ? `<table>${kop}${body}</table>` : '<div class="leeg">Geen ritten met deze filters.</div>';
   const m = document.getElementById('meer');
   m.innerHTML = n > P ? `<button id="vorige" ${pag === 0 ? 'disabled' : ''}>Nieuwere</button><span>${(pag * P + 1).toLocaleString('nl-NL')}–${Math.min(n, pag * P + P).toLocaleString('nl-NL')} van ${n.toLocaleString('nl-NL')} ritten</span><button id="volgende" ${pag * P + P >= n ? 'disabled' : ''}>Oudere</button>` : n ? `<span>${n.toLocaleString('nl-NL')} ritten</span>` : '';

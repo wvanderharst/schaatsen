@@ -35,10 +35,12 @@ pgat2 = pf.gat(V['skater_id'].to_numpy(), V['afstand'].to_numpy(), V['dag'].to_n
                W=float(os.environ.get('PLAFOND2_W', '1095')), k=int(os.environ.get('PLAFOND2_K', '2')))
 import piek as pk
 Rp = pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'), columns=['skater_id', 'land', 'afstand', 'dag', 'event_id', 'baan', 'tijd']); Rp['afstand'] = Rp['afstand'].astype(str)
-eids = set(pk.toernooien(Rp)['eid'])
+Tn_ = pk.toernooien(Rp); eids = set(Tn_['eid']); speids = set(Tn_.loc[Tn_['soort'] == 'Spelen', 'eid'])
 ev = V[['skater_id', 'dag', 'afstand', 'tijd']].merge(Rp[['skater_id', 'dag', 'afstand', 'tijd', 'event_id']].drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']),
                                                     on=['skater_id', 'dag', 'afstand', 'tijd'], how='left')['event_id'].fillna(-1).astype(np.int64).to_numpy()
 xpiek = np.where(pk.markering(ev, eids), 1.0, np.nan)
+xsp = np.where(pk.markering(ev, speids), 0.0, np.nan)
+xsprang = np.log(V.assign(_r=np.where(np.isfinite(xsp), V['pred'], np.nan)).groupby('rk_')['_r'].rank(method='first').to_numpy())   # ln(verwachte plaats)
 xwc = np.where(np.isfinite(xpiek), np.nan, np.where(pk.markering(ev, pk.internationaal(Rp, eids)), 1.0, 0.0))
 print('piekritten', int(np.isfinite(xpiek).sum()), flush=True)
 print('bewezen niveau: rijen met waarde', int(np.isfinite(pgat).sum()), 'mediaan %.2f%%' % np.nanmedian(pgat), flush=True)
@@ -81,6 +83,18 @@ for v in VARS:
             elif laag in ('plafond lft', 'plafond2 lft'):
                 xg = pgat if laag == 'plafond lft' else pgat2
                 pr, dr, _, _ = rl.laag(dag, V['lf'].to_numpy(), xg, p_, geb, pf.GX, 0.5, k0=30.0, G1=np.linspace(8.0, 60.0, 53), bw=1.5)
+            elif laag.startswith('sprang'):
+                kw_ = {'sprang': {}, 'sprang bw=.1': {'bw': 0.1}, 'sprang k0=10': {'k0': 10.0}, 'sprang k0=100': {'k0': 100.0}, 'sprang hl=inf': {'hl': 1e9},
+                       'sprang bwr=.7': {'bw_x': 0.7}, 'sprang zonder schaal': {'schaal': False}}[laag]
+                kw_ = {'k0': 30.0, 'hl': 3650.0, 'bw': 0.1, 'bw_x': 0.4, **kw_}; bwx = kw_.pop('bw_x')
+                pr, dr, _, _ = rl.laag(dag, g, xsprang, p_, geb, np.linspace(0.0, np.log(40.0), 25), bwx, **kw_)
+            elif laag.startswith('spelen'):
+                kw_ = {'spelen': {}, 'spelen hl=inf': {'hl': 1e9}, 'spelen k0=10': {'k0': 10.0}, 'spelen k0=100': {'k0': 100.0}, 'spelen bw=.04': {'bw': 0.04},
+                       'spelen zonder schaal': {'schaal': False}, 'spelen scheef': {}}[laag]
+                kw_ = {'k0': 30.0, 'hl': 3650.0, **kw_}
+                pr, dr, _, _ = rl.laag(dag, g, xsp, p_, geb, np.array([0.0, 1.0]), 0.3, **kw_)
+                if laag == 'spelen scheef':
+                    pr, dr2, _, _ = vl.laag(dag, g, xsp, pr, geb, GX=np.array([0.0, 1.0]), bw_x=0.3, k0=30.0, hl=3650.0); dr = dr + dr2
             elif laag.startswith('vs'):
                 kw_ = {'vs': {}, 'vs k0=1000': {'k0': 1000.0}, 'vs Q=.1': {'Q': 0.1}, 'vs bw=.2': {'bw_x': 0.2}}[laag]
                 pr, dr, _, _ = vl.staart(dag, g, xvol[14.0], p_, geb, **kw_)
@@ -192,3 +206,14 @@ if os.environ.get('VOLBIN'):
     for nm, (pp, nl) in var.items():
         q = pp[m_]
         print(f'  VOL {nm[:60]:60s}', ' | '.join(f'{(q[b_ == k] < .05).mean() / .05:.2f} {(q[b_ == k] < .01).mean() / .01:.2f} {(q[b_ == k] > .95).mean() / .05:.2f} {(q[b_ == k] > .99).mean() / .01:.2f}' for k in range(5)))
+
+if os.environ.get('SPELEN'):
+    from scipy.stats import norm as _n3
+    jr = V['jaar'].to_numpy(); sp = np.isfinite(xsp)
+    vr = V.assign(_r=np.where(sp, V['pred'], np.nan)).groupby('rk_')['_r'].rank(method='first').to_numpy()
+    print('\nSpelen (zonder valpartijen in de kalibratie): log loss alle jaren | 2020+ | gem z top 10 vooraf / 11+ | snel 1/20 traag 1/20 top 10 | traag 1/20 11+')
+    for nm, (pp, nl) in var.items():
+        zz = _n3.ppf(np.clip(pp, 1e-12, 1 - 1e-12)).clip(-4, 4); m_ = sp & geb; t10 = m_ & (vr <= 10); r11 = m_ & (vr > 10)
+        print(f'  SP {nm[-40:]:40s} | {np.nanmean(nl[sp & (jr >= 2010)]):.4f} | {np.nanmean(nl[sp & (jr >= 2020)]):.4f} | {zz[t10].mean():+.3f} / {zz[r11].mean():+.3f}'
+              f' | {(pp[t10] < .05).mean() / .05:.2f} {(pp[t10] > .95).mean() / .05:.2f} | {(pp[r11] > .95).mean() / .05:.2f}'
+              + ' | per Spelen top10 ' + ' '.join(f'{j}:{zz[t10 & (jr == j)].mean():+.2f}' for j in (2010, 2014, 2018, 2022, 2026)))

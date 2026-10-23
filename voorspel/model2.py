@@ -31,6 +31,7 @@ HOOG_AFF = os.environ.get('HOOG_AFF', '1') == '1'         # persoonlijke hooglan
 RUST = os.environ.get('RUST', '1') == '1'                 # rust en taper: verschuiving en schaal op de kansschaal naar ln(1 + rustdagen) x niveau (rustlaag.py)
 WEDSTRIJD = os.environ.get('WEDSTRIJD', '1') == '1'       # soort wedstrijd: World Cups / internationaal tegenover overig (piekmomenten apart)
 LEEFTIJD = os.environ.get('LEEFTIJD', '1') == '1'         # leeftijd: jonge toprijders onderschat, oudere overschat; mu en sigma naar niveau x leeftijd
+SPELEN = os.environ.get('SPELEN', '1') == '1'             # extra laag op de Olympische Spelen naar de verwachte plaats in het veld
 PIEK = os.environ.get('PIEK', '1') == '1'                 # piekmomenten (alleen WK's en Olympische Spelen): eigen verschuiving en spreiding naar niveau
 PLAFOND = os.environ.get('PLAFOND', '1') == '1'           # bewezen niveau (lange-termijngeheugen): op een na beste gecorrigeerde rit in 1 en 3 jaar t.o.v. de verwachting (plafond.py)
 VOLAT = os.environ.get('VOLAT', '1') == '1'               # eigen volatiliteit (volatlaag): scheve schaal naar niveau x eigen spreiding
@@ -212,7 +213,7 @@ def kwantiel_u(K, par_t, Zq, q):
     if 'rijder_lam' in K:                                # staartmassa per rijder
         import staart_np as sn
         q = sn.rijder_terug(q, K['rijder_lam'].to_numpy())
-    for c in ('lft', 'wc', 'piek', 'plaf2', 'plaf1', 'rust'):  # leeftijd, soort wedstrijd, piekmoment, bewezen niveau, rust (omgekeerde volgorde)
+    for c in ('lft', 'wc', 'spel', 'piek', 'plaf2', 'plaf1', 'rust'):  # leeftijd, soort wedstrijd, piekmoment, bewezen niveau, rust (omgekeerde volgorde)
         if c + '_mu' in K:
             q = _n.cdf(K[c + '_mu'].to_numpy() + K[c + '_sg'].to_numpy() * _n.ppf(q))
     if 'staart_b1' in K:                                 # lopende staartijking terugdraaien
@@ -405,8 +406,9 @@ def met_kalman(w, par):
     assert len(K) == len(R) and (K['skater_id'].to_numpy() == R['skater_id'].to_numpy()).all() and np.array_equal(K['tijd'].to_numpy(float), R['tijd'].to_numpy(float), equal_nan=True)
     if PIEK:                                             # piekmomenten: WK's en Olympische Spelen (piek.py)
         import piek as pk
-        piek_eids = set(pk.toernooien(R)['eid'])
+        Tpk = pk.toernooien(R); piek_eids = set(Tpk['eid'])
         K['piek'] = pk.markering(K['event_id'].to_numpy(), piek_eids)
+        K['spelen'] = pk.markering(K['event_id'].to_numpy(), set(Tpk.loc[Tpk['soort'] == 'Spelen', 'eid']))
         if WEDSTRIJD:
             K['intl'] = pk.markering(K['event_id'].to_numpy(), pk.internationaal(R, piek_eids))
     for k in ('zh', 'vl', 'r', 'e', 'na', 'c', 'd', 'f', 'pc', 'pf', 'ps'):
@@ -610,6 +612,11 @@ def draai(w, par, verbose=True, segment=True):
             x = np.where(K['piek'].to_numpy(), 1.0, np.nan)
             pv, d, mu, sg = rl.laag(K['dag'].to_numpy(), K['k_c'].to_numpy(), x, pv, geb, np.array([0.0, 1.0]), 0.5, k0=30.0, rij=rij)
             dl += d; K['piek_mu'] = mu; K['piek_sg'] = sg
+        if PIEK and SPELEN and 'spelen' in K:          # Spelen: gladde functie van de verwachte plaats in het veld (de favorieten pieken extra)
+            sp = K['spelen'].to_numpy() & rij
+            x = np.log(K['pred'].where(sp).groupby(K['rk_']).rank(method='first').to_numpy())
+            pv, d, mu, sg = rl.laag(K['dag'].to_numpy(), K['k_c'].to_numpy(), x, pv, geb, np.linspace(0.0, np.log(40.0), 25), 0.4, bw=0.1, hl=3650.0, k0=30.0, rij=rij)
+            dl += d; K['spel_mu'] = mu; K['spel_sg'] = sg
         if WEDSTRIJD and 'intl' in K:
             x = np.where(K['piek'].to_numpy(), np.nan, np.where(K['intl'].to_numpy(), 1.0, 0.0))
             pv, d, mu, sg = rl.laag(K['dag'].to_numpy(), K['k_c'].to_numpy(), x, pv, geb, np.array([0.0, 1.0]), 0.3, k0=30.0, rij=rij)
@@ -636,7 +643,7 @@ def draai(w, par, verbose=True, segment=True):
         K['pit'] = np.where(okp, pv, K['pit']); K['nll'] = np.where(okp, K['nll'] + dl, K['nll'])
     if VORM or HOOG_AFF or RUST or PLAFOND or PIEK or WEDSTRIJD or LEEFTIJD or RIJDER_STAART or VOLAT or STAART_NP:
         # voorspelde tijd = mediaan van de nieuwe verdeling (verschuiving t.o.v. de mediaan zonder de lagen op de kansschaal)
-        lagen = ('vorm_mu', 'vorm_sg', 'aff_mu', 'aff_sg', 'rust_mu', 'rust_sg', 'plaf1_mu', 'plaf1_sg', 'plaf2_mu', 'plaf2_sg', 'piek_mu', 'piek_sg', 'wc_mu', 'wc_sg', 'lft_mu', 'lft_sg', 'rijder_lam', 'vol_s1', 'vol_s2', 'np_inv_10', 'np_inv_50', 'np_inv_90')
+        lagen = ('vorm_mu', 'vorm_sg', 'aff_mu', 'aff_sg', 'rust_mu', 'rust_sg', 'plaf1_mu', 'plaf1_sg', 'plaf2_mu', 'plaf2_sg', 'piek_mu', 'piek_sg', 'spel_mu', 'spel_sg', 'wc_mu', 'wc_sg', 'lft_mu', 'lft_sg', 'rijder_lam', 'vol_s1', 'vol_s2', 'np_inv_10', 'np_inv_50', 'np_inv_90')
         bewaar = {c: K.pop(c) for c in lagen if c in K}
         u0 = kwantiel_u(K, par_t, Zq, 0.5)
         for c, v in bewaar.items():

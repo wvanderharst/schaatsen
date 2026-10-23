@@ -29,6 +29,16 @@ V = V.merge(R[['skater_id', 'dag', 'afstand', 'tijd', 'seizoen']].drop_duplicate
 V = V.merge(sb[['skater_id', 'afstand', 'seizoen', 'ooit_gat']], on=['skater_id', 'afstand', 'seizoen'], how='left')
 pd_ = P.groupby('skater_id')['dag'].apply(np.sort).to_dict()
 V['podia'] = [np.searchsorted(pd_.get(s, np.array([])), d) for s, d in zip(V['skater_id'], V['dag'])]
+# PR-snelheid (alleen eerdere ritten): ruw (echte tijd, t.o.v. de snelste tijd in de data tot dan) en gecorrigeerd (q, t.o.v. de beste q tot dan)
+A = U[['skater_id', 'gender', 'afstand', 'dag', 'tijd', 'q']].sort_values('dag').copy()
+for kol, uit in (('tijd', 'pr_ruw'), ('q', 'pr_corr')):
+    x = np.log(A[kol]) if kol == 'tijd' else A[kol]
+    A['_x'] = x.to_numpy()
+    eigen = A.groupby(['skater_id', 'afstand'])['_x'].transform(lambda s: s.cummin().shift(1))
+    wereld = A.groupby(['gender', 'afstand'])['_x'].transform(lambda s: s.cummin().shift(1))
+    A[uit] = 100 * (np.exp(eigen - wereld) - 1)
+A = A.groupby(['skater_id', 'afstand', 'dag'])[['pr_ruw', 'pr_corr']].min().reset_index()      # stand aan het begin van de dag
+V = V.merge(A, on=['skater_id', 'afstand', 'dag'], how='left')
 pd.set_option('display.width', 200)
 def tab(kol, bins, labels):
     V['b'] = pd.cut(V[kol], bins, labels=labels)
@@ -38,4 +48,13 @@ def tab(kol, bins, labels):
     print(f'\n{kol}:'); print(t.to_string())
 tab('ooit_gat', [-1, 0.001, 0.5, 1.0, 2.0, 100], ['ooit wereldbeste', '< 0,5%', '0,5-1%', '1-2%', '> 2%'])
 tab('podia', [-1, 0, 2, 9, 29, 1e9], ['0', '1-2', '3-9', '10-29', '30+'])
+tab('pr_ruw', [-1, 0.5, 1.5, 3, 5, 100], ['< 0,5% van WR', '0,5-1,5%', '1,5-3%', '3-5%', '> 5%'])
+tab('pr_corr', [-1, 0.5, 1.5, 3, 5, 100], ['< 0,5% van beste', '0,5-1,5%', '1,5-3%', '3-5%', '> 5%'])
+# welke maat verklaart het piekeffect het best? regressie op WK/Spelen-ritten: z = a + b f(maat), en de verbetering in kwadratische fout
+W = V[(V['soort'] == 'WK/Spelen') & V[['ooit_gat', 'pr_ruw', 'pr_corr']].notna().all(1)].copy(); zt = W['zr'].clip(-4, 4).to_numpy()
+print(f'\nverklaring op WK/Spelen ({len(W)} ritten met alle maten): t-waarde van de helling (hoe groter, hoe sterker)')
+for kol, f in (('ooit_gat', lambda v: np.log1p(v.clip(0, 10))), ('pr_ruw', lambda v: np.log1p(v.clip(0, 10))), ('pr_corr', lambda v: np.log1p(v.clip(0, 10))), ('podia', lambda v: np.log1p(v))):
+    x = f(W[kol]).to_numpy(); b, a = np.polyfit(x, zt, 1); r = zt - a - b * x
+    se = np.sqrt(np.mean(r ** 2) / np.sum((x - x.mean()) ** 2))
+    print(f'  {kol:9s} helling {b:+.3f} (t = {b / se:+.1f})')
 V['geen_seizoen'] = V['ooit_gat'].isna(); print('\nzonder eerder seizoen op de afstand:', int(V['geen_seizoen'].sum()), 'ritten')

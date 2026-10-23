@@ -67,7 +67,13 @@ def momenten(w):
     S = pd.read_parquet(os.path.join(w, 'talent_momentopnamen.parquet'),
                         columns=['skater_id', 'seizoen', 'naam', 'gender', 'land', 'geboren', 'exact', 'leeftijd', 'L_jeugd', 'beste_leeftijd',
                                  'rang_leeftijd', 'verbetering', 'L_sen', 'af_jeugd'])
+    # stijgend niveau: de seniorentop van hetzelfde seizoen (10e beste seniorenniveau, 21+, per geslacht), glad over de seizoenen
+    sen = S[(S['leeftijd'] >= 21) & np.isfinite(S['L_sen'])]
+    t10 = sen.groupby(['gender', 'seizoen'])['L_sen'].apply(lambda v: np.sort(v.to_numpy())[9] if len(v) >= 10 else np.nan).rename('top10')
+    t10 = t10.groupby(level='gender').transform(lambda v: v.rolling(3, center=True, min_periods=1).mean())
     J = S[S['exact'] & S['leeftijd'].between(15, 19) & np.isfinite(S['L_jeugd'])].copy()
+    J = J.join(t10, on=['gender', 'seizoen'])
+    J['Lr'] = (J['L_jeugd'] - J['top10']).clip(-0.05, 0.40)
     J['L'] = J['L_jeugd'].clip(-0.05, 0.40); J['achter'] = (J['L_jeugd'] - J['beste_leeftijd']).clip(0, 0.4)
     J['lrang'] = np.log(J['rang_leeftijd']); J['verb_onb'] = J['verbetering'].isna().astype(float)
     J['verb'] = J['verbetering'].clip(-0.1, 0.3).fillna(0.0); J['t0'] = (J['leeftijd'] - 17.0) / 2.0
@@ -90,6 +96,14 @@ def ontwerp(D):
         cols = basis + [L, L * tau, L * t0]
     elif VARIANT == 'glad':
         cols = basis + [lL, L, lL * tau, lL * t0]
+    elif VARIANT == 'mix':
+        Lr = D['Lr'].to_numpy(float); lLr = np.log(np.clip(Lr, -0.03, None) + 0.05)
+        cols = basis + [lL, L, lL * tau, lL * t0, lLr, D['verb'].to_numpy(float), D['verb_onb'].to_numpy(float), D['ned'].to_numpy(float), D['achter'].to_numpy(float)]
+    elif VARIANT in ('rel', 'rel+'):
+        Lr = D['Lr'].to_numpy(float); lLr = np.log(np.clip(Lr, -0.03, None) + 0.05)
+        cols = basis + [lLr, Lr, lLr * tau, lLr * t0]
+        if VARIANT == 'rel+':
+            cols += [D['verb'].to_numpy(float), D['verb_onb'].to_numpy(float), D['ned'].to_numpy(float), D['achter'].to_numpy(float)]
     elif VARIANT == 'glad+':
         cols = basis + [lL, L, lL * tau, lL * t0, D['verb'].to_numpy(float), D['verb_onb'].to_numpy(float), D['ned'].to_numpy(float), D['achter'].to_numpy(float)]
     return np.column_stack(cols)
@@ -121,7 +135,7 @@ def rijen(J, per, tot, doel, eerste=False, tot_toekomst=None, tot_seizoen=LAATST
         if tot_toekomst is not None and s > LAATSTE:
             D['tot'] = float(tot_toekomst.loc[s, doel]) if np.isfinite(tot_toekomst.loc[s, doel]) else np.nan
         else:
-            D['tot'] = [tot[doel].get((g, s), 0.0) for g in D['gender']]
+            D['tot'] = D['gender'].map({g: tot[doel].get((g, s), 0.0) for g in ('m', 'v')}).astype(float)
         uit.append(D)
     D = pd.concat(uit, ignore_index=True)
     D = D[D['tot'] > 0].copy()

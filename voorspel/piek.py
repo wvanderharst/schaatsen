@@ -72,3 +72,19 @@ if __name__ == '__main__':
     pd.set_option('display.width', 200)
     print(T.to_string(index=False))
     print('niet gevonden:', int((T['eid'] < 0).sum()))
+
+
+GPR = np.linspace(0.0, np.log1p(10.0), 25)            # rooster voor ln(1 + PR-afstand in %)
+
+
+def pr_gat(skater_id, gender, afstand, dag, tijd, geldig):
+    """PR-snelheid t.o.v. de wereldtop, alleen EERDERE dagen: 100 (PR / snelste tijd in de data, geslacht x afstand) - 100, beide aan het
+    begin van de dag. NaN als de rijder nog geen geldige rit op de afstand had."""
+    df = pd.DataFrame({'s': np.asarray(skater_id), 'g': np.asarray(gender).astype(str), 'a': np.asarray(afstand).astype(str),
+                       'd': np.asarray(dag, float), 't': np.where(np.asarray(geldig, bool), np.asarray(tijd, float), np.nan)})
+    dagmin = df.groupby(['s', 'g', 'a', 'd'], sort=True)['t'].min().reset_index()
+    dagmin['pr'] = dagmin.groupby(['s', 'a'])['t'].cummin(); dagmin['pr'] = dagmin.groupby(['s', 'a'])['pr'].shift(1)
+    wb = df.groupby(['g', 'a', 'd'], sort=True)['t'].min().reset_index()
+    wb['wr'] = wb.groupby(['g', 'a'])['t'].cummin(); wb['wr'] = wb.groupby(['g', 'a'])['wr'].shift(1)
+    x = df.merge(dagmin[['s', 'g', 'a', 'd', 'pr']], on=['s', 'g', 'a', 'd'], how='left').merge(wb[['g', 'a', 'd', 'wr']], on=['g', 'a', 'd'], how='left')
+    return (100 * (x['pr'] / x['wr'] - 1)).clip(lower=0).to_numpy()

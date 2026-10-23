@@ -39,10 +39,14 @@ eids = set(pk.toernooien(Rp)['eid'])
 ev = V[['skater_id', 'dag', 'afstand', 'tijd']].merge(Rp[['skater_id', 'dag', 'afstand', 'tijd', 'event_id']].drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']),
                                                     on=['skater_id', 'dag', 'afstand', 'tijd'], how='left')['event_id'].fillna(-1).astype(np.int64).to_numpy()
 xpiek = np.where(pk.markering(ev, eids), 1.0, np.nan)
-xwc = np.where(np.isfinite(xpiek), np.nan, np.where(pk.markering(ev, pk.internationaal(Rp, eids)), 1.0, 0.0)); del Rp
+xwc = np.where(np.isfinite(xpiek), np.nan, np.where(pk.markering(ev, pk.internationaal(Rp, eids)), 1.0, 0.0))
 print('piekritten', int(np.isfinite(xpiek).sum()), flush=True)
 print('bewezen niveau: rijen met waarde', int(np.isfinite(pgat).sum()), 'mediaan %.2f%%' % np.nanmedian(pgat), flush=True)
 geb = ~V['k_val'].to_numpy()
+gr_ = V[['skater_id', 'dag', 'afstand', 'tijd']].merge(Rp[['skater_id', 'dag', 'afstand', 'tijd']].assign(g_=pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'), columns=['gender'])['gender'].astype(str).to_numpy()).drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']), on=['skater_id', 'dag', 'afstand', 'tijd'], how='left')['g_'].to_numpy()
+prg = pk.pr_gat(V['skater_id'].to_numpy(), gr_, V['afstand'].to_numpy(), V['dag'].to_numpy(), V['tijd'].to_numpy(), geb)
+xpiekpr = np.where(np.isfinite(xpiek), np.log1p(np.nan_to_num(prg, nan=10.0).clip(0, 10)), np.nan); del Rp
+print('PR-afstand piekritten: mediaan %.2f%%' % np.nanmedian(prg[np.isfinite(xpiek)]), flush=True)
 p0 = V['pit'].to_numpy(); n0 = V['nll'].to_numpy()
 
 var = {'model': (p0, n0)}
@@ -73,6 +77,9 @@ for v in VARS:
             elif laag in ('plafond lft', 'plafond2 lft'):
                 xg = pgat if laag == 'plafond lft' else pgat2
                 pr, dr, _, _ = rl.laag(dag, V['lf'].to_numpy(), xg, p_, geb, pf.GX, 0.5, k0=30.0, G1=np.linspace(8.0, 60.0, 53), bw=1.5)
+            elif laag.startswith('piekpr'):
+                bwx = {'piekpr': 0.25, 'piekpr bw=.4': 0.4, 'piekpr bw=.15': 0.15}[laag]
+                pr, dr, _, _ = rl.laag(dag, g, xpiekpr, p_, geb, pk.GPR, bwx, k0=30.0)
             elif laag.startswith('piek'):
                 kw_ = {'piek': {}, 'piek k0=10': {'k0': 10.0}, 'piek k0=100': {'k0': 100.0}, 'piek hl=2190': {'hl': 2190.0}, 'piek zonder schaal': {'schaal': False}}[laag]
                 pr, dr, _, _ = rl.laag(dag, g, xpiek, p_, geb, np.array([0.0, 1.0]), 0.5, **{'k0': 30.0, **kw_})
@@ -157,3 +164,13 @@ for nm, (p, nl) in var.items():
         fout, rg, nr, nk = em.toets(x, vanaf_seizoen=2019)
         print(f'  {nm:8s} {lab}: {nr} ritten, {fout} fouten')
         print('    ' + '\n    '.join(r for r in rg if r.startswith('snel')))
+
+if os.environ.get('PRBIN'):
+    from scipy.stats import norm as _n2
+    jr = pd.to_datetime(V['dag'], unit='D').dt.year.to_numpy(); pkr = np.isfinite(xpiek) & geb & (g < 0.06)
+    b_ = pd.cut(prg, [-1, 0.5, 1.5, 3, 5, 100], labels=['<0.5', '0.5-1.5', '1.5-3', '3-5', '>5'])
+    for nm, (pp, _) in var.items():
+        zz = _n2.ppf(np.clip(pp, 1e-12, 1 - 1e-12)).clip(-4, 4)
+        for per, m_ in (('alle jaren', pkr), ('2020+', pkr & (jr >= 2020))):
+            d_ = pd.DataFrame({'b': b_[m_], 'z': zz[m_]}).groupby('b', observed=True)['z'].agg(['mean', 'count'])
+            print(f'PRBIN {nm[:40]:40s} {per:10s}', ' '.join(f'{i}:{r["mean"]:+.3f}({int(r["count"])})' for i, r in d_.iterrows()))

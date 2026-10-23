@@ -37,3 +37,13 @@ het effect zit in de plaats in het veld.
 Volledige run (2020+): toppers -3.0654 -> -3.0655, elite -3.1893 -> -3.1896, top vooraf < 2% -3.1806 -> -3.1808; kalibratiefouten elite 4 -> 3.
 Spelen, alle jaren (gem. z modelkans; log loss): top 3 -0,43 -> -0,18 (-3.201 -> -3.242); 4-10 -0,32 -> -0,04 (-3.099 -> -3.170);
 11+ -0,02 -> +0,08 (-3.214 -> -3.214). WK's ongewijzigd. De rest bij de top 3 komt vooral uit 2010 en 2014 (nog weinig eerdere Spelen om van te leren).
+
+## Winnen underdogs op de Spelen zo vaak als voorspeld? (`spelen_winst.py`)
+
+Simulatie per race van alleen de rijderschok (ijs binnen een race gelijk voor iedereen): ln t = verwachting + c x sd_rijder x trekking uit de
+gestandaardiseerde rijderschokken van toprijders 2008-2019. 46 Olympische races (500 m met twee omlopen weggelaten), 133 WK-afstandenraces.
+Met c = 1: winst waargenomen / verwacht, Spelen: winkans < 10% 10 / 11,4; 10-50% 25 / 24,9; > 50% 12 / 9,7; nr 1 vooraf 26 / 20,2; podium plaats
+4-5 vooraf 18 / 24,3. WK afstanden: winkans < 5% 8 / 13,5; nr 1 vooraf 80 / 67,5. Underdogs winnen op de Spelen ongeveer zo vaak als voorspeld,
+maar de favoriet wint vaker. Beste schaal (gem. ln winkans van de winnaar): c = 0,8 op beide (Spelen -1,487 / -1,467 / -1,462 / -1,476 bij
+c = 1 / 0,9 / 0,8 / 0,7; WK -1,247 / -1,232 / -1,227 / -1,239); dan nr 1 26 / 23,6 en 80 / 76,7. De rijderschok op piekmomenten is ~20% smaller
+dan de algemene referentie.

@@ -3,7 +3,7 @@ podium per rijder uit een simulatie van alleen de rijderschok (het ijs is binnen
 ln t = verwachting + sd_rijder x trekking uit de werkelijke gestandaardiseerde rijderschokken van toprijders 2008-2019 (rijderschok.py).
 Daarna waargenomen tegen verwacht naar winkans vooraf en naar voorspelde plaats, met de spreiding van een som van onafhankelijke kansen.
 Races waarin een rijder twee ritten heeft (500 m 2010/2014: twee omlopen op een dag) vallen af.
-Gebruik: python spelen_winst.py <werkmap> <uitkomst> [soort: Spelen | WK afstanden]"""
+Gebruik: python spelen_winst.py <werkmap> <uitkomst> [soort: Spelen | WK afstanden | World Cups]"""
 import os, sys
 import numpy as np, pandas as pd
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -13,7 +13,7 @@ V = rs.tabel(w, pad)
 ref = np.sort(V.loc[V['jaar'].between(2008, 2019) & (V['k_c'] < 0.06) & ~V['k_val'], 'zr'].to_numpy())
 R = pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'), columns=['skater_id', 'land', 'afstand', 'dag', 'event_id', 'baan'])
 R['afstand'] = R['afstand'].astype(str)
-Tn = pk.toernooien(R); eids = set(Tn.loc[Tn['soort'] == SOORT, 'eid'])
+Tn = pk.toernooien(R); eids = pk.internationaal(R, set(Tn['eid'])) if SOORT == 'World Cups' else set(Tn.loc[Tn['soort'] == SOORT, 'eid'])
 V = V[(V['event_id'] % 1000000).isin(eids) & V['afstand'].isin(list(pk.ZES))].copy()
 rk = ['event_id', 'dag', 'gender', 'afstand']
 uit = []; weg = 0
@@ -29,10 +29,11 @@ for key, x in V.groupby(rk):
     echt = x['tijd'].rank(method='min').to_numpy()
     vr = pd.Series(pr).rank(method='first').to_numpy()
     for i in range(len(x)):
-        uit.append(dict(jaar=int(x['jaar'].iloc[0]), gender=key[2], afstand=key[3], rijder=x['skater_name'].iloc[i], vrang=int(vr[i]), p_win=pw[i], p_pod=pp[i],
+        uit.append(dict(race=key, jaar=int(x['jaar'].iloc[0]), gender=key[2], afstand=key[3], rijder=x['skater_name'].iloc[i], vrang=int(vr[i]), p_win=pw[i], p_pod=pp[i],
                         win=echt[i] == 1, pod=echt[i] <= 3, val=bool(x['k_val'].iloc[i])))
 U = pd.DataFrame(uit)
-print(f'schaal rijderschok x {C}'); print(f'{SOORT}: {U.groupby(["jaar", "gender", "afstand"]).ngroups} races, {len(U)} ritten (races met twee omlopen weggelaten: {weg})')
+print(f'schaal rijderschok x {C}'); U['race'] = U['race'].astype(str)
+print(f'{SOORT}: {U["race"].nunique()} races, {len(U)} ritten (races met twee omlopen weggelaten: {weg})')
 
 
 def tab(gr, lab):
@@ -47,10 +48,10 @@ U['plaats vooraf'] = pd.cut(U['vrang'], [0, 1, 3, 5, 10, 99], labels=['nr 1', '2
 tab('winkans', 'naar winkans vooraf')
 tab('plaats vooraf', 'naar voorspelde plaats')
 W = U[U['win']]
-lw = np.log(W['p_win'].clip(1e-4)); el = U.groupby(['jaar', 'gender', 'afstand']).apply(lambda x: (x['p_win'] * np.log(x['p_win'].clip(1e-4))).sum())
-print(f'\nwinnaars: gem. winkans vooraf {W["p_win"].mean():.3f} (verwacht {U.groupby(["jaar", "gender", "afstand"]).apply(lambda x: (x["p_win"] ** 2).sum()).mean():.3f});'
+lw = np.log(W['p_win'].clip(1e-4)); el = U.groupby('race').apply(lambda x: (x['p_win'] * np.log(x['p_win'].clip(1e-4))).sum())
+print(f'\nwinnaars: gem. winkans vooraf {W["p_win"].mean():.3f} (verwacht {U.groupby("race").apply(lambda x: (x["p_win"] ** 2).sum()).mean():.3f});'
       f' gem. ln(winkans) {lw.mean():.3f} (verwacht {el.mean():.3f}); winnaars met winkans < 10%: {(W["p_win"] < 0.10).sum()} van {len(W)}')
-print('\nper Spelen: winst waargenomen / verwacht voor de nr 1 vooraf en voor rijders met winkans < 10%')
+print('\nper jaar: winst waargenomen / verwacht voor de nr 1 vooraf en voor rijders met winkans < 10%')
 for j, x in U.groupby('jaar'):
     a = x[x['vrang'] == 1]; b = x[x['p_win'] < 0.10]
     print(f"  {j}: nr 1 {int(a['win'].sum())} / {a['p_win'].sum():.1f} | winkans < 10% {int(b['win'].sum())} / {b['p_win'].sum():.1f}")

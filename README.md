@@ -47,3 +47,6 @@ Met c = 1: winst waargenomen / verwacht, Spelen: winkans < 10% 10 / 11,4; 10-50%
 maar de favoriet wint vaker. Beste schaal (gem. ln winkans van de winnaar): c = 0,8 op beide (Spelen -1,487 / -1,467 / -1,462 / -1,476 bij
 c = 1 / 0,9 / 0,8 / 0,7; WK -1,247 / -1,232 / -1,227 / -1,239); dan nr 1 26 / 23,6 en 80 / 76,7. De rijderschok op piekmomenten is ~20% smaller
 dan de algemene referentie.
+World Cups (`spelen_winst.py ... "World Cups"`: alle internationale wedstrijden buiten WK/Spelen, 2846 races): met c = 1 wint de nr 1 vooraf
+1750 keer tegen 1623 verwacht, rijders met winkans 1-10% 339 tegen 413; beste schaal c = 0,9 (gem. ln winkans winnaar -1,179 / -1,173 / -1,180
+bij c = 1 / 0,9 / 0,8), dan nr 1 1750 / 1711. In 2024-2025 winnen de favorieten nog vaker (nr 1 239 / 213, winkans < 10% 30 / 54 bij c = 1).

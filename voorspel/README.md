@@ -499,3 +499,10 @@ Laag (na de piekmomenten): z' = (z − μ) / σ, μ en σ een gladde functie van
 World Cups 2020+ na de laag: top < 2% gem. z +0,008, sd 1,021, snel 1/20 · 1/100 = 1,04 · 1,06, traag 1,07 · 0,94; 3,5–6% en 6–10% goed;
 > 10% nog te veel snelle uitschieters (1,43 · 1,82). Kalibratie top < 2% vooraf: 0 fouten. Nog open: op WK's en Spelen rijdt de top sinds 2020
 iets trager dan de piekmoment-laag nu verwacht (gem. z +0,06, snel 1/20 0,80×): het piekeffect was vóór 2020 groter.
+
+## Alleen de rijderschok (`rijderschok.py`)
+
+Afspraak: bij ritten wordt nooit de gecombineerde schok (rijder + ijs) getoond, altijd alleen de rijderschok. Het ijs wordt achteraf
+gecorrigeerd met het veld zelf (per race de mediaan van ln t − verwachting, ≥ 5 rijders zonder val); de rijderschok is de rest, gedeeld door
+de eigen spreiding van de rijder; de kans komt uit de werkelijke verdeling daarvan bij alle toprijders 2008–2019. Lijst van de grootste
+olympische verrassingen: `verrassingen_spelen_rijder.csv`.

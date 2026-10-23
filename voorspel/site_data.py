@@ -34,8 +34,9 @@ def main(w, uit):
                                                                        'event_id', 'baan', 'tijd', 'theta', 'verdacht', 'geboren'])
     for c in ('afstand', 'baan', 'gender', 'skater_name', 'land'):
         R[c] = R[c].astype(str)
-    V = pq.read_table(os.path.join(w, 'voorspel2_uitkomst.parquet'), columns=['skater_id', 'dag', 'afstand', 'tijd', 'baan', 'seizoen', 'theta', 'k_c']).to_pandas()
-    V['afstand'] = V['afstand'].astype(str); V['baan'] = V['baan'].astype(str)
+    V = pq.read_table(os.path.join(w, 'voorspel2_uitkomst.parquet'), columns=['skater_id', 'gender', 'dag', 'afstand', 'tijd', 'baan', 'seizoen', 'theta', 'k_c']).to_pandas()
+    for c in ('afstand', 'baan', 'gender'):
+        V[c] = V[c].astype(str)
     thv = peil_hv(R, V); del V
     R['tijd_hv'] = np.exp(np.log(R['tijd']) - R['theta'] + R.set_index(['gender', 'afstand']).index.map(thv).to_numpy(float))
     # soort wedstrijd

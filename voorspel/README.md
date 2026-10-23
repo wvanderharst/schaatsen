@@ -558,3 +558,39 @@ dan de algemene referentie.
 World Cups (`spelen_winst.py ... "World Cups"`: alle internationale wedstrijden buiten WK/Spelen, 2846 races): met c = 1 wint de nr 1 vooraf
 1750 keer tegen 1623 verwacht, rijders met winkans 1-10% 339 tegen 413; beste schaal c = 0,9 (gem. ln winkans winnaar -1,179 / -1,173 / -1,180
 bij c = 1 / 0,9 / 0,8), dan nr 1 1750 / 1711. In 2024-2025 winnen de favorieten nog vaker (nr 1 239 / 213, winkans < 10% 30 / 54 bij c = 1).
+
+## Junioren: kalibratie in het ritmodel (`junior_trend.py`)
+
+Gem. z van de modelkans (zonder valpartijen) naar leeftijd x niveau vooraf: voor 13-19 jaar overal binnen +-0,04; de beste junioren (< 3%)
+op 16-18 jaar iets sneller dan voorspeld (-0,03); per rijder-seizoen (16-19 jaar, >= 8 ritten) bij de top -0,05. In de recente seizoenen
+(2020+) zijn de beste junioren iets sneller dan voorspeld (-0,04 tot -0,11 in 2022). Snelle staart 1/20 en 1/100 per leeftijd 0,92-1,09.
+Echte spreiding tussen rijder-seizoenen (boven de ruis) ~0,12-0,18 sd: groei binnen het seizoen wordt deels pas laat opgepikt.
+
+## Welke junioren worden wereldkampioen? (`titels.py`)
+
+Per junior-momentopname (eind van het seizoen, 15-19 jaar, Kalman-stand uit `talent.py`) het aantal in elk later seizoen tot en met 36 jaar van:
+WK-titels bij de senioren (afstanden, allround, sprint), olympische titels (apart) en World Cup-zeges (internationale wedstrijd buiten WK/Spelen,
+veld >= 10, mediaanleeftijd >= 20, >= 5 rijders met niveau vooraf < 3%; ~70 races per seizoen). Model: verwacht aantal in seizoen s =
+te verdelen titels/races in s x exp(eta), eta glad (derdegraads) in de leeftijd in s, plus het junior-niveau ten opzichte van de seniorentop-10
+van HETZELFDE seizoen (het wereldniveau werd 2006-2025 ~2,7% sneller; zonder die correctie krijgen de junioren van nu te hoge kansen), als
+gladde functie ln(L + 0,05) en lineair, met interacties met de leeftijd in s en de leeftijd van de momentopname; verder verbetering, achterstand
+op de beste van de eigen leeftijd, geslacht, Nederland. Poisson voor het aantal; dezelfde vorm op de seizoenen tot en met de eerste zege voor
+de kans op minstens een. Alle kalenderseizoenen tellen mee, ook na stoppen. Spelen gezamenlijk gefit met de WK-afstandstitels plus een eigen
+constante. Toekomstige kalender: Spelen als het kalenderjaar mod 4 = 2, WK afstanden anders, allround en sprint in even jaren.
+Toets buiten de steekproef (kruisfit even/oneven geboortejaren, binnen de waargenomen seizoenen, leeftijd 17-19):
+| doel | log-lik kans | AUC (alleen niveau) | top-200 voorspeld / echt | som voorspeld / echt |
+|---|---|---|---|---|
+| WK-titel | -0,01684 | 0,949 (0,952) | 34,3 / 31 | 96,5 / 106 |
+| olympische titel | -0,00961 | 0,958 (0,941) | 21,0 / 17 | 51,9 / 55 |
+| World Cup-zege | -0,05079 | 0,919 (0,941) | 73,4 / 53 | 341,8 / 371 |
+Daarna een gladde ijking (kans = 1 - exp(-c S^d), aantal = c S^d, op dezelfde voorspellingen buiten de steekproef): WK kans c 1,03 d 1,00,
+aantal c 0,79 d 0,88; Spelen kans c 0,81 d 0,94; World Cup kans c 0,95 d 0,98. Voorspelling over de hele carriere: geschiedenis buiten de
+steekproef (wat het model op dat moment zou zeggen), de jeugd van nu gefit op alles. Lijst: `titelkansen_junioren_2026.csv`.
+Bovenaan (kans op minstens een WK-titel): mannen Jílek (heeft al titels), Wiersma 73%, Taiga Sasaki 65%, Shomu Sasaki 53%; vrouwen Daleman 75%,
+Shumekova 44%, Lee Na-Hyun 39%. Varianten (`TVAR`): niveau t.o.v. een vaste wereldtop gaf te hoge kansen bovenaan (top-200 40,6 / 30).
+
+## Website (`site_data.py`, `../site/index.html`)
+
+Alle rijders: per seizoen per afstand het niveau als tijd op een normale dag in Heerenveen, de achterstand op de top-10 van dat seizoen, hetzelfde
+niveau in het niveau van nu, wereldrang, titels, World Cup-zeges en bij junioren de groei en de titelkansen; alle ritten met de tijd omgerekend
+naar een normale dag in Heerenveen, plaats, soort wedstrijd en de prestatie van alleen de rijder (ijs achteraf).

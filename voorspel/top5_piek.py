@@ -7,7 +7,7 @@ import numpy as np, pandas as pd, pyarrow.parquet as pq
 from scipy.stats import norm
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import piek as pk
-w, pad = sys.argv[1], sys.argv[2]
+w, pad = sys.argv[1], sys.argv[2]; N = int(os.environ.get('TOP', '5'))
 R = pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'), columns=['skater_id', 'land', 'afstand', 'dag', 'event_id', 'baan', 'tijd', 'gender', 'verdacht', 'jaar'])
 R['afstand'] = R['afstand'].astype(str)
 Tn = pk.toernooien(R); soort = dict(zip(Tn['eid'], Tn['soort']))
@@ -19,7 +19,8 @@ rk = ['event_id', 'dag', 'gender', 'afstand']
 V = V.drop_duplicates(rk + ['skater_id'])
 V['n'] = V.groupby(rk)['pred'].transform('size'); V = V[V['n'] >= 10].copy()
 V['vrang'] = V.groupby(rk)['pred'].rank(method='first')
-V['groep'] = np.where(V['vrang'] <= 5, 'top 5', np.where(V['vrang'] <= 10, '6-10', '11+'))
+TOPN = f'top {N}'; MID = f'{N + 1}-10'
+V['groep'] = np.where(V['vrang'] <= N, TOPN, np.where(V['vrang'] <= 10, MID, '11+'))
 V['res'] = np.log(V['tijd']) - V['pred']
 V['ijs'] = V[~V['k_val']].groupby(rk)['res'].transform('median'); V['ijs'] = V.groupby(rk)['ijs'].transform('max')
 V['zr'] = (V['res'] - V['ijs']) / V['sd_rijder']
@@ -37,12 +38,23 @@ def regel(x, nm):
 for per, js in (('2008-2019', (2008, 2019)), ('2020+', (2020, 2030)), ('alle jaren', (2008, 2030))):
     X = V[V['jaar'].between(*js)]
     print(f'\n{per}:')
-    for gr in ('top 5', '6-10', '11+'):
+    for gr in (TOPN, MID, '11+'):
         print(regel(X[X['groep'] == gr], gr))
 X = V[V['jaar'] >= 2008]
-print('\nper soort toernooi (alle jaren), top 5 tegen 6+:')
+print(f'\nper soort toernooi (alle jaren), {TOPN} tegen de rest:')
 for s, x in X.groupby('soort'):
-    print(f' {s}'); print(regel(x[x['groep'] == 'top 5'], 'top 5')); print(regel(x[x['groep'] != 'top 5'], '6+'))
-print('\ntop 5 per voorspelde plaats (alle jaren):')
-for r_ in range(1, 6):
+    print(f' {s}'); print(regel(x[x['groep'] == TOPN], TOPN)); print(regel(x[x['groep'] != TOPN], 'rest'))
+print(f'\n{TOPN} per voorspelde plaats (alle jaren):')
+for r_ in range(1, N + 1):
     print(regel(X[X['vrang'] == r_], f'nr {r_}'))
+
+O = V[V['soort'] == 'Spelen']
+print(f'\nalleen Olympische Spelen: {O.groupby(rk).ngroups} races')
+for gr in (TOPN, MID, '11+'):
+    print(regel(O[O['groep'] == gr], gr))
+print('per Spelen:')
+for j, x in O.groupby('jaar'):
+    print(f' {j}'); print(regel(x[x['groep'] == TOPN], TOPN)); print(regel(x[x['groep'] != TOPN], 'rest'))
+print(f'{TOPN} per voorspelde plaats (Spelen):')
+for r_ in range(1, N + 1):
+    print(regel(O[O['vrang'] == r_], f'nr {r_}'))

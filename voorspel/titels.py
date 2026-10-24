@@ -115,11 +115,21 @@ def poisson(X, y, off, lam=5.0, w=None, n_iter=60, extra=None):
     w = np.ones(len(y)) if w is None else w
     b = np.zeros(Z.shape[1]); b[0] = np.log(max((w * y).sum(), 1e-3) / (w * np.exp(off)).sum())
     I = np.eye(Z.shape[1]) * lam; I[0, 0] = 0
+    def doel(b_):                                            # gestrafte log-aannemelijkheid
+        eta = np.clip(Z @ b_ + off, -30, 10)
+        return np.sum(w * (y * eta - np.exp(eta))) - 0.5 * b_ @ I @ b_
+    f0 = doel(b)
     for _ in range(n_iter):
         eta = np.clip(Z @ b + off, -30, 10); m = np.exp(eta)
         H = Z.T @ (Z * (w * m)[:, None]) + I; g = Z.T @ (w * (y - m)) - I @ b
-        d = np.linalg.solve(H, g); b += d
-        if np.max(np.abs(d)) < 1e-7:
+        d = np.linalg.solve(H, g); stap = 1.0
+        while stap > 1e-4:                                   # stapverkleining: alleen een stap die de aannemelijkheid verbetert
+            f1 = doel(b + stap * d)
+            if f1 >= f0 - 1e-9:
+                break
+            stap /= 2
+        b = b + stap * d; f0 = f1
+        if np.max(np.abs(stap * d)) < 1e-7:
             break
     return lambda Xn: np.c_[np.ones(len(Xn)), (Xn - mu_) / sd_] @ b
 
@@ -153,7 +163,7 @@ def fit_voorspel(Dfit, Dnu, extra=False):
     if extra:            # Spelen gezamenlijk met de WK-afstandstitels: eigen constante voor de Spelen
         X = np.c_[X, Dfit['is_os'].to_numpy(float)]; Xn = np.c_[Xn, Dnu['is_os'].to_numpy(float)]
     f = poisson(X, Dfit['y'].to_numpy(float), np.log(Dfit['tot'].to_numpy(float)))
-    return np.exp(np.clip(f(Xn) + np.log(Dnu['tot'].to_numpy(float)), -30, 5))
+    return Dnu['tot'].to_numpy(float) * np.exp(np.clip(f(Xn), -30, 0))   # aandeel in de te verdelen titels hoogstens 1
 
 
 def os_rijen(J, per, tot, eerste, tot_toekomst=None, tot_seizoen=LAATSTE):

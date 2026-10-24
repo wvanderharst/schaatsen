@@ -650,3 +650,10 @@ overnemen, tijden invullen. IJs van vandaag: gewogen gemiddelde van ln(tijd) - v
 gereden ritten (afgekapt op +-4%), met als voorkennis een normale dag (spreiding van het ijs per wedstrijd op die baan, Heerenveen 0,6%) en
 een rijderspreiding van 0,9% per rit; daarna 4.000 simulaties met de gereden tijden vast. Bewaard per browser (localStorage). Teksten op de
 website herschreven voor andere gebruikers; tabblad Uitleg met begrippen, beperkingen en bronnen.
+Meerkampen in Simuleren (allround: vrouwen 500/3000 en 1500/5000, mannen 500/5000 en 1500/10.000; sprint: 2 x (500, 1000); kleine vierkamp:
+500/1500 en 1000/3000), punten = samalog (tijd per 500 m opgeteld, afgekapt op 3 decimalen). Samenhang tussen ritten (`dagcorrelatie.py`,
+rijderschok met het ijs eruit; racepeil t.o.v. het gewone peil van baan x geslacht x afstand x seizoen): eigen vorm zelfde dag andere afstand
+Pearson 0,13 (Spearman 0,10), volgende dag 0,05; ijs zelfde dag andere afstand 0,38, volgende dag 0,15 (zelfde afstand twee keer op een dag
+0,59, waarschijnlijk deels door de gedeelde ijscorrectie en dubbele registraties; niet gebruikt). In de simulatie een Gauss-copula: per rijder
+een dagvorm (correlatie 0,12 binnen de dag, 0,05 tussen de dagen) die de getrokken eigen afwijking (uit de eigen ritten of de referentie)
+kiest, en per dag een gedeeld ijs (0,38 binnen de dag, 0,15 tussen de dagen). Iedereen rijdt alle vier de afstanden (geen finaleafstand).

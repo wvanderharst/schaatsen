@@ -184,7 +184,7 @@ tr.titelrij td { background: var(--accent-zacht) }
       <div><label for="sm-soort">Soort wedstrijd</label><select id="sm-soort"><option value="1">Regionale of nationale wedstrijd</option><option value="0.9">World Cup</option><option value="0.8">WK of Spelen</option></select></div>
       <div><label>&nbsp;</label><button class="knop" id="sm-start" type="button">Simuleer opnieuw</button></div>
     </div>
-    <p class="uitleg" style="margin-top:10px">De wedstrijd wordt 10.000 keer nagespeeld. Elke keer krijgt het ijs een eigen snelheid, voor iedereen dezelfde, en rijdt elke rijder iets sneller of trager dan het eigen niveau, zoals in de eigen ritten van de laatste twee seizoenen: wie wisselvallig rijdt, heeft meer kans op een uitschieter naar boven en naar beneden. Op World Cups en vooral op WK's en Spelen rijden de toppers constanter. Kies je een baan, dan worden de tijden omgerekend naar een normale dag op die baan; op buitenbanen wisselt het ijs meer. 'Omgerekend naar de top van nu' laat rijders uit verschillende jaren eerlijk tegen elkaar rijden. Bij een leeftijd tellen alleen seizoenen tot en met die leeftijd.</p>
+    <p class="uitleg" style="margin-top:10px">De wedstrijd wordt 10.000 keer nagespeeld. Elke keer krijgt het ijs een eigen snelheid, voor iedereen dezelfde, en rijdt elke rijder iets sneller of trager dan het eigen niveau, zoals in de eigen ritten van de laatste twee seizoenen: wie wisselvallig rijdt, heeft meer kans op een uitschieter naar boven en naar beneden. Op World Cups en vooral op WK's en Spelen rijden de toppers constanter. Kies je een baan, dan worden de tijden omgerekend naar een normale dag op die baan; op buitenbanen wisselt het ijs meer. 'Omgerekend naar de top van nu' laat rijders uit verschillende jaren eerlijk tegen elkaar rijden. Bij een leeftijd tellen alleen seizoenen tot en met die leeftijd. Meerkampen (kies ze bij Afstand): de eindstand gaat in punten, de tijd per 500 meter opgeteld; de ritten van een rijder op dezelfde dag hangen iets samen (dagvorm), net als het ijs op een dag. Iedereen rijdt alle vier de afstanden.</p>
     <div class="status" id="sm-status" style="margin-top:8px"></div>
     <div class="tabelbak" id="sm-tabel" style="margin-top:8px"></div>
     <div class="sectie" id="sm-voorbeeld"></div>
@@ -366,6 +366,7 @@ async function start() {
       $('sm-thuis').insertAdjacentHTML('beforeend', Object.entries(tel).filter(([, n]) => n >= 20).sort((a, b) => META.banen[a[0]].localeCompare(META.banen[b[0]])).map(([b, n]) => `<option value="${b}">${esc(META.banen[b])} (${n.toLocaleString('nl-NL')})</option>`).join('')); }
     opties($('kp-sz'), [['nu', 'Nu actief (laatste seizoen)'], ['ooit', 'Alle kampioenen ooit (laatste seizoen)'], ['', 'Alle seizoenen']].concat(jaren));
     opties($('sm-af'), SEN.map(a => [a, AFN[AFK.indexOf(a)]])); $('sm-af').value = '1000m';
+    $('sm-af').insertAdjacentHTML('beforeend', '<optgroup label="Meerkampen">' + Object.entries(MK).map(([k, m]) => `<option value="mk:${k}">${m.naam}</option>`).join('') + '</optgroup>');
     $('vg-af').insertAdjacentHTML('beforeend', SEN.map(a => `<option value="${a}">${AFN[AFK.indexOf(a)]}</option>`).join(''));
     ['rl-g', 'rl-af', 'rl-van', 'rl-tot', 'rl-sz', 'rl-land', 'rl-maat', 'rl-min', 'rl-een'].forEach(id => $(id).addEventListener('input', () => { rlPag = 0; tekenRanglijst(); }));
     ['tl-g', 'tl-van', 'tl-tot', 'tl-sz', 'tl-land', 'tl-sort'].forEach(id => $(id).addEventListener('input', () => { tlPag = 0; tekenTalenten(); }));
@@ -622,6 +623,7 @@ $('sm-zoek').addEventListener('blur', () => setTimeout(() => { $('sm-sugg').hidd
 $('sm-vg').addEventListener('click', () => { vergelijk.forEach(id => { if (!sim.includes(id) && sim.length < 24) sim.push(id); }); bewaarSim(); tekenSimChips(); });
 $('sm-leeg').addEventListener('click', () => { sim = []; bewaarSim(); tekenSimChips(); $('sm-tabel').innerHTML = ''; $('sm-voorbeeld').innerHTML = ''; $('sm-status').textContent = ''; });
 $('sm-top').addEventListener('click', async () => {
+  if ($('sm-af').value.startsWith('mk:')) return stelMeerkampSamen();
   const g = $('sm-g').value, af = $('sm-af').value, vsz = $('sm-vsz').value, lmax = +$('sm-lft').value || 99, land = $('sm-land').value,
         th = $('sm-thuis').value, n = +$('sm-n').value;
   if (g === 'v' && af === '10000m') { $('sm-status').textContent = 'Bij de vrouwen is de 10.000 m geen officiële afstand.'; return; }
@@ -642,6 +644,7 @@ function trek(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function normaal() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
 
 async function draaiSim() {
+  if ($('sm-af').value.startsWith('mk:')) return draaiMeerkamp();
   if (!sim.length) { $('sm-status').textContent = 'Kies eerst deelnemers.'; return; }
   const af = $('sm-af').value, wijze = $('sm-sz').value, mod = $('sm-mod').value, c = +$('sm-soort').value, N = 10000;
   $('sm-status').textContent = 'Rijders laden…';
@@ -822,6 +825,100 @@ async function rekenLive(startOpnieuw = true) {
     st.map((p, i) => `<tr${p.tijd > 0 ? '' : ' style="color:var(--zacht)"'}><td class="nr">${i + 1}</td><td class="l">${naamCel(p.id)}</td><td class="c">${tijd(p.tijd > 0 ? p.tijd : p.med)}</td><td class="l">${p.tijd > 0 ? 'gereden' : 'verwacht'}</td>
       <td class="c">${p.tijd > 0 ? '' : tijd(p.p10) + ' – ' + tijd(p.p90)}</td><td class="c sort">${kans(p.winst)}</td><td class="c">${kans(p.pod)}</td><td class="c">${getal(p.pl, 1)}</td></tr>`).join('') + '</table>'
     : '<div class="leeg">De verwachte uitslag verschijnt zodra er deelnemers met een niveau op deze afstand zijn.</div>';
+}
+
+/* ---------- meerkampen ---------- */
+// programma per dag; punten: samalog (tijd per 500 m, opgeteld, afgekapt op 3 decimalen)
+const MK = {
+  allround: { naam: 'Allround (grote vierkamp)', v: [['500m', '3000m'], ['1500m', '5000m']], m: [['500m', '5000m'], ['1500m', '10000m']] },
+  sprint: { naam: 'Sprintvierkamp', v: [['500m', '1000m'], ['500m', '1000m']], m: [['500m', '1000m'], ['500m', '1000m']] },
+  klein: { naam: 'Kleine vierkamp', v: [['500m', '1500m'], ['1000m', '3000m']], m: [['500m', '1500m'], ['1000m', '3000m']] },
+};
+// samenhang (dagcorrelatie.py): eigen vorm zelfde dag 0,12, volgende dag 0,05; ijs zelfde dag 0,38, volgende dag 0,15
+const RHO_RIT = 0.12, RHO_RIT_DAG = 0.05 / 0.12, RHO_IJS = 0.38, RHO_IJS_DAG = 0.15 / 0.38;
+const meters = af => +af.replace('m', '');
+const punten = (t, af) => Math.floor(1000 * t / (meters(af) / 500)) / 1000;
+function Phi(x) { const t = 1 / (1 + 0.2316419 * Math.abs(x)), d = 0.3989423 * Math.exp(-x * x / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; }
+function niveauOp(d, af, wijze, lmax, vsz) {
+  const kand = Object.entries(d.s).filter(([, e]) => (e.lft ?? 0) <= lmax).map(([s, e]) => [+s, e.af[af]]).filter(([, v]) => v && v[4] >= 2 && v[0] != null);
+  if (!kand.length) return null;
+  const gek = wijze === 'sz' ? (vsz === 'nu' ? kand.filter(([s]) => s >= META.laatste - 1).sort((a, b) => b[0] - a[0])[0] : kand.find(([s]) => s === +vsz)) : null;
+  return gek || (wijze === 'best' ? kand.filter(([, v]) => v[4] >= 3 && v[1] != null).sort((a, b) => a[1][1] - b[1][1])[0] : null) || kand.sort((a, b) => b[0] - a[0])[0];
+}
+async function stelMeerkampSamen() {
+  const g = $('sm-g').value, mk = MK[$('sm-af').value.slice(3)], vsz = $('sm-vsz').value, lmax = +$('sm-lft').value || 99, land = $('sm-land').value, th = $('sm-thuis').value, n = +$('sm-n').value;
+  const afs = [...new Set(mk[g].flat())];
+  $('sm-status').textContent = 'Veld samenstellen…';
+  const lijsten_ = await Promise.all(afs.map(af => lijst(`${g}_${af}`)));
+  const per = new Map();
+  afs.forEach((af, j) => lijsten_[j].filter(r => (vsz === 'nu' ? r[1] >= META.laatste - 1 : r[1] === +vsz) && r[6] >= 2 && r[3] != null && (r[2] ?? 99) <= lmax
+      && (!land || perId.get(r[0])?.land === land) && (!th || String(perId.get(r[0])?.thuis) === th))
+    .forEach(r => { const o = per.get(r[0]) || {}; if (!o[af] || r[1] > o[af][1]) o[af] = r; per.set(r[0], o); }));
+  const tot = [...per.entries()].filter(([, o]) => afs.every(af => o[af])).map(([id, o]) => [id, mk[g].flat().reduce((a, af) => a + punten(o[af][3], af), 0)]);
+  sim = tot.sort((a, b) => a[1] - b[1]).slice(0, n).map(x => x[0]); bewaarSim(); tekenSimChips();
+  if (th && [...$('sm-baan').options].some(o => o.value === th)) $('sm-baan').value = th;
+  if (!sim.length) { $('sm-status').textContent = 'Geen rijders met een niveau op alle afstanden van deze meerkamp in deze categorieën.'; $('sm-tabel').innerHTML = ''; $('sm-voorbeeld').innerHTML = ''; return; }
+  draaiMeerkamp();
+}
+async function draaiMeerkamp() {
+  if (!sim.length) { $('sm-status').textContent = 'Kies eerst deelnemers.'; return; }
+  const sleutel = $('sm-af').value.slice(3), mk = MK[sleutel], wijze = $('sm-sz').value, mod = $('sm-mod').value, c = +$('sm-soort').value, baan = $('sm-baan').value,
+        lmax = +$('sm-lft').value || 99, vsz = $('sm-vsz').value, N = 5000;
+  $('sm-status').textContent = 'Rijders laden…';
+  if (!schokRef) { try { schokRef = (await (await fetch('schokref.json')).json()).q; } catch (e) { $('sm-status').textContent = 'De referentieverdeling kon niet laden.'; return; } }
+  const data = await Promise.all(sim.map(rijderData));
+  const deeln = [], weg = [];
+  sim.forEach((id, i) => {
+    const d = data[i], g = perId.get(id)?.g; if (!d) { weg.push(id); return; }
+    const prog = mk[g]; const ritten = []; let ok = true;
+    prog.forEach((dagAf, dag) => dagAf.forEach(af => {
+      const nv = niveauOp(d, af, wijze, lmax, vsz); if (!nv) { ok = false; return; }
+      const bp = baan ? META.baanpeil?.[baan]?.[`${g}|${af}`] : null;
+      ritten.push({ dag, af, L: Math.log(mod === 'nu' ? nv[1][2] : nv[1][0]) + (bp ? bp[0] : 0), ijsSd: bp ? bp[1] : 0.004 });
+    }));
+    if (!ok) { weg.push(id); return; }
+    const eigen = d.r.filter(x => x[8] != null && !x[10] && seizoenVan(x[0]) >= META.laatste - 2).map(x => Math.log1p(x[8] / 100)).sort((a, b) => a - b);
+    deeln.push({ id, g, ritten, eigen, w: eigen.length / (eigen.length + 20) });
+  });
+  if (!deeln.length) { $('sm-status').textContent = 'Geen van de deelnemers heeft een niveau op alle afstanden van deze meerkamp.'; $('sm-tabel').innerHTML = ''; return; }
+  const n = deeln.length, R = deeln[0].ritten.length, nDag = 2;
+  const winst = new Float64Array(n), pod = new Float64Array(n), top5 = new Float64Array(n), plaats = new Float64Array(n), pt = deeln.map(() => new Float64Array(N));
+  const afWin = deeln.map(() => new Float64Array(R)), mediaanT = deeln.map(() => Array.from({ length: R }, () => new Float64Array(N)));
+  const tp = new Float64Array(n), idx = [...Array(n).keys()];
+  const kw = (p, u) => (p.eigen.length && Math.random() < p.w) ? p.eigen[Math.min(p.eigen.length - 1, Math.floor(u * p.eigen.length))] : schokRef[Math.min(200, Math.floor(u * 201))];
+  let voorbeeld = null;
+  for (let k = 0; k < N; k++) {
+    // ijs: per dag een gedeeld deel, per rit (afstand) een eigen deel; voor alle rijders gelijk
+    const Ievt = normaal(), Idag = [0, 1].map(() => Math.sqrt(RHO_IJS_DAG) * Ievt + Math.sqrt(1 - RHO_IJS_DAG) * normaal());
+    const ijsRit = deeln[0].ritten.map(r => Math.sqrt(RHO_IJS) * Idag[r.dag] + Math.sqrt(1 - RHO_IJS) * normaal());
+    const tijden = deeln.map(() => new Float64Array(R));
+    for (let i = 0; i < n; i++) {
+      const p = deeln[i], Zevt = normaal(), Zdag = [0, 1].map(() => Math.sqrt(RHO_RIT_DAG) * Zevt + Math.sqrt(1 - RHO_RIT_DAG) * normaal());
+      let som = 0;
+      p.ritten.forEach((r, j) => { const x = Math.sqrt(RHO_RIT) * Zdag[r.dag] + Math.sqrt(1 - RHO_RIT) * normaal();
+        const t = Math.exp(r.L + r.ijsSd * ijsRit[j] + c * kw(p, Phi(x))); tijden[i][j] = t; mediaanT[i][j][k] = t; som += punten(t, r.af); });
+      tp[i] = som; pt[i][k] = som;
+    }
+    idx.sort((a, b) => tp[a] - tp[b]);
+    idx.forEach((i, r) => { plaats[i] += r + 1; if (r === 0) winst[i]++; if (r < 3) pod[i]++; if (r < 5) top5[i]++; });
+    for (let j = 0; j < R; j++) { let b = 0; for (let i = 1; i < n; i++) if (tijden[i][j] < tijden[b][j]) b = i; afWin[b][j]++; }
+    if (k === 0) voorbeeld = { tijden, tp: Array.from(tp) };
+  }
+  const afs = deeln[0].ritten.map(r => r.af);
+  const res = deeln.map((p, i) => { const ps = Array.from(pt[i]).sort((a, b) => a - b);
+    return { ...p, i, winst: winst[i] / N, pod: pod[i] / N, top5: top5[i] / N, pl: plaats[i] / N, med: ps[N >> 1], p10: ps[Math.floor(N * .1)], p90: ps[Math.floor(N * .9)],
+      tmed: afs.map((_, j) => { const a = Array.from(mediaanT[i][j]).sort((x, y) => x - y); return a[N >> 1]; }), afw: afs.map((_, j) => afWin[i][j] / N) }; }).sort((a, b) => a.pl - b.pl);
+  $('sm-status').textContent = `${mk.naam}: ${N.toLocaleString('nl-NL')} keer gesimuleerd, ${baan ? 'normale dagen in ' + META.banen[baan] : 'normale dagen in Heerenveen'}${weg.length ? `. Zonder niveau op alle afstanden: ${weg.map(id => perId.get(id)?.naam).join(', ')}` : ''}.`;
+  const kop = afs.map((af, j) => `<th>${AFN[AFK.indexOf(af)]}${afs.indexOf(af) !== j ? ' (2)' : ''}</th>`).join('');
+  $('sm-tabel').innerHTML = `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th class="sort">Kans eindzege</th><th>Kans podium</th><th>Kans top 5</th><th>Verwachte plaats</th><th>Punten (mediaan)</th><th>80% van de punten</th>${kop}</tr>` +
+    res.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td><td class="c sort">${kans(r.winst)}</td><td class="c">${kans(r.pod)}</td><td class="c">${kans(r.top5)}</td>
+      <td class="c">${getal(r.pl, 1)}</td><td class="c">${r.med.toFixed(3).replace('.', ',')}</td><td class="c">${r.p10.toFixed(3).replace('.', ',')} – ${r.p90.toFixed(3).replace('.', ',')}</td>
+      ${r.tmed.map((t, j) => `<td class="c" title="Kans op de snelste tijd op deze afstand: ${kans(r.afw[j])}">${tijd(t)}</td>`).join('')}</tr>`).join('') + '</table>';
+  const vb = deeln.map((p, i) => ({ id: p.id, t: Array.from(voorbeeld.tijden[i]), pt: voorbeeld.tp[i] })).sort((a, b) => a.pt - b.pt);
+  $('sm-voorbeeld').innerHTML = `<h3>Eén voorbeelduitslag</h3><p class="uitleg">De tijden per afstand (verwachte mediaan in de grote tabel; houd de muis op een tijd voor de kans op de snelste tijd op die afstand). De ritten van een rijder op dezelfde dag hangen iets samen (dagvorm), net als het ijs op een dag.</p><div class="tabelbak"><table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th>${kop}<th>Punten</th><th>Achter</th></tr>${vb.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td>${r.t.map(t => `<td class="c">${tijd(t)}</td>`).join('')}<td class="c">${r.pt.toFixed(3).replace('.', ',')}</td><td class="c">${i ? '+' + (r.pt - vb[0].pt).toFixed(3).replace('.', ',') : ''}</td></tr>`).join('')}</table></div>
+    <div><button class="knop" id="sm-nog" type="button">Simuleer opnieuw</button></div>`;
+  $('sm-nog').addEventListener('click', draaiMeerkamp);
 }
 start();
 </script>

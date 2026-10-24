@@ -180,10 +180,11 @@ tr.titelrij td { background: var(--accent-zacht) }
     <div class="filters" style="margin-top:6px">
       <div><label for="sm-sz">Niveau uit</label><select id="sm-sz"><option value="sz">Het gekozen seizoen</option><option value="laatst">Laatste seizoen met ritten</option><option value="best">Beste seizoen</option></select></div>
       <div><label for="sm-mod">Tijdperk</label><select id="sm-mod"><option value="nu">Omgerekend naar de top van nu</option><option value="abs">Absoluut (ijs en materiaal van nu)</option></select></div>
-      <div><label for="sm-soort">Soort wedstrijd</label><select id="sm-soort"><option value="1">Gewone wedstrijd</option><option value="0.9">World Cup</option><option value="0.8">WK of Spelen</option></select></div>
+      <div><label for="sm-baan">Baan</label><select id="sm-baan"><option value="">Normale dag in Heerenveen</option></select></div>
+      <div><label for="sm-soort">Soort wedstrijd</label><select id="sm-soort"><option value="1">Regionale of nationale wedstrijd</option><option value="0.9">World Cup</option><option value="0.8">WK of Spelen</option></select></div>
       <div><label>&nbsp;</label><button class="knop" id="sm-start" type="button">Simuleer opnieuw</button></div>
     </div>
-    <p class="uitleg" style="margin-top:10px">Een normale dag in Heerenveen, 10.000 keer. Niveau: de verwachte tijd aan het eind van het seizoen (het gekozen seizoen, het laatste of het beste), alleen seizoenen tot en met de gekozen leeftijd (bijvoorbeeld tot en met 16 jaar: hoe snel waren ze onder de 17); "omgerekend naar de top van nu" zet rijders uit verschillende jaren eerlijk tegen elkaar (achterstand op de top-10 van hun seizoen, toegepast op de top-10 van nu). Per race een gedeelde ijsschok voor iedereen en per rijder een eigen afwijking, getrokken uit de eigen ritten van de laatste twee seizoenen (alleen de rijder, ijs achteraf eruit), gekrompen naar die van alle toprijders. Op World Cups is de spreiding 10% en op WK's en Spelen 20% kleiner: daar rijden de toppers constanter.</p>
+    <p class="uitleg" style="margin-top:10px">Een normale dag in Heerenveen of op de gekozen baan, 10.000 keer. Baan: het typische peil van een wedstrijd op die baan (laatste vier seizoenen, per geslacht en afstand) en hoe sterk het ijs daar per wedstrijd wisselt (buitenbanen veel meer dan Thialf); bij een thuisbaan als categorie wordt die baan de wedstrijdbaan. Niveau: de verwachte tijd aan het eind van het seizoen (het gekozen seizoen, het laatste of het beste), alleen seizoenen tot en met de gekozen leeftijd (bijvoorbeeld tot en met 16 jaar: hoe snel waren ze onder de 17); "omgerekend naar de top van nu" zet rijders uit verschillende jaren eerlijk tegen elkaar (achterstand op de top-10 van hun seizoen, toegepast op de top-10 van nu). Per race een gedeelde ijsschok voor iedereen en per rijder een eigen afwijking, getrokken uit de eigen ritten van de laatste twee seizoenen (alleen de rijder, ijs achteraf eruit), gekrompen naar die van alle toprijders. Op World Cups is de spreiding 10% en op WK's en Spelen 20% kleiner: daar rijden de toppers constanter.</p>
     <div class="status" id="sm-status" style="margin-top:8px"></div>
     <div class="tabelbak" id="sm-tabel" style="margin-top:8px"></div>
     <div class="sectie" id="sm-voorbeeld"></div>
@@ -311,6 +312,7 @@ async function start() {
     opties($('rl-sz'), [['', 'Alle seizoenen']].concat(jaren));
     opties($('tl-sz'), [['nu', 'Nu (laatste seizoen per rijder)'], ['', 'Alle seizoenen']].concat(jaren));
     opties($('sm-vsz'), [['nu', 'Nu (laatste twee seizoenen)']].concat(jaren));
+    $('sm-baan').insertAdjacentHTML('beforeend', Object.keys(META.baanpeil || {}).sort((a, b) => META.banen[a].localeCompare(META.banen[b])).map(b => `<option value="${b}">${esc(META.banen[b])}</option>`).join(''));
     { const tel = {}; rijders.forEach(r => { if (r.thuis != null) tel[r.thuis] = (tel[r.thuis] || 0) + 1; });
       $('sm-thuis').insertAdjacentHTML('beforeend', Object.entries(tel).filter(([, n]) => n >= 20).sort((a, b) => META.banen[a[0]].localeCompare(META.banen[b[0]])).map(([b, n]) => `<option value="${b}">${esc(META.banen[b])} (${n.toLocaleString('nl-NL')})</option>`).join('')); }
     opties($('kp-sz'), [['nu', 'Nu actief (laatste seizoen)'], ['ooit', 'Alle kampioenen ooit (laatste seizoen)'], ['', 'Alle seizoenen']].concat(jaren));
@@ -581,6 +583,7 @@ $('sm-top').addEventListener('click', async () => {
                    && (!land || perId.get(r[0])?.land === land) && (!th || String(perId.get(r[0])?.thuis) === th))
       .forEach(r => { const o = m.get(r[0]); if (!o || r[4] < o[4]) m.set(r[0], r); });
   sim = [...m.values()].sort((a, b) => a[4] - b[4]).slice(0, n).map(r => r[0]); bewaarSim(); tekenSimChips();
+  if (th && [...$('sm-baan').options].some(o => o.value === th)) $('sm-baan').value = th;
   if (!sim.length) { $('sm-status').textContent = 'Geen rijders in deze categorieën. Verruim de leeftijd, het land of de thuisbaan.'; $('sm-tabel').innerHTML = ''; $('sm-voorbeeld').innerHTML = ''; return; }
   draaiSim();
 });
@@ -611,22 +614,27 @@ async function draaiSim() {
     deeln.push({ id, s, niveau, L: Math.log(niveau), eigen, w: eigen.length / (eigen.length + 20), thuis: thuis ? META.banen[+thuis[0]] : '', thuisN: thuis ? thuis[1] : 0, nRit: d.r.length });
   });
   if (!deeln.length) { $('sm-status').textContent = `Geen van de deelnemers heeft een niveau op de ${AFN[AFK.indexOf(af)]}.`; $('sm-tabel').innerHTML = ''; return; }
+  const baan = $('sm-baan').value, geen = [];
+  let ijsSd = 0.004;
+  deeln.forEach(p => { const g = perId.get(p.id)?.g, bp = baan ? META.baanpeil?.[baan]?.[`${g}|${af}`] : null;
+    if (baan && !bp) geen.push(perId.get(p.id)?.naam);
+    if (bp) { p.L += bp[0]; p.niveau = Math.exp(p.L); ijsSd = Math.max(ijsSd, bp[1]); } });
   const n = deeln.length, winst = new Float64Array(n), pod = new Float64Array(n), top5 = new Float64Array(n), plaats = new Float64Array(n), tijden = deeln.map(() => new Float64Array(N));
   const t = new Float64Array(n), idx = [...Array(n).keys()];
   for (let k = 0; k < N; k++) {
-    const ijs = 0.004 * normaal();
+    const ijs = ijsSd * normaal();
     for (let i = 0; i < n; i++) { const p = deeln[i]; const z = (p.eigen.length && Math.random() < p.w) ? trek(p.eigen) : trek(schokRef); t[i] = Math.exp(p.L + ijs + c * z); tijden[i][k] = t[i]; }
     idx.sort((a, b) => t[a] - t[b]);
     idx.forEach((i, r) => { plaats[i] += r + 1; if (r === 0) winst[i]++; if (r < 3) pod[i]++; if (r < 5) top5[i]++; });
   }
   const res = deeln.map((p, i) => { const ts = Array.from(tijden[i]).sort((a, b) => a - b); return { ...p, winst: winst[i] / N, pod: pod[i] / N, top5: top5[i] / N, pl: plaats[i] / N, med: ts[N >> 1], p10: ts[Math.floor(N * .1)], p90: ts[Math.floor(N * .9)] }; })
     .sort((a, b) => a.pl - b.pl);
-  $('sm-status').textContent = `${N.toLocaleString('nl-NL')} keer gesimuleerd, ${AFN[AFK.indexOf(af)]}, normale dag in Heerenveen${weg.length ? `. Zonder niveau op deze afstand: ${weg.map(id => perId.get(id)?.naam).join(', ')}` : ''}.`;
+  $('sm-status').textContent = `${N.toLocaleString('nl-NL')} keer gesimuleerd, ${AFN[AFK.indexOf(af)]}, ${baan ? 'normale dag in ' + META.banen[baan] + ` (ijs wisselt per wedstrijd ±${(100 * ijsSd).toFixed(1).replace('.', ',')}%)` : 'normale dag in Heerenveen'}${geen.length ? `. Geen peil voor deze baan en afstand bij: ${geen.join(', ')} (Heerenveen gebruikt)` : ''}${weg.length ? `. Zonder niveau op deze afstand: ${weg.map(id => perId.get(id)?.naam).join(', ')}` : ''}.`;
   $('sm-tabel').innerHTML = `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th class="l">Thuisbaan</th><th class="l">Niveau uit</th><th>Niveau</th><th class="sort">Kans winst</th><th>Kans podium</th><th>Kans top 5</th><th>Verwachte plaats</th><th>Mediaan tijd</th><th>80% van de tijden</th><th>Eigen ritten</th></tr>` +
     res.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td><td class="l" title="${r.thuisN} van ${r.nRit} ritten">${esc(r.thuis)}</td><td class="l">${sz(r.s)}</td><td class="c">${tijd(r.niveau)}</td><td class="c sort">${kans(r.winst)}</td><td class="c">${kans(r.pod)}</td><td class="c">${kans(r.top5)}</td>
       <td class="c">${getal(r.pl, 1)}</td><td class="c">${tijd(r.med)}</td><td class="c">${tijd(r.p10)} – ${tijd(r.p90)}</td><td class="c">${r.eigen.length}</td></tr>`).join('') + '</table>';
   // een voorbeelduitslag
-  const ijs = 0.004 * normaal();
+  const ijs = ijsSd * normaal();
   const vb = deeln.map(p => ({ id: p.id, t: Math.exp(p.L + ijs + c * ((p.eigen.length && Math.random() < p.w) ? trek(p.eigen) : trek(schokRef))) })).sort((a, b) => a.t - b.t);
   $('sm-voorbeeld').innerHTML = `<h3>Eén voorbeelduitslag</h3><div class="tabelbak"><table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th>Tijd</th><th>Achter</th></tr>${vb.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td><td class="c">${tijd(r.t)}</td><td class="c">${i ? '+' + (r.t - vb[0].t).toFixed(2).replace('.', ',') : ''}</td></tr>`).join('')}</table></div>
     <div><button class="knop" id="sm-nog" type="button">Nog een voorbeelduitslag</button></div>`;

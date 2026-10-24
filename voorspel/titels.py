@@ -54,10 +54,11 @@ def uitkomsten(w):
 
 
 def toekomst_totalen(seizoenen):
-    """Te verdelen per geslacht in een toekomstig seizoen s (kampioenschappen in kalenderjaar s + 1): Spelen als (s + 1) mod 4 == 2,
-    WK afstanden (5 titels) als er geen Spelen zijn, allround en sprint (2) in even jaren, World Cups ~ het gemiddelde van 2022-2025."""
-    j = np.asarray(seizoenen) + 1; os_ = (j % 4 == 2)
-    return pd.DataFrame({'n_wk': 5.0 * ~os_ + 2.0 * (j % 2 == 0), 'n_os': 5.0 * os_, 'n_wkaf': 5.0 * ~os_, 'n_wc': np.nan}, index=seizoenen)
+    """Te verdelen per geslacht in een toekomstig seizoen s (kampioenschappen in kalenderjaar s + 1): de WK's worden nog maar de helft van
+    de jaren gehouden: WK afstanden (5 titels) in oneven jaren, allround en sprint (2) in even jaren; Spelen als (s + 1) mod 4 == 2 (5 titels);
+    World Cups ~ het gemiddelde van 2022-2025."""
+    j = np.asarray(seizoenen) + 1; os_ = (j % 4 == 2); oneven = (j % 2 == 1)
+    return pd.DataFrame({'n_wk': 5.0 * oneven + 2.0 * ~oneven, 'n_os': 5.0 * os_, 'n_wkaf': 5.0 * oneven, 'n_wc': np.nan}, index=seizoenen)
 
 
 KEN = ['L', 'achter', 'lrang', 'verb', 'verb_onb', 't0', 'vrouw', 'ned']

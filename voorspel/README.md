@@ -629,3 +629,7 @@ met >= 3 ritten) t.o.v. de seniorentop-10 van hetzelfde seizoen (glad), verander
 IJking (kans c, d): WK 1,10 / 1,03; Spelen 0,94 / 0,97; World Cup 1,17 / 1,06. Lijst: `titelkansen_senioren_2026.csv`. Verwacht aantal
 WK-titels vanaf 2026-27: mannen Stolz 18,2, Jílek 10,5, De Boo 2,9, Eitrem 2,6; vrouwen Kok 17,0, Leerdam 5,0, Beune 3,8, Wiklund 2,5.
 Website: titelkansen bij elk seizoen vanaf 15 jaar (tot 18 jaar het juniorenmodel, vanaf 18 jaar dit model).
+Website-indeling: zoekbalk met suggesties bovenaan (kiezen opent het rijderblad bovenaan), tabbladen Rijder, Ranglijsten (geslacht, afstand,
+leeftijd van-tot, seizoen, land, rangschikken op achterstand op de top-10 van dat seizoen of op de Heerenveen-tijd nu of toen, een regel per
+rijder), Talenten (titelkansen en verwachte aantallen, groei en niveau; leeftijd, seizoen of 'nu', land, sorteren op elke kans) en Vergelijken
+(tot 8 rijders: loopbanen naast elkaar op leeftijd, tabel per leeftijd met niveau, kansen of groei). Lijstbestanden: `site_lijsten.py`.

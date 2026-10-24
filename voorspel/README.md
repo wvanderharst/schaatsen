@@ -633,3 +633,10 @@ Website-indeling: zoekbalk met suggesties bovenaan (kiezen opent het rijderblad 
 leeftijd van-tot, seizoen, land, rangschikken op achterstand op de top-10 van dat seizoen of op de Heerenveen-tijd nu of toen, een regel per
 rijder), Talenten (titelkansen en verwachte aantallen, groei en niveau; leeftijd, seizoen of 'nu', land, sorteren op elke kans) en Vergelijken
 (tot 8 rijders: loopbanen naast elkaar op leeftijd, tabel per leeftijd met niveau, kansen of groei). Lijstbestanden: `site_lijsten.py`.
+Wedstrijden (`site_wedstrijden.py`): klik op een datum in de rittenlijst voor de hele uitslag (alle ritten op die baan, dag, afstand en
+geslacht, gesorteerd op tijd) met achterstand op de winnaar, Heerenveen-tijd en de eigen prestatie (alleen de rijder). Simuleren: deelnemers
+kiezen (zoeken, vergelijklijst, top 12 van nu, of "simuleer met deze rijders" vanuit een uitslag), afstand, niveau uit het laatste of het beste
+seizoen, absoluut of omgerekend naar de top van nu (eerlijk over tijdperken); 10.000 races op een normale dag in Heerenveen: gedeelde
+ijsschok (sd 0,4%) plus per rijder een rijderschok uit de eigen ritten van de laatste twee seizoenen (gewicht n / (n + 20)), anders uit de
+referentie van alle toprijders 2020+ (robuuste sd 0,85% per rit, dikke staarten); spreiding x 0,9 op World Cups en x 0,8 op WK's en Spelen
+(`spelen_winst.py`). Uitkomst: kans op winst, podium en top 5, verwachte plaats, mediaan tijd en 80%-interval, en een voorbeelduitslag.

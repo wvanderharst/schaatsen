@@ -640,3 +640,8 @@ seizoen, absoluut of omgerekend naar de top van nu (eerlijk over tijdperken); 10
 ijsschok (sd 0,4%) plus per rijder een rijderschok uit de eigen ritten van de laatste twee seizoenen (gewicht n / (n + 20)), anders uit de
 referentie van alle toprijders 2020+ (robuuste sd 0,85% per rit, dikke staarten); spreiding x 0,9 op World Cups en x 0,8 op WK's en Spelen
 (`spelen_winst.py`). Uitkomst: kans op winst, podium en top 5, verwachte plaats, mediaan tijd en 80%-interval, en een voorbeelduitslag.
+Kalender vooruit (`titels.toekomst_totalen`): de WK's worden nog maar de helft van de jaren gehouden: WK afstanden in oneven jaren, allround en
+sprint in even jaren, Spelen elke vier jaar. Daardoor minder te verwachten titels (Stolz nog 13,7 WK-titels in plaats van 18,2, Jílek 7,9 in
+plaats van 10,5). Website: tabblad Kampioenen (alle rijders met een wereld- of olympische titel: titels en zeges tot dan, kansen en verwachte
+aantallen voor de rest van de carriere; nu actief, alle kampioenen ooit of per seizoen); Talenten alleen zonder titel; in de simulatie een
+leeftijdsgrens (niveau uit seizoenen tot en met die leeftijd, en de top 12 binnen die leeftijd). Kansen in de blokken: `site_kansen.py`.

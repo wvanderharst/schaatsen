@@ -616,7 +616,7 @@ async function tekenKampioenen() {
   const g = $('kp-g').value, van = +$('kp-van').value, tot = +$('kp-tot').value, szk = $('kp-sz').value, land = $('kp-land').value, sk = $('kp-sort').value;
   $('kp-status').textContent = 'Laden…';
   let rows; try { rows = await lijst('kans'); } catch (e) { $('kp-status').textContent = 'De kampioenen konden niet laden: ' + e.message; return; }
-  let x = rows.filter(r => (r[12] + r[13]) > 0 && r[2] != null && r[2] >= van && r[2] <= tot && (!g || perId.get(r[0])?.g === g) && (!land || perId.get(r[0])?.land === land)
+  let x = rows.filter(r => (r[12] + r[13]) > 0 && (r[2] == null ? van <= 13 && tot >= 45 : r[2] >= van && r[2] <= tot) && (!g || perId.get(r[0])?.g === g) && (!land || perId.get(r[0])?.land === land)
                        && (szk === 'nu' ? r[1] >= META.laatste - 1 : szk === 'ooit' || !szk || r[1] === +szk));
   if (szk === 'nu' || szk === 'ooit') { const m = new Map(); x.forEach(r => { const o = m.get(r[0]); if (!o || r[1] > o[1]) m.set(r[0], r); }); x = [...m.values()]; }
   const w = r => sk === 't' ? r[12] + r[13] : sk === 'tv' ? r[12] + (r[4] || 0) : sk === '10' ? -(r[10] ?? 99) : (r[+sk] || 0);
@@ -626,7 +626,7 @@ async function tekenKampioenen() {
   const k = c => sk === c ? ' sort' : '';
   $('kp-tabel').innerHTML = n ? `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th class="l">Seizoen</th><th>Leeftijd</th><th class="l">Beste afstand</th><th class="${k('10')}">Achter top-10</th><th>Wereldrang</th>
       <th class="${k('12')}${k('t')}">WK-titels</th><th class="${k('13')}${k('t')}">Olympisch</th><th class="${k('14')}">WC-zeges</th><th>Kans nog een WK-titel</th><th class="${k('4')}">Nog verwacht WK</th><th class="${k('tv')}">Verwacht totaal WK</th><th>Kans nog olympisch</th><th class="${k('6')}">Nog verwacht olympisch</th><th>Nog verwacht WC</th><th></th></tr>` +
-    x.slice(pag * P, pag * P + P).map((r, i) => `<tr><td class="nr">${pag * P + i + 1}</td><td class="l">${naamCel(r[0])}</td><td class="l">${esc(perId.get(r[0])?.land || '')}</td><td class="l">${sz(r[1])}</td><td class="c">${r[2]}</td>
+    x.slice(pag * P, pag * P + P).map((r, i) => `<tr><td class="nr">${pag * P + i + 1}</td><td class="l">${naamCel(r[0])}</td><td class="l">${esc(perId.get(r[0])?.land || '')}</td><td class="l">${sz(r[1])}</td><td class="c">${r[2] ?? ''}</td>
       <td class="l">${r[11] != null ? AFN[AFK.indexOf(SEN[r[11]])] : ''}</td><td class="c${k('10')}">${pct(r[10])}</td><td class="c">${r[15] ?? ''}</td>
       <td class="c${k('12')}${k('t')}">${r[12] || ''}</td><td class="c${k('13')}${k('t')}">${r[13] || ''}</td><td class="c${k('14')}">${r[14] || ''}</td>
       <td class="c">${kans(r[3])}</td><td class="c${k('4')}">${getal(r[4], 2)}</td><td class="c${k('tv')}">${r[4] != null ? getal(r[12] + r[4], 1) : ''}</td><td class="c">${kans(r[5])}</td><td class="c${k('6')}">${getal(r[6], 2)}</td><td class="c">${getal(r[8], 1)}</td><td>${vgKnop(r[0])}</td></tr>`).join('') + '</table>'

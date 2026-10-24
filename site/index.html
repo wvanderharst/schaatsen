@@ -173,7 +173,7 @@ tr.titelrij td { background: var(--accent-zacht) }
       <div><label for="sm-soort">Soort wedstrijd</label><select id="sm-soort"><option value="1">Gewone wedstrijd</option><option value="0.9">World Cup</option><option value="0.8">WK of Spelen</option></select></div>
       <div><label>&nbsp;</label><button class="knop" id="sm-start" type="button" aria-pressed="true">Simuleer 10.000 keer</button></div>
     </div>
-    <p class="uitleg" style="margin-top:10px">Een normale dag in Heerenveen. Niveau: de verwachte tijd aan het eind van het gekozen seizoen, alleen seizoenen tot en met de gekozen leeftijd (bijvoorbeeld tot en met 16 jaar: hoe snel waren ze onder de 17); "omgerekend naar de top van nu" zet rijders uit verschillende jaren eerlijk tegen elkaar (achterstand op de top-10 van hun seizoen, toegepast op de top-10 van nu). Per race een gedeelde ijsschok voor iedereen en per rijder een eigen afwijking, getrokken uit de eigen ritten van de laatste twee seizoenen (alleen de rijder, ijs achteraf eruit), gekrompen naar die van alle toprijders. Op World Cups is de spreiding 10% en op WK's en Spelen 20% kleiner: daar rijden de toppers constanter.</p>
+    <p class="uitleg" style="margin-top:10px">Een normale dag in Heerenveen. Niveau: de verwachte tijd aan het eind van het gekozen seizoen, alleen seizoenen tot en met de gekozen leeftijd (bijvoorbeeld tot en met 16 jaar: hoe snel waren ze onder de 17); "omgerekend naar de top van nu" zet rijders uit verschillende jaren eerlijk tegen elkaar (achterstand op de top-10 van hun seizoen, toegepast op de top-10 van nu). Per race een gedeelde ijsschok voor iedereen en per rijder een eigen afwijking, getrokken uit de eigen ritten van de laatste twee seizoenen (alleen de rijder, ijs achteraf eruit), gekrompen naar die van alle toprijders. Op World Cups is de spreiding 10% en op WK's en Spelen 20% kleiner: daar rijden de toppers constanter. Thuisbaan: de baan waarop de rijder de meeste ritten reed.</p>
     <div class="status" id="sm-status" style="margin-top:8px"></div>
     <div class="tabelbak" id="sm-tabel" style="margin-top:8px"></div>
     <div class="sectie" id="sm-voorbeeld"></div>
@@ -585,7 +585,9 @@ async function draaiSim() {
     const [s, v] = wijze === 'best' ? kand.filter(([, v]) => v[4] >= 3 && v[1] != null).sort((a, b) => a[1][1] - b[1][1])[0] || kand.sort((a, b) => b[0] - a[0])[0] : kand.sort((a, b) => b[0] - a[0])[0];
     const niveau = mod === 'nu' ? v[2] : v[0];
     const eigen = d.r.filter(x => x[8] != null && !x[10] && (() => { const q = seizoenVan(x[0]); return q <= s && q >= s - 1; })()).map(x => Math.log1p(x[8] / 100));
-    deeln.push({ id, s, niveau, L: Math.log(niveau), eigen, w: eigen.length / (eigen.length + 20) });
+    const tel = {}; d.r.forEach(x => tel[x[2]] = (tel[x[2]] || 0) + 1);
+    const thuis = Object.entries(tel).sort((a, b) => b[1] - a[1])[0];
+    deeln.push({ id, s, niveau, L: Math.log(niveau), eigen, w: eigen.length / (eigen.length + 20), thuis: thuis ? META.banen[+thuis[0]] : '', thuisN: thuis ? thuis[1] : 0, nRit: d.r.length });
   });
   if (!deeln.length) { $('sm-status').textContent = `Geen van de deelnemers heeft een niveau op de ${AFN[AFK.indexOf(af)]}.`; $('sm-tabel').innerHTML = ''; return; }
   const n = deeln.length, winst = new Float64Array(n), pod = new Float64Array(n), top5 = new Float64Array(n), plaats = new Float64Array(n), tijden = deeln.map(() => new Float64Array(N));
@@ -599,13 +601,13 @@ async function draaiSim() {
   const res = deeln.map((p, i) => { const ts = Array.from(tijden[i]).sort((a, b) => a - b); return { ...p, winst: winst[i] / N, pod: pod[i] / N, top5: top5[i] / N, pl: plaats[i] / N, med: ts[N >> 1], p10: ts[Math.floor(N * .1)], p90: ts[Math.floor(N * .9)] }; })
     .sort((a, b) => a.pl - b.pl);
   $('sm-status').textContent = `${N.toLocaleString('nl-NL')} keer gesimuleerd, ${AFN[AFK.indexOf(af)]}, normale dag in Heerenveen${weg.length ? `. Zonder niveau op deze afstand: ${weg.map(id => perId.get(id)?.naam).join(', ')}` : ''}.`;
-  $('sm-tabel').innerHTML = `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Niveau uit</th><th>Niveau</th><th class="sort">Kans winst</th><th>Kans podium</th><th>Kans top 5</th><th>Verwachte plaats</th><th>Mediaan tijd</th><th>80% van de tijden</th><th>Eigen ritten</th></tr>` +
-    res.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${sz(r.s)}</td><td class="c">${tijd(r.niveau)}</td><td class="c sort">${kans(r.winst)}</td><td class="c">${kans(r.pod)}</td><td class="c">${kans(r.top5)}</td>
+  $('sm-tabel').innerHTML = `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th class="l">Thuisbaan</th><th class="l">Niveau uit</th><th>Niveau</th><th class="sort">Kans winst</th><th>Kans podium</th><th>Kans top 5</th><th>Verwachte plaats</th><th>Mediaan tijd</th><th>80% van de tijden</th><th>Eigen ritten</th></tr>` +
+    res.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td><td class="l" title="${r.thuisN} van ${r.nRit} ritten">${esc(r.thuis)}</td><td class="l">${sz(r.s)}</td><td class="c">${tijd(r.niveau)}</td><td class="c sort">${kans(r.winst)}</td><td class="c">${kans(r.pod)}</td><td class="c">${kans(r.top5)}</td>
       <td class="c">${getal(r.pl, 1)}</td><td class="c">${tijd(r.med)}</td><td class="c">${tijd(r.p10)} – ${tijd(r.p90)}</td><td class="c">${r.eigen.length}</td></tr>`).join('') + '</table>';
   // een voorbeelduitslag
   const ijs = 0.004 * normaal();
   const vb = deeln.map(p => ({ id: p.id, t: Math.exp(p.L + ijs + c * ((p.eigen.length && Math.random() < p.w) ? trek(p.eigen) : trek(schokRef))) })).sort((a, b) => a.t - b.t);
-  $('sm-voorbeeld').innerHTML = `<h3>Eén voorbeelduitslag</h3><div class="tabelbak"><table><tr><th>#</th><th class="l">Rijder</th><th>Tijd</th><th>Achter</th></tr>${vb.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="c">${tijd(r.t)}</td><td class="c">${i ? '+' + (r.t - vb[0].t).toFixed(2).replace('.', ',') : ''}</td></tr>`).join('')}</table></div>
+  $('sm-voorbeeld').innerHTML = `<h3>Eén voorbeelduitslag</h3><div class="tabelbak"><table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th>Tijd</th><th>Achter</th></tr>${vb.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td><td class="c">${tijd(r.t)}</td><td class="c">${i ? '+' + (r.t - vb[0].t).toFixed(2).replace('.', ',') : ''}</td></tr>`).join('')}</table></div>
     <div><button class="knop" id="sm-nog" type="button">Nog een voorbeelduitslag</button></div>`;
   $('sm-nog').addEventListener('click', draaiSim);
 }

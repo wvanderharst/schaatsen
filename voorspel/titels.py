@@ -67,7 +67,7 @@ KEN = ['L', 'achter', 'lrang', 'verb', 'verb_onb', 't0', 'vrouw', 'ned']
 def momenten(w):
     S = pd.read_parquet(os.path.join(w, 'talent_momentopnamen.parquet'),
                         columns=['skater_id', 'seizoen', 'naam', 'gender', 'land', 'geboren', 'exact', 'leeftijd', 'L_jeugd', 'beste_leeftijd',
-                                 'rang_leeftijd', 'verbetering', 'L_sen', 'af_jeugd'])
+                                 'rang_leeftijd', 'verbetering', 'verbetering2', 'L_sen', 'af_jeugd'])
     # stijgend niveau: de seniorentop van hetzelfde seizoen (10e beste seniorenniveau, 21+, per geslacht), glad over de seizoenen
     sen = S[(S['leeftijd'] >= 21) & np.isfinite(S['L_sen'])]
     t10 = sen.groupby(['gender', 'seizoen'])['L_sen'].apply(lambda v: np.sort(v.to_numpy())[9] if len(v) >= 10 else np.nan).rename('top10')
@@ -78,6 +78,8 @@ def momenten(w):
     J['L'] = J['L_jeugd'].clip(-0.05, 0.40); J['achter'] = (J['L_jeugd'] - J['beste_leeftijd']).clip(0, 0.4)
     J['lrang'] = np.log(J['rang_leeftijd']); J['verb_onb'] = J['verbetering'].isna().astype(float)
     J['verb'] = J['verbetering'].clip(-0.1, 0.3).fillna(0.0); J['t0'] = (J['leeftijd'] - 17.0) / 2.0
+    if 'verbetering2' in J:
+        J['verb2'] = J['verbetering2'].clip(-0.1, 0.4).fillna(0.0)
     J['vrouw'] = (J['gender'] == 'v').astype(float); J['ned'] = (J['land'] == 'NED').astype(float)
     return J.reset_index(drop=True)
 
@@ -105,6 +107,13 @@ def ontwerp(D):
         cols = basis + [lLr, Lr, lLr * tau, lLr * t0]
         if VARIANT == 'rel+':
             cols += [D['verb'].to_numpy(float), D['verb_onb'].to_numpy(float), D['ned'].to_numpy(float), D['achter'].to_numpy(float)]
+    elif VARIANT in ('niv', 'groei'):                    # gladde functie van niveau (t.o.v. de seniorentop van dat seizoen) x leeftijd
+        Lr = D['Lr'].to_numpy(float); lLr = np.log(np.clip(Lr, -0.03, None) + 0.05)
+        cols = basis + [lLr, Lr, lLr * tau, lLr * t0, Lr * t0]
+        if VARIANT == 'groei':                           # groei: verbetering laatste jaar en over twee jaar, ook x leeftijd
+            v1 = D['verb'].to_numpy(float); vo = D['verb_onb'].to_numpy(float)
+            v2 = D['verb2'].to_numpy(float) if 'verb2' in D else np.zeros(len(D))
+            cols += [v1, vo, v1 * t0, v1 * tau, v2, v1 * lLr]
     elif VARIANT == 'glad+':
         cols = basis + [lL, L, lL * tau, lL * t0, D['verb'].to_numpy(float), D['verb_onb'].to_numpy(float), D['ned'].to_numpy(float), D['achter'].to_numpy(float)]
     return np.column_stack(cols)
@@ -159,7 +168,21 @@ def rijen(J, per, tot, doel, eerste=False, tot_toekomst=None, tot_seizoen=LAATST
     return D
 
 
+APART = os.environ.get('TAPART', '0') == '1'           # mannen en vrouwen apart fitten
+
+
 def fit_voorspel(Dfit, Dnu, extra=False):
+    if APART and 'gender' in Dfit:
+        uit = np.zeros(len(Dnu))
+        for g in ('m', 'v'):
+            a = (Dfit['gender'] == g).to_numpy(); b = (Dnu['gender'] == g).to_numpy()
+            if b.any():
+                uit[b] = _fit_voorspel(Dfit[a], Dnu[b], extra)
+        return uit
+    return _fit_voorspel(Dfit, Dnu, extra)
+
+
+def _fit_voorspel(Dfit, Dnu, extra=False):
     X = ontwerp(Dfit); Xn = ontwerp(Dnu)
     if extra:            # Spelen gezamenlijk met de WK-afstandstitels: eigen constante voor de Spelen
         X = np.c_[X, Dfit['is_os'].to_numpy(float)]; Xn = np.c_[Xn, Dnu['is_os'].to_numpy(float)]

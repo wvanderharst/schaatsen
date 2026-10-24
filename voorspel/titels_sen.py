@@ -30,10 +30,9 @@ def momenten_sen(w, per):
     J['Lr'] = (J['Ls'] - J['top10']).clip(-0.05, 0.40)
     d = np.where(J['sv'] == J['seizoen'] - 1, J['Lv'] - J['Ls'], np.nan)
     J['dL'] = np.clip(np.nan_to_num(d), -0.1, 0.2); J['dL_onb'] = np.isnan(d).astype(float)
-    cum = per.groupby(level='skater_id').cumsum()                      # tot en met het seizoen
-    c = cum.reindex(pd.MultiIndex.from_arrays([J['skater_id'], J['seizoen']]))
-    # seizoenen zonder zege: laatste stand ervoor
-    allc = per.reset_index().sort_values('seizoen')
+    # gewonnen tot en met het seizoen (seizoenen zonder zege: de laatste stand ervoor)
+    allc = per.reset_index().sort_values('seizoen'); allc['seizoen'] = allc['seizoen'].astype(np.int64)
+    J['seizoen'] = J['seizoen'].astype(np.int64)
     for k in ('n_wk', 'n_os', 'n_wc'):
         allc['c_' + k] = allc.groupby('skater_id')[k].cumsum()
         m = pd.merge_asof(J[['skater_id', 'seizoen']].reset_index().sort_values('seizoen'), allc[['skater_id', 'seizoen', 'c_' + k]].sort_values('seizoen'),

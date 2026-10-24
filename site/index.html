@@ -157,23 +157,33 @@ tr.titelrij td { background: var(--accent-zacht) }
   <section id="v-wedstrijd" class="paneel" hidden><div id="wd"></div></section>
 
   <section id="v-simuleren" class="paneel" hidden>
-    <div id="sm-chips" class="chips"></div>
-    <div class="filters" style="margin-top:10px">
+    <h3>Veld samenstellen</h3>
+    <div class="filters" style="margin-top:6px">
+      <div><label for="sm-g">Geslacht</label><select id="sm-g"><option value="v">Vrouwen</option><option value="m">Mannen</option></select></div>
+      <div><label for="sm-af">Afstand</label><select id="sm-af"></select></div>
+      <div><label for="sm-vsz">Seizoen</label><select id="sm-vsz"></select></div>
+      <div><label for="sm-lft">Leeftijd</label><select id="sm-lft"></select></div>
+      <div><label for="sm-land">Land</label><select id="sm-land"><option value="">Alle landen</option></select></div>
+      <div><label for="sm-thuis">Thuisbaan</label><select id="sm-thuis"><option value="">Alle banen</option></select></div>
+      <div><label for="sm-n">Aantal rijders</label><select id="sm-n"><option>4</option><option>8</option><option selected>12</option><option>16</option><option>24</option></select></div>
+      <div><label>&nbsp;</label><button class="knop" id="sm-top" type="button" aria-pressed="true">Stel samen en simuleer</button></div>
+    </div>
+    <p class="uitleg" style="margin-top:6px">Neemt de beste rijders binnen de categorieën (niveau aan het eind van het seizoen, achterstand op de top-10 van dat seizoen, minstens drie ritten). Thuisbaan: de baan waarop de rijder de meeste ritten reed.</p>
+    <h3 style="margin-top:16px">Deelnemers</h3>
+    <div id="sm-chips" class="chips" style="margin-top:6px"></div>
+    <div class="filters" style="margin-top:8px">
       <div style="grid-column: span 2"><label for="sm-zoek">Rijder toevoegen</label><input id="sm-zoek" type="search" placeholder="Naam" autocomplete="off"><ul id="sm-sugg" class="suggesties" style="position:relative;top:4px" hidden></ul></div>
       <div><label>&nbsp;</label><button class="knop" id="sm-vg" type="button">Neem vergelijklijst over</button></div>
-      <div><label>&nbsp;</label><button class="knop" id="sm-top" type="button">Top 12 van nu (binnen de leeftijd)</button></div>
       <div><label>&nbsp;</label><button class="knop" id="sm-leeg" type="button">Alles wissen</button></div>
     </div>
-    <div class="filters" style="margin-top:10px">
-      <div><label for="sm-g">Geslacht (voor de top 12)</label><select id="sm-g"><option value="v">Vrouwen</option><option value="m">Mannen</option></select></div>
-      <div><label for="sm-af">Afstand</label><select id="sm-af"></select></div>
-      <div><label for="sm-sz">Niveau uit</label><select id="sm-sz"><option value="laatst">Laatste seizoen met ritten</option><option value="best">Beste seizoen</option></select></div>
-      <div><label for="sm-lft">Leeftijd</label><select id="sm-lft"></select></div>
+    <h3 style="margin-top:16px">Wedstrijd</h3>
+    <div class="filters" style="margin-top:6px">
+      <div><label for="sm-sz">Niveau uit</label><select id="sm-sz"><option value="sz">Het gekozen seizoen</option><option value="laatst">Laatste seizoen met ritten</option><option value="best">Beste seizoen</option></select></div>
       <div><label for="sm-mod">Tijdperk</label><select id="sm-mod"><option value="nu">Omgerekend naar de top van nu</option><option value="abs">Absoluut (ijs en materiaal van nu)</option></select></div>
       <div><label for="sm-soort">Soort wedstrijd</label><select id="sm-soort"><option value="1">Gewone wedstrijd</option><option value="0.9">World Cup</option><option value="0.8">WK of Spelen</option></select></div>
-      <div><label>&nbsp;</label><button class="knop" id="sm-start" type="button" aria-pressed="true">Simuleer 10.000 keer</button></div>
+      <div><label>&nbsp;</label><button class="knop" id="sm-start" type="button">Simuleer opnieuw</button></div>
     </div>
-    <p class="uitleg" style="margin-top:10px">Een normale dag in Heerenveen. Niveau: de verwachte tijd aan het eind van het gekozen seizoen, alleen seizoenen tot en met de gekozen leeftijd (bijvoorbeeld tot en met 16 jaar: hoe snel waren ze onder de 17); "omgerekend naar de top van nu" zet rijders uit verschillende jaren eerlijk tegen elkaar (achterstand op de top-10 van hun seizoen, toegepast op de top-10 van nu). Per race een gedeelde ijsschok voor iedereen en per rijder een eigen afwijking, getrokken uit de eigen ritten van de laatste twee seizoenen (alleen de rijder, ijs achteraf eruit), gekrompen naar die van alle toprijders. Op World Cups is de spreiding 10% en op WK's en Spelen 20% kleiner: daar rijden de toppers constanter. Thuisbaan: de baan waarop de rijder de meeste ritten reed.</p>
+    <p class="uitleg" style="margin-top:10px">Een normale dag in Heerenveen, 10.000 keer. Niveau: de verwachte tijd aan het eind van het seizoen (het gekozen seizoen, het laatste of het beste), alleen seizoenen tot en met de gekozen leeftijd (bijvoorbeeld tot en met 16 jaar: hoe snel waren ze onder de 17); "omgerekend naar de top van nu" zet rijders uit verschillende jaren eerlijk tegen elkaar (achterstand op de top-10 van hun seizoen, toegepast op de top-10 van nu). Per race een gedeelde ijsschok voor iedereen en per rijder een eigen afwijking, getrokken uit de eigen ritten van de laatste twee seizoenen (alleen de rijder, ijs achteraf eruit), gekrompen naar die van alle toprijders. Op World Cups is de spreiding 10% en op WK's en Spelen 20% kleiner: daar rijden de toppers constanter.</p>
     <div class="status" id="sm-status" style="margin-top:8px"></div>
     <div class="tabelbak" id="sm-tabel" style="margin-top:8px"></div>
     <div class="sectie" id="sm-voorbeeld"></div>
@@ -286,10 +296,10 @@ const naamCel = id => { const r = perId.get(id); return r ? `<button class="naam
 async function start() {
   try {
     const d = await gz('index.txt'); META = d.meta;
-    rijders = d.rijders.map(r => ({ id: r[0], naam: r[1], g: r[2], land: r[3], geb: r[4], van: r[5], tot: r[6], ritten: r[7], wk: r[8], os: r[9], wc: r[10], best: r[11], z: norm(r[1]) }));
+    rijders = d.rijders.map(r => ({ id: r[0], naam: r[1], g: r[2], land: r[3], geb: r[4], van: r[5], tot: r[6], ritten: r[7], wk: r[8], os: r[9], wc: r[10], best: r[11], thuis: r[12], z: norm(r[1]) }));
     rijders.forEach(r => perId.set(r.id, r));
     const landen = [...new Set(rijders.map(r => r.land))].sort();
-    for (const id of ['rl-land', 'tl-land', 'kp-land']) $(id).insertAdjacentHTML('beforeend', landen.map(l => `<option>${esc(l)}</option>`).join(''));
+    for (const id of ['rl-land', 'tl-land', 'kp-land', 'sm-land']) $(id).insertAdjacentHTML('beforeend', landen.map(l => `<option>${esc(l)}</option>`).join(''));
     opties($('rl-af'), AFK.map((a, i) => [a, AFN[i]])); $('rl-af').value = '1000m';
     const lft = []; for (let a = 10; a <= 45; a++) lft.push([a, a + ' jaar']);
     opties($('rl-van'), [['', 'Alle']].concat(lft)); opties($('rl-tot'), [['', 'Alle']].concat(lft));
@@ -300,6 +310,9 @@ async function start() {
     const jaren = []; for (let j = META.laatste; j >= 2006; j--) jaren.push([j, sz(j)]);
     opties($('rl-sz'), [['', 'Alle seizoenen']].concat(jaren));
     opties($('tl-sz'), [['nu', 'Nu (laatste seizoen per rijder)'], ['', 'Alle seizoenen']].concat(jaren));
+    opties($('sm-vsz'), [['nu', 'Nu (laatste twee seizoenen)']].concat(jaren));
+    { const tel = {}; rijders.forEach(r => { if (r.thuis != null) tel[r.thuis] = (tel[r.thuis] || 0) + 1; });
+      $('sm-thuis').insertAdjacentHTML('beforeend', Object.entries(tel).filter(([, n]) => n >= 20).sort((a, b) => META.banen[a[0]].localeCompare(META.banen[b[0]])).map(([b, n]) => `<option value="${b}">${esc(META.banen[b])} (${n.toLocaleString('nl-NL')})</option>`).join('')); }
     opties($('kp-sz'), [['nu', 'Nu actief (laatste seizoen)'], ['ooit', 'Alle kampioenen ooit (laatste seizoen)'], ['', 'Alle seizoenen']].concat(jaren));
     opties($('sm-af'), SEN.map(a => [a, AFN[AFK.indexOf(a)]])); $('sm-af').value = '1000m';
     $('vg-af').insertAdjacentHTML('beforeend', SEN.map(a => `<option value="${a}">${AFN[AFK.indexOf(a)]}</option>`).join(''));
@@ -558,12 +571,18 @@ $('sm-zoek').addEventListener('blur', () => setTimeout(() => { $('sm-sugg').hidd
 $('sm-vg').addEventListener('click', () => { vergelijk.forEach(id => { if (!sim.includes(id) && sim.length < 24) sim.push(id); }); bewaarSim(); tekenSimChips(); });
 $('sm-leeg').addEventListener('click', () => { sim = []; bewaarSim(); tekenSimChips(); $('sm-tabel').innerHTML = ''; $('sm-voorbeeld').innerHTML = ''; $('sm-status').textContent = ''; });
 $('sm-top').addEventListener('click', async () => {
-  const g = $('sm-g').value, af = $('sm-af').value;
-  if (g === 'v' && af === '10000m') return;
+  const g = $('sm-g').value, af = $('sm-af').value, vsz = $('sm-vsz').value, lmax = +$('sm-lft').value || 99, land = $('sm-land').value,
+        th = $('sm-thuis').value, n = +$('sm-n').value;
+  if (g === 'v' && af === '10000m') { $('sm-status').textContent = 'Bij de vrouwen is de 10.000 m geen officiële afstand.'; return; }
+  $('sm-status').textContent = 'Veld samenstellen…';
   const rows = await lijst(`${g}_${af}`);
-  const lmax = +$('sm-lft').value || 99;
-  const m = new Map(); rows.filter(r => r[1] >= META.laatste - 1 && r[6] >= 3 && r[4] != null && (r[2] ?? 99) <= lmax).forEach(r => { const o = m.get(r[0]); if (!o || r[4] < o[4]) m.set(r[0], r); });
-  sim = [...m.values()].sort((a, b) => a[4] - b[4]).slice(0, 12).map(r => r[0]); bewaarSim(); tekenSimChips(); draaiSim();
+  const m = new Map();
+  rows.filter(r => (vsz === 'nu' ? r[1] >= META.laatste - 1 : r[1] === +vsz) && r[6] >= 3 && r[4] != null && (r[2] ?? 99) <= lmax
+                   && (!land || perId.get(r[0])?.land === land) && (!th || String(perId.get(r[0])?.thuis) === th))
+      .forEach(r => { const o = m.get(r[0]); if (!o || r[4] < o[4]) m.set(r[0], r); });
+  sim = [...m.values()].sort((a, b) => a[4] - b[4]).slice(0, n).map(r => r[0]); bewaarSim(); tekenSimChips();
+  if (!sim.length) { $('sm-status').textContent = 'Geen rijders in deze categorieën. Verruim de leeftijd, het land of de thuisbaan.'; $('sm-tabel').innerHTML = ''; $('sm-voorbeeld').innerHTML = ''; return; }
+  draaiSim();
 });
 $('sm-start').addEventListener('click', draaiSim);
 
@@ -582,7 +601,9 @@ async function draaiSim() {
     const lmax = +$('sm-lft').value || 99;
     const kand = Object.entries(d.s).filter(([, e]) => (e.lft ?? 0) <= lmax).map(([s, e]) => [+s, e.af[af]]).filter(([, v]) => v && v[4] >= 2 && v[0] != null);
     if (!kand.length) { weg.push(id); return; }
-    const [s, v] = wijze === 'best' ? kand.filter(([, v]) => v[4] >= 3 && v[1] != null).sort((a, b) => a[1][1] - b[1][1])[0] || kand.sort((a, b) => b[0] - a[0])[0] : kand.sort((a, b) => b[0] - a[0])[0];
+    const vsz = $('sm-vsz').value;
+    const gekozen = wijze === 'sz' ? (vsz === 'nu' ? kand.filter(([s]) => s >= META.laatste - 1).sort((a, b) => b[0] - a[0])[0] : kand.find(([s]) => s === +vsz)) : null;
+    const [s, v] = gekozen ? gekozen : wijze === 'best' ? kand.filter(([, v]) => v[4] >= 3 && v[1] != null).sort((a, b) => a[1][1] - b[1][1])[0] || kand.sort((a, b) => b[0] - a[0])[0] : kand.sort((a, b) => b[0] - a[0])[0];
     const niveau = mod === 'nu' ? v[2] : v[0];
     const eigen = d.r.filter(x => x[8] != null && !x[10] && (() => { const q = seizoenVan(x[0]); return q <= s && q >= s - 1; })()).map(x => Math.log1p(x[8] / 100));
     const tel = {}; d.r.forEach(x => tel[x[2]] = (tel[x[2]] || 0) + 1);

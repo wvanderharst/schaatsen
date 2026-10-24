@@ -184,7 +184,7 @@ function tekenBlad() {
       <div class="grafiek" id="grafiek"></div></section>
     <section class="sectie"><h3>Per seizoen</h3>
       <div class="tabs" role="group" aria-label="Afstand">${afIn.map(a => `<button data-af="${a}" aria-pressed="${a === huidig.af}">${AFN[AFK.indexOf(a)]}</button>`).join('')}</div>
-      <p class="uitleg">Niveau Heerenveen nu: de verwachte tijd op een normale dag in Heerenveen met het ijs en het materiaal van nu. Heerenveen toen: hetzelfde niveau op het ijs en met het materiaal van dat seizoen (Thialf en materiaal waren in 2008 ongeveer 1,4% trager; de renovatie van 2016 en nieuw materiaal maakten het verschil). "In niveau van nu": dezelfde achterstand op de top-10, omgerekend naar de top-10 van ${sz(META.laatste)}. Groei en titelkansen staan bij de junioren (15 tot en met 19 jaar). De kansen gelden voor de hele carrière, zoals het model ze aan het eind van dat seizoen gaf.</p>
+      <p class="uitleg">Niveau Heerenveen nu: de verwachte tijd op een normale dag in Heerenveen met het ijs en het materiaal van nu. Heerenveen toen: hetzelfde niveau op het ijs en met het materiaal van dat seizoen (Thialf en materiaal waren in 2008 ongeveer 1,4% trager; de renovatie van 2016 en nieuw materiaal maakten het verschil). "In niveau van nu": dezelfde achterstand op de top-10, omgerekend naar de top-10 van ${sz(META.laatste)}. Groei staat bij de junioren (13 tot en met 19 jaar). De titelkansen staan bij elk seizoen vanaf 15 jaar: de kans op minstens één (nog een) titel of zege en het verwachte aantal, vanaf het volgende seizoen tot het eind van de carrière, zoals het model ze aan het eind van dat seizoen gaf (tot 18 jaar uit het juniorenmodel, vanaf 18 jaar met wat de rijder al won).</p>
       <div class="tabelbak" id="seizoenen"></div></section>
     <section class="sectie"><h3>Alle ritten</h3>
       <div class="filters" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))">
@@ -225,12 +225,12 @@ function tekenSeizoenen() {
   const { d, af } = huidig;
   const rijen = Object.entries(d.s).map(([s, e]) => [+s, e]).sort((a, b) => b[0] - a[0]);
   const jeugd = rijen.some(([, e]) => e.kans || e.groei != null);
-  const kop = `<tr><th class="l">Seizoen</th><th>Leeftijd</th><th>Niveau Heerenveen nu</th><th>Heerenveen toen</th><th>Achter top-10</th><th>In niveau van nu</th><th>Wereldrang</th><th>Ritten</th><th>WK</th><th>Spelen</th><th>WC-zeges</th>${jeugd ? '<th>Groei</th><th>Kans WK-titel</th><th>Verwacht WK</th><th>Kans olympisch</th><th>Kans WC-zege</th><th>Verwacht WC</th>' : ''}</tr>`;
+  const kop = `<tr><th class="l">Seizoen</th><th>Leeftijd</th><th>Niveau Heerenveen nu</th><th>Heerenveen toen</th><th>Achter top-10</th><th>In niveau van nu</th><th>Wereldrang</th><th>Ritten</th><th>WK</th><th>Spelen</th><th>WC-zeges</th>${jeugd ? '<th>Groei</th><th>Kans WK-titel</th><th>Verwacht WK</th><th>Kans olympisch</th><th>Verwacht olympisch</th><th>Kans WC-zege</th><th>Verwacht WC</th>' : ''}</tr>`;
   const body = rijen.map(([s, e]) => { const v = e.af[af]; const k = e.kans;
     return `<tr class="${(e.wk || e.os) ? 'titelrij' : ''}"><td class="l">${sz(s)}</td><td class="c">${e.lft ?? ''}</td>
       <td class="c">${v ? tijd(v[0]) : ''}</td><td class="c">${v ? tijd(toen(v[0], s)) : ''}</td><td class="c">${v ? pct(v[1]) : ''}</td><td class="c">${v ? tijd(v[2]) : ''}</td><td class="c">${v && v[3] ? v[3] : ''}</td><td class="c">${v ? v[4] : ''}</td>
       <td class="c">${e.wk || ''}</td><td class="c">${e.os || ''}</td><td class="c">${e.wc || ''}</td>
-      ${jeugd ? `<td class="c ${e.groei > 0 ? 'snel' : e.groei < 0 ? 'traag' : ''}">${e.groei != null ? pct(e.groei) : ''}</td><td class="c">${k ? kans(k.p_wk) : ''}</td><td class="c">${k ? k.e_wk.toFixed(2).replace('.', ',') : ''}</td><td class="c">${k ? kans(k.p_os) : ''}</td><td class="c">${k ? kans(k.p_wc) : ''}</td><td class="c">${k ? k.e_wc.toFixed(1).replace('.', ',') : ''}</td>` : ''}</tr>`; }).join('');
+      ${jeugd ? `<td class="c ${e.groei > 0 ? 'snel' : e.groei < 0 ? 'traag' : ''}">${e.groei != null ? pct(e.groei) : ''}</td><td class="c">${k ? kans(k.p_wk) : ''}</td><td class="c">${k ? k.e_wk.toFixed(2).replace('.', ',') : ''}</td><td class="c">${k ? kans(k.p_os) : ''}</td><td class="c">${k ? k.e_os.toFixed(2).replace('.', ',') : ''}</td><td class="c">${k ? kans(k.p_wc) : ''}</td><td class="c">${k ? k.e_wc.toFixed(1).replace('.', ',') : ''}</td>` : ''}</tr>`; }).join('');
   document.getElementById('seizoenen').innerHTML = `<table>${kop}${body}</table>`;
 }
 

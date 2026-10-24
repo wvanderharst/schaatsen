@@ -606,3 +606,26 @@ werden 2008-2025 ~2,3% sneller (baan en materiaal plus de rijders). Samen voor e
 t.o.v. 2025-26): 2008 +1,4%, 2014 +1,1%, 2018 +0,5%, 2021 +0,05%.
 Website: per rit en per seizoen "Heerenveen nu" (ijs en materiaal van nu) en "Heerenveen toen" (van dat seizoen); het verschil is de
 verbetering van baan en materiaal. De achterstand op de top-10 van het seizoen is los van baan en materiaal (alleen de rijders).
+
+## Titelkansen vanaf 18 jaar (`titels_sen.py`)
+
+Doorgetrokken voor elk seizoen van 18 tot en met 39 jaar (49.971 momentopnamen), voorspeld vanaf het volgende seizoen tot en met 40 jaar:
+kans op minstens een (nog een) WK-titel / olympische titel / World Cup-zege en het verwachte aantal. Kenmerken: seniorenniveau (beste afstand
+met >= 3 ritten) t.o.v. de seniorentop-10 van hetzelfde seizoen (glad), verandering t.o.v. vorig seizoen, wat de rijder al won
+(ln(1 + titels / zeges), ook x leeftijd), leeftijd (kwadratisch), geslacht, Nederland. Met de titelhistorie divergeerde de Poisson-schatting
+(som van de voorspellingen 202.330 tegen 1.045 titels); nu met stapverkleining en een aandeel in de te verdelen titels van hoogstens 1
+(in de steekproef dan som 1.045 / 1.045). Toets buiten de steekproef (kruisfit, binnen de waargenomen seizoenen):
+| doel, leeftijd | met zege daarna | kans som | AUC (alleen niveau) | top-100 voorspeld / echt |
+|---|---|---|---|---|
+| WK 18-21 | 161 | 152,9 | 0,973 (0,968) | 50,3 / 46 |
+| WK 22-26 | 150 | 148,2 | 0,976 (0,971) | 63,7 / 61 |
+| WK 27+ | 52 | 45,1 | 0,983 (0,981) | 31,0 / 34 |
+| Spelen 18-21 | 83 | 86,3 | 0,973 (0,959) | 27,2 / 26 |
+| Spelen 22-26 | 89 | 86,6 | 0,975 (0,964) | 40,6 / 35 |
+| Spelen 27+ | 35 | 25,7 | 0,981 (0,977) | 16,2 / 22 |
+| World Cup 18-21 | 548 | 536,3 | 0,955 (0,954) | 82,4 / 78 |
+| World Cup 22-26 | 445 | 433,8 | 0,962 (0,961) | 89,3 / 84 |
+| World Cup 27+ | 129 | 119,3 | 0,974 (0,967) | 56,6 / 55 |
+IJking (kans c, d): WK 1,10 / 1,03; Spelen 0,94 / 0,97; World Cup 1,17 / 1,06. Lijst: `titelkansen_senioren_2026.csv`. Verwacht aantal
+WK-titels vanaf 2026-27: mannen Stolz 18,2, Jílek 10,5, De Boo 2,9, Eitrem 2,6; vrouwen Kok 17,0, Leerdam 5,0, Beune 3,8, Wiklund 2,5.
+Website: titelkansen bij elk seizoen vanaf 15 jaar (tot 18 jaar het juniorenmodel, vanaf 18 jaar dit model).

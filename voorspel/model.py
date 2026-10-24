@@ -1,0 +1,416 @@
+"""Nieuwe voorspeller van rittijden: ln tijd = ijs vooraf + niveau + vorm + correcties (functies van PR, seizoensbeste, laatste fouten,
+leeftijd x tijd sinds de vorige rit, niveau x baan, andere afstanden), met een eigen schaal per rit (eigen spreiding, ervaring, rustperiode,
+leeftijd, onzekerheid van het ijs) en een geijkte foutverdeling (twee-delige Student-t per afstandsgroep, zoals de eerlijke log loss).
+Fit op de jaren <= FIT_TOT, toets op de jaren erna. Gebruik: python model.py <map met kenmerken.parquet en oud_vooraf.parquet>"""
+import sys, os, time, warnings; warnings.filterwarnings('ignore')
+import numpy as np, pandas as pd
+from scipy.optimize import minimize
+from scipy.stats import t as T
+
+VELD_IJS = os.environ.get('VELD_IJS', '1') == '1'
+NIEUWE_BAAN = os.environ.get('NIEUWE_BAAN', '1') == '1'     # startpeil nieuwe baan (veld, hoogte), toernooidagen en snelle veranderingen t.o.v. de verwachting vooraf
+N_MIN = int(os.environ.get('N_MIN', '5'))                    # races met minder rijders tellen niet mee voor het ijs (trainingen, tijdritten)
+WEER = os.environ.get('WEER', '1') == '1'           # luchtdruk, wind en temperatuur per baan en dag (weer/weer_dag.csv, luchtdruk.py)
+WEER_PAD = os.environ.get('WEER_PAD', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'weer', 'weer_dag.csv'))
+SEIZOEN_IJS = os.environ.get('SEIZOEN_IJS', '0') == '1'      # (bijna geen effect op alle races; het seizoensverloop zit bij de toppers, zie model2.seizoen_top)      # seizoensverloop van het ijs per baan
+WAT_ALS_EVENT = -100000   # event_id <= dit: denkbeeldige rit (wat_als_heerenveen.py), alleen de rijder zelf, zonder veldaanpassing
+SZ_BW = 3.0          # ijsbonus voor sterke velden (beter geprepareerd ijs)
+FIT_TOT = int(os.environ.get('FIT_TOT', '2019'))      # fit op de jaren t/m FIT_TOT (2019: toets op 2020+; 2026: alles, voor voorspellingen nu)
+AF = ['500m', '1000m', '1500m', '3000m', '5000m', '10000m']
+GROEP = {'500m': 'sprint', '1000m': 'sprint', '1500m': 'midden', '3000m': 'midden', '5000m': 'lang', '10000m': 'lang'}
+KOL = ['skater_id', 'skater_name', 'gender', 'groep', 'afstand', 'afstand_idx', 'dag', 'jaar', 'seizoen', 'event_id', 'baan', 'tijd', 'verdacht',
+       'theta', 'v_theta', 'leeftijd', 'mu', 'n', 'gapa', 'gap', 'f', 'f2', 's', 'sa', 'pr', 'prraw', 'sb3', 'sbc', 'ela', 'elany', 'elage', 'e', 'val',
+       'y', 'ijs_vm', 'ijs_vn', 'ijs_ba', 'ijs_bn', 'ijs_ev', 'ijs_evn', 'ijs_gl', 'ijs_rec', 'ijs_recn', 'ijs_n', 'hoog', 'theta_rijder'] + ['mu_' + a for a in AF] + ['n_' + a for a in AF]
+
+
+def huber(X, y, w=None, c=1.345, n_iter=30):
+    """Robuuste lineaire regressie (Huber, IRLS) met gewichten w = 1 / schaal^2 per rij; de Huber-grens geldt voor de gestandaardiseerde residuen."""
+    w = np.ones(len(y)) if w is None else w
+    b = np.linalg.lstsq(X * np.sqrt(w)[:, None], y * np.sqrt(w), rcond=None)[0]
+    for _ in range(n_iter):
+        r = (y - X @ b) * np.sqrt(w); s = 1.4826 * np.median(np.abs(r - np.median(r))) + 1e-9      # gestandaardiseerd (w = 1 / schaal^2)
+        hw = np.minimum(1.0, c * s / np.maximum(np.abs(r), 1e-12)) * w
+        b_new = np.linalg.lstsq(X * np.sqrt(hw)[:, None], y * np.sqrt(hw), rcond=None)[0]
+        if np.max(np.abs(b_new - b)) < 1e-7:
+            b = b_new; break
+        b = b_new
+    return b
+
+
+def laad(w):
+    K = pd.read_parquet(os.path.join(w, 'kenmerken.parquet'), columns=KOL)
+    K = K[K['afstand'].astype(str).isin(AF)].copy(); K['afstand'] = K['afstand'].astype(str)
+    return K
+
+
+def ijs_voorspelling(K):
+    """Racepeil vooraf: lopend baangemiddelde (afstand x geslacht, gekrompen naar de baan), eerdere toernooidagen, algemene stand,
+    en (VELD_IJS) een ijsbonus als functie van het niveau van het veld t.o.v. het gewone veld op die baan."""
+    fit = (K['jaar'] <= FIT_TOT) & np.isfinite(K['theta'])
+    gm = K[fit].groupby(['gender', 'afstand_idx'])['theta'].median().rename('gm')
+    K = K.join(gm, on=['gender', 'afstand_idx'])
+    ba = K['ijs_ba'].where(K['ijs_bn'] > 0, K['gm'])
+    K['ijs_basis'] = np.where(K['ijs_vn'] > 0, (K['ijs_vn'] * K['ijs_vm'] + 3 * ba) / (K['ijs_vn'] + 3), ba)
+    K['ijs_evw'] = K['ijs_ev'] * K['ijs_evn'] / (K['ijs_evn'] + 2)
+    K['ijs_recw'] = K['ijs_rec'] * (1 - np.exp(-K['ijs_recn'] / 3.0))
+    IJS = ['ijs_basis', 'ijs_evw', 'ijs_gl', 'ijs_recw']
+    if VELD_IJS and 'k_c' in K:
+        # elite rijden vaak op beter geprepareerd ijs: verwachte ijsbonus = f(niveau van het veld van de race) - f(gewoon veldniveau op die baan),
+        # f(g) = exp(-g / T) voor T = 5% en 15% (functies, geen groepen). Het veld is vooraf bekend (startlijst); de baan alleen uit eerdere dagen.
+        rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+        gR = K.groupby(rk)['k_c'].transform('median').clip(-0.05, 0.5)
+        nep = (K['event_id'] <= WAT_ALS_EVENT).to_numpy()            # denkbeeldige wat-als-ritten: niet in het gewone veld van de baan
+        ev = K[~nep].assign(gR=gR[~nep]).drop_duplicates(rk)[rk + ['baan', 'gR']].sort_values(['baan', 'dag'], kind='stable')
+        ev['gV'] = ev.groupby('baan')['gR'].transform(lambda x: x.shift(1).ewm(alpha=0.05, adjust=True).mean())
+        K = K.join(ev.set_index(rk)['gV'], on=rk)
+        gV = K['gV'].fillna(gR).fillna(0.2); gR = gR.fillna(gV)
+        for T, nm in ((0.05, 'ijs_veld05'), (0.15, 'ijs_veld15')):
+            K[nm] = np.where(nep, 0.0, np.exp(-gR / T) - np.exp(-gV / T))         # wat-als: zonder veldaanpassing
+        IJS += ['ijs_veld05', 'ijs_veld15']
+    if WEER and os.path.exists(WEER_PAD):
+        K, IJS = weer_kenmerken(K, IJS, fit)
+    if NIEUWE_BAAN:
+        K, IJS = startpeil_kenmerken(K, IJS)
+    r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
+    X = np.c_[np.ones(len(r)), r[IJS].to_numpy()]
+    c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]
+    K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
+    if NIEUWE_BAAN:
+        # tweede stap: afwijkingen van eerdere races t.o.v. hun verwachting vooraf (eerste stap): eerdere toernooidagen en de recente
+        # stand van de baan (7 en 60 dagen). Werkt ook op een nieuwe baan, waar de oude toernooiterm nog 0 is.
+        K, IJS = afwijking_kenmerken(K, IJS, fit)
+        r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
+        c = np.linalg.lstsq(np.c_[np.ones(len(r)), r[IJS].to_numpy()], r['theta'].to_numpy(), rcond=None)[0]
+        K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
+    if SEIZOEN_IJS:
+        # seizoensverloop van het ijs per baan: vloeiende functie van de week in het seizoen, uit EERDERE seizoenen op dezelfde baan
+        # (kernel van SZ_BW weken, recente seizoenen zwaarder), gekrompen naar het verloop over alle banen
+        K['ijs_seizoen'] = seizoen_ijs(K)
+        IJS = IJS + ['ijs_seizoen']
+        r = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
+        X = np.c_[np.ones(len(r)), r[IJS].to_numpy()]
+        c = np.linalg.lstsq(X, r['theta'].to_numpy(), rcond=None)[0]
+        K['th_hat'] = np.c_[np.ones(len(K)), K[IJS].to_numpy()] @ c
+    return K, c
+
+
+def toernooidag(K, gat=2):
+    """Dag in het toernooi (vooraf bekend): per baan aaneengesloten wedstrijddagen (hoogstens gat dagen ertussen). dag1 = exp(-dagnummer)."""
+    d = K[['baan', 'dag']].drop_duplicates().sort_values(['baan', 'dag'], kind='stable')
+    nieuw = (d['baan'] != d['baan'].shift()) | (d['dag'] - d['dag'].shift() > gat)
+    d['_t'] = nieuw.cumsum().to_numpy(); d['dagnr'] = d['dag'] - d.groupby('_t')['dag'].transform('min')
+    K = K.drop(columns=[c for c in ('dagnr', 'dag1') if c in K]).join(d.set_index(['baan', 'dag'])['dagnr'], on=['baan', 'dag'])
+    K['dag1'] = np.exp(-K['dagnr'].fillna(0).clip(0, 10))
+    return K
+
+
+def startpeil_kenmerken(K, IJS, tb=5.0):
+    """Startpeil van een nieuwe baan: zonder geschiedenis begon de baan op het gemiddelde van alle banen (veel trage en buitenbanen).
+    Nu een functie van het niveau van het veld (een olympisch of wereldbekerveld rijdt op snel ijs) en van de hoogte (ln gewone druk /
+    1013 hPa, uit het weer), met gewicht nieuw = exp(-eerdere races op de baan / tb): weegt zwaar zolang de baan weinig geschiedenis heeft."""
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    gR = K.groupby(rk)['k_c'].transform('median').clip(-0.05, 0.5).fillna(0.2)
+    nieuw = np.exp(-K['ijs_bn'].fillna(0) / tb)
+    if os.path.exists(WEER_PAD):
+        W = pd.read_csv(WEER_PAD, usecols=['baan', 'druk'])
+        alt = np.log(W.groupby('baan')['druk'].mean() / 1013.25)
+        K['_alt'] = K['baan'].map(alt).fillna(0.0)
+    else:
+        K['_alt'] = 0.0
+    K['ijs_nieuw'] = nieuw; K['ijs_nieuw_v05'] = nieuw * np.exp(-gR / 0.05); K['ijs_nieuw_v15'] = nieuw * np.exp(-gR / 0.15)
+    K['ijs_nieuw_alt'] = nieuw * K['_alt']
+    # kleine races (tijdritten, trainingen) lopen anders: ze tellen niet mee in de geschiedenis van het ijs, maar wel in de schatting,
+    # met een functie van de grootte van de startlijst; denkbeeldige wat-als-ritten gelden als een gewone race
+    n_start = K.groupby(rk)['skater_id'].transform('size')
+    K['ijs_klein'] = np.where(K['event_id'] <= WAT_ALS_EVENT, 0.0, np.exp(-n_start / 5.0))
+    return K.drop(columns='_alt'), IJS + ['ijs_nieuw', 'ijs_nieuw_v05', 'ijs_nieuw_v15', 'ijs_nieuw_alt', 'ijs_klein']
+
+
+def afwijking_kenmerken(K, IJS, fit, ev_dagen=6, hl_kort=7.0, hl_lang=60.0, k_ev=1.0, k_rec=2.0, tb=10.0):
+    """Per race, uit EERDERE dagen (races met >= N_MIN rijders, gewicht min(rijders, 20)), de afwijking theta - verwachting vooraf:
+    - ijs_ev2: eerdere dagen van hetzelfde toernooi (event_id mod 10^6, binnen ev_dagen dagen), ook x nieuw = exp(-eerdere races / tb);
+    - ijs_r7 / ijs_r60: uitdovend gemiddelde op deze baan met halfwaardetijd 7 en 60 dagen (snel veranderende omstandigheden).
+    Gekrompen naar 0 met k_ev / k_rec races."""
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    R = K.drop_duplicates(rk)[rk + ['baan', 'theta', 'th_hat', 'ijs_n', 'ijs_bn']].sort_values(['baan', 'dag'], kind='stable').reset_index(drop=True)
+    e = (R['theta'] - R['th_hat']).clip(-0.03, 0.03).to_numpy()
+    w = np.where(np.isfinite(e) & (R['ijs_n'].fillna(0).to_numpy() >= N_MIN), np.minimum(R['ijs_n'].fillna(0).to_numpy(), 20.0), 0.0)
+    e = np.nan_to_num(e)
+    b_ = R['baan'].to_numpy(); d_ = R['dag'].to_numpy().astype(float); t_ = (R['event_id'].to_numpy() % 1000000)
+    ev2 = np.zeros(len(R)); r7 = np.zeros(len(R)); r60 = np.zeros(len(R))
+    i = 0; n = len(R)
+    while i < n:
+        j = i
+        while j < n and b_[j] == b_[i]:
+            j += 1
+        s7 = n7 = s60 = n60 = 0.0; laatst = None; q = i
+        while q < j:
+            p = q
+            while p < j and d_[p] == d_[q]:
+                p += 1
+            if laatst is not None:
+                f7 = 0.5 ** ((d_[q] - laatst) / hl_kort); f60 = 0.5 ** ((d_[q] - laatst) / hl_lang)
+                s7 *= f7; n7 *= f7; s60 *= f60; n60 *= f60
+            r7[q:p] = s7 / (n7 + k_rec * 10.0); r60[q:p] = s60 / (n60 + k_rec * 10.0)
+            # toernooi: eerdere dagen met hetzelfde toernooinummer op deze baan
+            lo = q
+            while lo > i and d_[lo - 1] >= d_[q] - ev_dagen:
+                lo -= 1
+            for t in range(q, p):
+                m = (t_[lo:q] == t_[t]) & (w[lo:q] > 0)
+                ww = w[lo:q][m]
+                ev2[t] = (ww * e[lo:q][m]).sum() / (ww.sum() + k_ev * 10.0) if m.any() else 0.0
+            s7 += (w[q:p] * e[q:p]).sum(); n7 += w[q:p].sum(); s60 += (w[q:p] * e[q:p]).sum(); n60 += w[q:p].sum()
+            laatst = d_[q]; q = p
+        i = j
+    nieuw = np.exp(-R['ijs_bn'].fillna(0).to_numpy() / tb)
+    R['ijs_ev2'] = ev2; R['ijs_ev2_nieuw'] = ev2 * nieuw; R['ijs_r7'] = r7; R['ijs_r60'] = r60
+    nm = ['ijs_ev2', 'ijs_ev2_nieuw', 'ijs_r7', 'ijs_r60']
+    K = K.drop(columns=[c for c in nm if c in K]).join(R.set_index(rk)[nm], on=rk)
+    for c in nm:
+        K[c] = K[c].fillna(0.0)
+    return K, IJS + nm
+
+
+def weer_kenmerken(K, IJS, fit, hl=730.0, k0=30.0):
+    """Weer op de wedstrijddag (vooraf bekend: de weersverwachting van een dag of twee is nauwkeurig genoeg).
+    - ijs_dp: ln(druk) - ln(gewone druk op die baan): minder luchtweerstand bij lage druk; een coefficient voor alle banen.
+    - ijs_weer: per baan de gevoeligheid voor wind en temperatuur (buitenbanen: wind kost tijd, warmer is sneller; binnen bijna 0),
+      geschat uit EERDERE wedstrijddagen op die baan (fout van de ijsvoorspelling zonder wind/temperatuur, uitdovend met
+      halfwaardetijd hl dagen, gekrompen naar 0 met k0 races). Zo leert het model zelf welke banen buiten liggen en wanneer een
+      baan overdekt werd."""
+    W = pd.read_csv(WEER_PAD).drop_duplicates(['baan', 'dag'])
+    W['dag'] = W['dag'].astype(K['dag'].dtype)
+    ln_p = np.log(W['druk'])
+    W['dp'] = ln_p - ln_p.groupby(W['baan']).transform('mean')
+    W['dT'] = (W['temp'] - W.groupby('baan')['temp'].transform('mean')) / 10.0
+    W['wi'] = (W['wind'] - W.groupby('baan')['wind'].transform('mean')) / 10.0
+    K = K.drop(columns=[c for c in ('dp', 'dT', 'wi', 'ijs_dp', 'ijs_weer') if c in K])
+    K = K.join(W.set_index(['baan', 'dag'])[['dp', 'dT', 'wi']], on=['baan', 'dag'])
+    for c in ('dp', 'dT', 'wi'):
+        K[c] = K[c].fillna(0.0)
+    K['ijs_dp'] = K['dp']; IJS = IJS + ['ijs_dp']
+    # eerste stap: ijsvoorspelling met druk, zonder wind/temperatuur; de fout per race is de invoer voor de gevoeligheid per baan
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    r = K[fit].drop_duplicates(rk)
+    c = np.linalg.lstsq(np.c_[np.ones(len(r)), r[IJS].to_numpy()], r['theta'].to_numpy(), rcond=None)[0]
+    R = K.drop_duplicates(rk)[rk + ['baan', 'theta', 'dT', 'wi'] + IJS].sort_values(['baan', 'dag'], kind='stable')
+    e_ = (R['theta'] - np.c_[np.ones(len(R)), R[IJS].to_numpy()] @ c).to_numpy()
+    ok_ = np.isfinite(e_); e_ = np.clip(np.nan_to_num(e_), -0.03, 0.03)
+    X_ = R[['wi', 'dT']].to_numpy(); ok_ &= np.abs(X_).sum(1) > 0
+    b_ = R['baan'].to_numpy(); d_ = R['dag'].to_numpy().astype(float); corr = np.zeros(len(R)); lam = k0 * 0.5 * np.eye(2)
+    i = 0; n = len(R)
+    while i < n:                                        # per baan, per dag: eerst voorspellen met eerdere dagen, dan bijwerken
+        j = i
+        while j < n and b_[j] == b_[i]:
+            j += 1
+        A = np.zeros((2, 2)); bb = np.zeros(2); laatst = None; q = i
+        while q < j:
+            p = q
+            while p < j and d_[p] == d_[q]:
+                p += 1
+            if laatst is not None:
+                f = 0.5 ** ((d_[q] - laatst) / hl); A *= f; bb *= f
+            corr[q:p] = X_[q:p] @ np.linalg.solve(A + lam, bb)
+            m = ok_[q:p]
+            A += X_[q:p][m].T @ X_[q:p][m]; bb += X_[q:p][m].T @ e_[q:p][m]
+            laatst = d_[q]; q = p
+        i = j
+    R['ijs_weer'] = corr
+    K = K.join(R.set_index(rk)['ijs_weer'], on=rk)
+    K['ijs_weer'] = K['ijs_weer'].fillna(0.0)
+    return K, IJS + ['ijs_weer']
+
+
+def seizoen_ijs(K, bw=3.0, hl=3.0, k0=40.0):
+    """Per race: verwachte afwijking van het ijs t.o.v. de basisvoorspelling th_hat in deze week van het seizoen op deze baan, uit eerdere
+    seizoenen (gewicht 0,5^(seizoenen geleden / hl) x exp(-(weekverschil)^2 / (2 bw^2))), gekrompen naar alle banen samen (k0 races)."""
+    rk = ['dag', 'event_id', 'gender', 'afstand_idx']
+    r = K.drop_duplicates(rk)[rk + ['baan', 'seizoen', 'theta', 'th_hat']].copy()
+    r['wk'] = ((r['dag'] - ((r['seizoen'] - 1970) * 365.25 + 181)) // 7).clip(0, 51).astype(int)
+    r['res'] = (r['theta'] - r['th_hat']).clip(-0.03, 0.03)
+    ok = np.isfinite(r['res'])
+    agg = r[ok].groupby(['baan', 'seizoen', 'wk'])['res'].agg(['sum', 'count']).reset_index()
+    W = np.arange(52); Kw = np.exp(-(W[:, None] - W[None, :]) ** 2 / (2 * bw * bw))      # Kw[doelweek, bronweek]
+    seizoenen = np.sort(r['seizoen'].unique()); out = np.zeros(len(r))
+    def kernel_tabel(sub):
+        S_ = np.zeros((len(seizoenen), 52)); C_ = np.zeros((len(seizoenen), 52))
+        si = np.searchsorted(seizoenen, sub['seizoen'].to_numpy())
+        np.add.at(S_, (si, sub['wk'].to_numpy()), sub['sum'].to_numpy()); np.add.at(C_, (si, sub['wk'].to_numpy()), sub['count'].to_numpy())
+        res = {}
+        for j, S in enumerate(seizoenen):
+            w = 0.5 ** ((S - 1 - seizoenen[:j]) / hl)                      # alleen eerdere seizoenen
+            sw = (w[:, None] * S_[:j]).sum(0) @ Kw.T if j else np.zeros(52); cw = (w[:, None] * C_[:j]).sum(0) @ Kw.T if j else np.zeros(52)
+            res[S] = (sw, cw)
+        return res
+    alg = kernel_tabel(agg.groupby(['seizoen', 'wk'])[['sum', 'count']].sum().reset_index())
+    for b, sub in agg.groupby('baan'):
+        tb = kernel_tabel(sub)
+        m = (r['baan'] == b).to_numpy()
+        for S in np.unique(r.loc[m, 'seizoen']):
+            mm = m & (r['seizoen'] == S).to_numpy()
+            sw, cw = tb[S]; sa, ca = alg[S]
+            mu_a = np.where(ca > 0, sa / np.maximum(ca, 1e-9), 0.0)
+            mu_b = (sw + k0 * mu_a) / (cw + k0)
+            out[mm] = mu_b[r.loc[mm, 'wk'].to_numpy()]
+    r['ijs_seizoen'] = out
+    return K[rk].merge(r[rk + ['ijs_seizoen']], on=rk, how='left')['ijs_seizoen'].fillna(0.0).to_numpy()
+
+
+def kenmerken(K, D=None, ref=None):
+    """Ontwerpmatrix voor de locatie (fout t.o.v. niveau + vorm) en voor de schaal. D: typisch verschil tussen de niveaus op twee
+    afstanden (geslacht x afstand x afstand), ref: ln-tijd van de wereldtop (geslacht x afstand); beide uit de fitjaren."""
+    if ref is None:
+        x = K[(K['jaar'] <= FIT_TOT) & np.isfinite(K['y']) & ~K['val']]
+        ref = x.groupby(['gender', 'afstand'])['y'].quantile(0.01)
+    if D is None:
+        x = K[(K['jaar'] <= FIT_TOT) & (K['n'] >= 5)]
+        D = {}
+        for g, xg in x.groupby('gender'):
+            for a in AF:
+                xa = xg[xg['afstand'] == a]
+                for b in AF:
+                    if b != a:
+                        s = xa[xa['n_' + b] >= 5]
+                        D[(g, a, b)] = float(np.median(s['mu'] - s['mu_' + b])) if len(s) > 200 else np.nan
+    F = pd.DataFrame(index=K.index)
+    g_ = K['mu'] - [ref.get((gg, a), np.nan) for gg, a in zip(K['gender'], K['afstand'])]
+    g_ = g_.clip(0, 0.5); F['g'] = g_; F['g2'] = g_ ** 2
+    F['f'] = K['f']; F['f2'] = K['f2']
+    F['ela'] = K['ela'] * np.exp(-K['gapa'] / 60.0); F['elany'] = K['elany'] * np.exp(-K['elage'] / 30.0)
+    prd = (K['pr'] - K['mu']).clip(-0.15, 0.0); F['pr'] = prd; F['pr_n'] = prd / np.sqrt(K['n'] + 1)
+    raw = (K['prraw'] - K['th_hat'] - K['mu']).clip(-0.15, 0.15); F['prraw'] = raw          # bewezen PR t.o.v. de verwachte tijd hier
+    has3 = K['sb3'] < 9; F['sb3'] = np.where(has3, (K['sb3'] - K['mu']).clip(-0.15, 0.1), 0.0); F['sb3_geen'] = (~has3).astype(float)
+    hasc = K['sbc'] < 9; F['sbc'] = np.where(hasc, (K['sbc'] - K['mu']).clip(-0.15, 0.1), 0.0); F['sbc_geen'] = (~hasc).astype(float)
+    # andere afstanden: gewogen gemiddelde van het niveau dat de andere afstanden aangeven
+    num = np.zeros(len(K)); den = np.zeros(len(K)); ai = K['afstand'].map({a: i for i, a in enumerate(AF)}).to_numpy()
+    for bi, b in enumerate(AF):
+        d_ = np.array([D.get((gg, a, b), np.nan) for gg, a in zip(K['gender'], K['afstand'])])
+        nb = K['n_' + b].to_numpy(); ok = (ai != bi) & (nb >= 3) & np.isfinite(d_)
+        wgt = np.where(ok, nb / (nb + 5) / (1.0 + np.abs(ai - bi)), 0.0)
+        num += wgt * np.nan_to_num(K['mu_' + b].to_numpy() + d_ - K['mu'].to_numpy()); den += wgt
+    xd = np.where(den > 0, num / np.maximum(den, 1e-9), 0.0); xd = np.clip(xd, -0.1, 0.1)
+    F['xd'] = xd; F['xd_n'] = xd * 5.0 / (K['n'].to_numpy() + 5.0); F['xd_geen'] = (den == 0).astype(float)
+    # leeftijd: groei van jonge rijders en achteruitgang van ouderen als exponentiele / lineaire functies, ook x tijd sinds de vorige rit
+    lf = K['leeftijd'] + ((K['dag'] - (K['seizoen'] - 1970) * 365.25 - 182) / 365.25).clip(0, 1)     # leeftijd op de racedag (ongeveer)
+    bek = np.isfinite(lf); lf = lf.fillna(25.0)
+    dta = (K['gapa'].clip(0, 548) / 365.0)
+    A = {'a1': np.exp(-(lf - 12) / 3.0), 'a2': np.exp(-(lf - 12) / 8.0), 'a3': (lf - 27).clip(0) / 10.0, 'a4': (lf - 45).clip(0) / 10.0}
+    for k, v in A.items():
+        F[k] = np.where(bek, v, 0.0); F[k + '_dt'] = np.where(bek, v * dta, 0.0)
+    F['leeftijd_onb'] = (~bek).astype(float); F['dt'] = dta
+    F['inv_n'] = 1.0 / (K['n'] + 1.0); F['logn'] = np.log1p(K['n'])
+    F['seizoenstart'] = (K['gap'] > 150).astype(float); F['lgap'] = np.log1p(K['gap'].clip(0, 2000))
+    # baan x niveau: hoogland en snel ijs helpen toppers anders dan het veld (theta is een veldgemiddelde)
+    dth = (K['th_hat'] - K['gm']).clip(-0.06, 0.06)
+    F['hoog_g'] = K['hoog'] * g_; F['dth_g'] = dth * g_; F['hoog'] = K['hoog']; F['dth'] = dth
+    F['vrouw'] = (K['gender'] == 'v').astype(float)
+    for a in AF[1:]:
+        F['af_' + a] = (K['afstand'] == a).astype(float)
+    return F, D, ref
+
+
+SCHAAL = ['ls', 'lsa', 'inv_n', 'lgapa', 'seizoenstart', 'a1', 'a2', 'a3', 'leeftijd_onb', 'g', 'hoog', 'vrouw'] + ['af_' + a for a in AF[1:]]
+
+
+def schaal_kenmerken(K, F):
+    S = pd.DataFrame(index=K.index)
+    S['ls'] = np.log(K['s']); S['lsa'] = np.log(K['sa']); S['inv_n'] = F['inv_n']; S['lgapa'] = np.log1p(K['gapa'].clip(0, 2000))
+    for c in ('seizoenstart', 'a1', 'a2', 'a3', 'leeftijd_onb', 'g', 'hoog', 'vrouw') + tuple('af_' + a for a in AF[1:]):
+        S[c] = F[c]
+    return S
+
+
+def twee_t(u):
+    """Twee-delige Student-t (kans p0 aan de snelle kant, eigen schaal en vrijheidsgraden per kant): fit op u, geeft parameters."""
+    def nll(p):
+        p0 = 1 / (1 + np.exp(-p[0])); sL, nL, sU, nU = np.exp(p[1]), 1.5 + 28.5 / (1 + np.exp(-p[2])), np.exp(p[3]), 1.5 + 28.5 / (1 + np.exp(-p[4]))
+        f = np.where(u < 0, p0 * 2 * T.pdf(u / sL, nL) / sL, (1 - p0) * 2 * T.pdf(u / sU, nU) / sU)
+        return -np.mean(np.log(np.maximum(f, 1e-300)))
+    return minimize(nll, np.zeros(5), method='Nelder-Mead', options={'maxiter': 4000, 'xatol': 1e-5, 'fatol': 1e-8}).x
+
+
+def t_nll(p, u):
+    p0 = 1 / (1 + np.exp(-p[0])); sL, nL, sU, nU = np.exp(p[1]), 1.5 + 28.5 / (1 + np.exp(-p[2])), np.exp(p[3]), 1.5 + 28.5 / (1 + np.exp(-p[4]))
+    f = np.where(u < 0, p0 * 2 * T.pdf(u / sL, nL) / sL, (1 - p0) * 2 * T.pdf(u / sU, nU) / sU)
+    return -np.log(np.maximum(f, 1e-300))
+
+
+def t_cdf(p, u):
+    p0 = 1 / (1 + np.exp(-p[0])); sL, nL, sU, nU = np.exp(p[1]), 1.5 + 28.5 / (1 + np.exp(-p[2])), np.exp(p[3]), 1.5 + 28.5 / (1 + np.exp(-p[4]))
+    return np.where(u < 0, p0 * 2 * T.cdf(u / sL, nL), p0 + (1 - p0) * (2 * T.cdf(u / sU, nU) - 1))
+
+
+def draai(w, verbose=True):
+    t0 = time.time()
+    K = laad(w); K, c_ijs = ijs_voorspelling(K)
+    F, D, ref = kenmerken(K)
+    ok = (K['n'] >= 1) & np.isfinite(K['y']) & ~K['val'] & ~K['verdacht'] & np.isfinite(K['th_hat'])
+    fit = ok & (K['jaar'] <= FIT_TOT) & (K['jaar'] >= 2008)
+    cols = list(F.columns)
+    X = np.c_[np.ones(len(F)), F[cols].to_numpy(float)]
+    e = K['e'].to_numpy()                               # ln tijd - theta - niveau - vorm (fout met het echte racepeil)
+    fin = np.isfinite(X).all(1)
+    if verbose:
+        bad = {c: int((~np.isfinite(F[c].to_numpy(float)) & ok.to_numpy()).sum()) for c in cols}
+        print('niet-eindige kenmerken (bruikbare ritten):', {k: v for k, v in bad.items() if v}, flush=True)
+    ok = ok & fin; fit = fit & fin & np.isfinite(e)
+    b = huber(X[fit.to_numpy()], e[fit.to_numpy()])
+    loc = X @ b
+    coef = pd.Series(b, index=['const'] + cols)
+    # voorspelling vooraf: ijs vooraf + niveau + vorm + correctie
+    K['pred'] = K['th_hat'] + K['mu'] + K['f'] + loc
+    K['pred_basis'] = K['th_hat'] + K['mu'] + K['f']        # zonder de correctiefuncties
+    K['res_r'] = e - loc                                    # rijdersdeel (met het echte ijs)
+    K['res_i'] = K['theta'] - K['th_hat']                   # ijsdeel
+    # schaal: rijdersdeel en ijsdeel apart, beide als log-lineaire functie
+    S = schaal_kenmerken(K, F); Sx = np.c_[np.ones(len(S)), S.to_numpy(float)]
+    fr = fit.to_numpy()
+    lr = np.log(np.abs(K['res_r'].to_numpy()) + 1e-5)
+    gs = np.linalg.lstsq(Sx[fr], lr[fr], rcond=None)[0]
+    sc_r = np.exp(Sx @ gs); k_r = np.median(np.abs(K['res_r'].to_numpy()[fr]) / sc_r[fr]) / 0.6745; sc_r *= k_r
+    ri = K[fit].drop_duplicates(['dag', 'event_id', 'gender', 'afstand_idx'])
+    Ix = lambda d: np.c_[np.ones(len(d)), np.log1p(d['ijs_vn']), np.log1p(d['ijs_evn']), d['hoog'], np.log(d['v_theta'].clip(1e-7))]
+    gi = np.linalg.lstsq(Ix(ri), np.log(np.abs(ri['res_i'].to_numpy()) + 1e-5), rcond=None)[0]
+    sc_i = np.exp(Ix(K) @ gi); k_i = np.median(np.abs(ri['res_i'].to_numpy()) / np.exp(Ix(ri) @ gi)) / 0.6745; sc_i *= k_i
+    K['sd'] = np.sqrt(sc_r ** 2 + sc_i ** 2)
+    K['err'] = np.log(K['tijd']) - K['pred']; K['u'] = K['err'] / K['sd']
+    # foutverdeling per afstandsgroep op de fitjaren, NLL op de toetsjaren
+    K['ag'] = K['afstand'].map(GROEP); K['nll'] = np.nan; K['pit'] = np.nan; par = {}
+    for gname in ('sprint', 'midden', 'lang'):
+        sf = fit & (K['ag'] == gname); u_f = K.loc[sf, 'u'].to_numpy()
+        rng = np.random.default_rng(0); u_f = rng.choice(u_f, min(len(u_f), 200000), replace=False)
+        p = twee_t(u_f); par[gname] = p
+        sa = ok & (K['ag'] == gname)
+        K.loc[sa, 'nll'] = t_nll(p, K.loc[sa, 'u'].to_numpy()) + np.log(K.loc[sa, 'sd'].to_numpy())
+        K.loc[sa, 'pit'] = t_cdf(p, K.loc[sa, 'u'].to_numpy())
+    K['ok'] = ok
+    if verbose:
+        print('ijs-coef', np.round(c_ijs, 3), '| tijd', round(time.time() - t0), 's', flush=True)
+        print(coef.round(4).to_string())
+    return K, coef, gs, gi, par
+
+
+def vergelijk(K, w):
+    """Zelfde ritten als het oude model (2020+, geen valpartijen volgens beide, met log loss): MAE en log loss."""
+    O = pd.read_parquet(os.path.join(w, 'oud_vooraf.parquet'))
+    O = O[np.isfinite(O['ll'])].drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd'])
+    O['afstand'] = O['afstand'].astype(str)
+    M = K[K['ok'] & (K['jaar'] >= FIT_TOT + 1)].merge(O[['skater_id', 'dag', 'afstand', 'tijd', 'err', 'var', 'll', 'niveau_pct']],
+                                                    on=['skater_id', 'dag', 'afstand', 'tijd'], suffixes=('', '_oud'))
+    regels = []
+    for nm, s in (('alle', M['niveau_pct'] > -1), ('toppers >=90', M['niveau_pct'] >= 90), ('elite >=97', M['niveau_pct'] >= 97),
+                  ('jong (t/m neo)', M['groep'].isin(['jeugd', 'junior_C', 'junior_B', 'junior_A', 'neo'])), ('senior', M['groep'] == 'senior')):
+        x = M[s]
+        regels.append(f"{nm:15s} n={len(x):7d} | mediaan |fout| %: oud {100 * np.median(np.abs(x['err_oud'])):.3f}  nieuw {100 * np.median(np.abs(x['err'])):.3f}"
+                      f"  basis {100 * np.median(np.abs(np.log(x['tijd']) - x['pred_basis'])):.3f} | gem |fout| %: oud {100 * np.mean(np.abs(x['err_oud'])):.3f} nieuw {100 * np.mean(np.abs(x['err'])):.3f}"
+                      f" | log loss: oud {x['ll'].mean():.4f} nieuw {x['nll'].mean():.4f} (verschil {x['nll'].mean() - x['ll'].mean():+.4f})")
+    return M, regels
+
+
+if __name__ == '__main__':
+    w = sys.argv[1] if len(sys.argv) > 1 else '.'
+    K, coef, gs, gi, par = draai(w)
+    M, regels = vergelijk(K, w)
+    print('\n'.join(regels))
+    K[['skater_id', 'dag', 'afstand', 'tijd', 'pred', 'pred_basis', 'sd', 'u', 'pit', 'nll', 'ok', 'th_hat']].to_parquet(os.path.join(w, 'voorspel_uitkomst.parquet'))

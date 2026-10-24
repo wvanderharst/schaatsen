@@ -1,0 +1,16 @@
+model klaar 1
+basis (geen verm)            vooraf -2.35711  dag -2.50537  | toppers vooraf -3.11511 dag -3.34325  | elite vooraf -3.22645 dag -3.44364  (101 s)
+verm_coef vooraf {'vm_s': np.float64(0.12), 'vm_m': np.float64(0.215), 'vm_l': np.float64(0.39), 'vg_s': np.float64(-0.002), 'vg_m': np.float64(0.041), 'vg_l': np.float64(0.148)} dag {'vm_s': np.float64(0.0), 'vm_m': np.float64(0.0), 'vm_l': np.float64(0.0), 'vg_s': np.float64(0.0), 'vg_m': np.float64(0.0), 'vg_l': np.float64(0.0)}
+verm                         vooraf -2.35882  dag -2.50537  | toppers vooraf -3.11520 dag -3.34325  | elite vooraf -3.22599 dag -3.44364  (204 s)
+  verschil verm t.o.v. basis: vooraf -0.00205 (se 0.00021; toppers -0.00033, elite -0.00021) | dag +0.00000 (se 0.00000; toppers +0.00000, elite +0.00000)
+verm alleen vooraf           vooraf -2.35882  dag -2.50537  | toppers vooraf -3.11520 dag -3.34325  | elite vooraf -3.22599 dag -3.44364  (308 s)
+  verschil verm alleen vooraf t.o.v. basis: vooraf -0.00205 (se 0.00021; toppers -0.00033, elite -0.00021) | dag +0.00000 (se 0.00000; toppers +0.00000, elite +0.00000)
+verm + plateau 0 d, aK x0.25 vooraf -2.35943  dag -2.50595  | toppers vooraf -3.11705 dag -3.34492  | elite vooraf -3.23008 dag -3.44789  (464 s)
+    fit-jaren nll -2.35663
+  verschil plateau 0/x0.25 t.o.v. verm: vooraf -0.00061 (se 0.00005; toppers -0.00185, elite -0.00409) | dag -0.00049 (se 0.00008; toppers -0.00167, elite -0.00425)
+verm + plateau 0 d, aK x0.15 vooraf -2.35952  dag -2.50569  | toppers vooraf -3.11729 dag -3.34553  | elite vooraf -3.23069 dag -3.44906  (594 s)
+    fit-jaren nll -2.35665
+  verschil plateau 0/x0.15 t.o.v. verm: vooraf -0.00070 (se 0.00006; toppers -0.00208, elite -0.00470) | dag -0.00023 (se 0.00015; toppers -0.00228, elite -0.00541)
+verm + plateau 0 d, aK x0    vooraf -2.35962  dag -2.50576  | toppers vooraf -3.11756 dag -3.34583  | elite vooraf -3.23130 dag -3.44975  (718 s)
+    fit-jaren nll -2.35667
+  verschil plateau 0/x0 t.o.v. verm: vooraf -0.00076 (se 0.00006; toppers -0.00236, elite -0.00531) | dag -0.00030 (se 0.00016; toppers -0.00258, elite -0.00611)

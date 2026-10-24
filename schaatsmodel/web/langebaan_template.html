@@ -1,0 +1,482 @@
+<title>Langebaan Rating</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: één werkvlak met tabbladen; tabellen en grafieken op een koel ijsgrijs vlak, rood van de buitenbaan-armband als enige accent */
+:root {
+  --ijs: #f2f6f8;          /* achtergrond: koel ijsgrijs */
+  --vlak: #ffffff;         /* panelen */
+  --lijn: #d6e0e6;         /* randen en rasters */
+  --inkt: #0f2230;         /* tekst */
+  --inkt-2: #4a5f6e;       /* secundaire tekst */
+  --inkt-3: #7b8e9b;       /* labels */
+  --band: #c5362c;         /* rode armband (buitenbaan): accent */
+  --band-zacht: #f6dedb;
+  --koud: #1d5e96;         /* verwachte lijn */
+  --koud-zacht: #dceaf5;
+  --goed: #1f7a4d; --goed-zacht: #dcefe4;
+  --slecht: #9a5a00; --slecht-zacht: #f6ead6;
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-tekst: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ijs: #0d161d; --vlak: #142029; --lijn: #253641; --inkt: #e6eef3; --inkt-2: #a8bac6; --inkt-3: #7d909c;
+    --band: #e45e50; --band-zacht: #3b1f1c; --koud: #5a9ad2; --koud-zacht: #18304a;
+    --goed: #5cc28d; --goed-zacht: #16332a; --slecht: #e0a24a; --slecht-zacht: #3a2c16; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --ijs: #0d161d; --vlak: #142029; --lijn: #253641; --inkt: #e6eef3; --inkt-2: #a8bac6; --inkt-3: #7d909c;
+  --band: #e45e50; --band-zacht: #3b1f1c; --koud: #5a9ad2; --koud-zacht: #18304a;
+  --goed: #5cc28d; --goed-zacht: #16332a; --slecht: #e0a24a; --slecht-zacht: #3a2c16; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--ijs); color: var(--inkt); font-family: var(--f-tekst); font-size: 15px; line-height: 1.45; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 16px; padding-block: 18px 48px; display: flex; flex-direction: column; gap: 18px; }
+header.kop { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; border-bottom: 2px solid var(--inkt); padding-bottom: 10px; }
+.merk { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 2.1rem; letter-spacing: .01em; margin: 0; line-height: 1; text-transform: uppercase; }
+.armband { display: inline-block; width: 34px; height: 9px; background: var(--band); border-radius: 2px; transform: translateY(-4px); }
+.meta { color: var(--inkt-2); font-size: .85rem; display: flex; gap: 6px 16px; flex-wrap: wrap; }
+.meta b { color: var(--inkt); font-weight: 600; }
+nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+nav.tabs button { font-family: var(--f-display); font-size: 1.05rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; background: transparent; border: 0; border-bottom: 3px solid transparent; color: var(--inkt-2); padding: 6px 10px; cursor: pointer; }
+nav.tabs button[aria-selected="true"] { color: var(--inkt); border-bottom-color: var(--band); }
+nav.tabs button:hover { color: var(--inkt); }
+button:focus-visible, input:focus-visible, select:focus-visible, .rij:focus-visible { outline: 2px solid var(--koud); outline-offset: 2px; }
+.paneel { background: var(--vlak); border: 1px solid var(--lijn); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.balk { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--lijn); border-radius: 5px; overflow: hidden; }
+.seg button { font-family: var(--f-tekst); font-size: .9rem; background: var(--vlak); color: var(--inkt-2); border: 0; border-right: 1px solid var(--lijn); padding: 6px 11px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--inkt); color: var(--vlak); font-weight: 600; }
+label.veld { display: inline-flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--inkt-2); }
+input[type="search"], select { font-family: var(--f-tekst); font-size: .95rem; padding: 6px 9px; border: 1px solid var(--lijn); border-radius: 5px; background: var(--vlak); color: var(--inkt); min-width: 0; }
+input[type="search"] { width: 240px; max-width: 100%; }
+.eyebrow { font-family: var(--f-display); font-size: .85rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--inkt-3); }
+h2 { font-family: var(--f-display); font-size: 1.6rem; font-weight: 700; margin: 0; line-height: 1.1; text-wrap: balance; }
+h3 { font-family: var(--f-display); font-size: 1.15rem; font-weight: 600; margin: 0; letter-spacing: .02em; text-transform: uppercase; }
+p { margin: 0; max-width: 68ch; }
+.klein { font-size: .82rem; color: var(--inkt-2); }
+.tabelbak { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th { text-align: left; font-family: var(--f-display); font-weight: 600; font-size: .82rem; letter-spacing: .06em; text-transform: uppercase; color: var(--inkt-3); border-bottom: 1px solid var(--lijn); padding: 6px 8px; white-space: nowrap; }
+td { border-bottom: 1px solid var(--lijn); padding: 6px 8px; white-space: nowrap; }
+td.num, th.num { text-align: right; font-family: var(--f-data); font-variant-numeric: tabular-nums; font-size: .86rem; }
+td.naam { white-space: normal; min-width: 150px; }
+tr.rij { cursor: pointer; }
+tr.rij:hover td { background: var(--koud-zacht); }
+.land { font-family: var(--f-data); font-size: .74rem; color: var(--inkt-3); margin-left: 6px; }
+.piek { color: var(--koud); }
+.chip { display: inline-block; font-size: .74rem; font-weight: 600; padding: 1px 7px; border-radius: 10px; }
+.chip.goed { background: var(--goed-zacht); color: var(--goed); }
+.chip.slecht { background: var(--slecht-zacht); color: var(--slecht); }
+.chip.neutraal { background: var(--ijs); color: var(--inkt-2); border: 1px solid var(--lijn); }
+.zoek { position: relative; display: inline-block; max-width: 100%; }
+.lijstje { position: absolute; z-index: 5; top: calc(100% + 4px); left: 0; width: 320px; max-width: 86vw; max-height: 300px; overflow-y: auto; background: var(--vlak); border: 1px solid var(--lijn); border-radius: 5px; box-shadow: 0 6px 18px rgb(0 0 0 / .12); }
+.lijstje button { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--lijn); padding: 7px 10px; color: var(--inkt); font-family: var(--f-tekst); font-size: .9rem; cursor: pointer; }
+.lijstje button:hover, .lijstje button:focus-visible { background: var(--koud-zacht); }
+.profielkop { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 10px 20px; }
+.profielkop .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+.grafiek { width: 100%; height: auto; display: block; }
+.grafiek text { fill: var(--inkt-2); font-family: var(--f-data); font-size: 11px; }
+.grafiek .raster { stroke: var(--lijn); stroke-width: 1; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .82rem; color: var(--inkt-2); align-items: center; }
+.legend i { display: inline-block; vertical-align: middle; margin-right: 6px; }
+.tip { position: fixed; z-index: 20; pointer-events: none; background: var(--inkt); color: var(--vlak); font-size: .8rem; padding: 7px 9px; border-radius: 5px; line-height: 1.35; max-width: 260px; }
+.twee { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 820px) { .twee { grid-template-columns: minmax(0, 1fr); } }
+.deelnemers { display: flex; flex-direction: column; max-height: 520px; overflow-y: auto; border: 1px solid var(--lijn); border-radius: 5px; }
+.deelnemers label { display: flex; align-items: center; gap: 8px; padding: 5px 9px; border-bottom: 1px solid var(--lijn); font-size: .88rem; cursor: pointer; }
+.deelnemers label span.t { margin-left: auto; font-family: var(--f-data); font-size: .8rem; color: var(--inkt-2); font-variant-numeric: tabular-nums; }
+.knop { font-family: var(--f-display); font-size: 1rem; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; background: var(--band); color: #fff; border: 0; border-radius: 5px; padding: 8px 16px; cursor: pointer; }
+.knop.licht { background: transparent; color: var(--inkt); border: 1px solid var(--lijn); }
+.staaf { position: relative; height: 10px; background: var(--ijs); border-radius: 2px; min-width: 48px; }
+.staaf > div { position: absolute; left: 0; top: 0; bottom: 0; background: var(--band); border-radius: 0 4px 4px 0; }
+.kerncijfers { display: flex; flex-wrap: wrap; gap: 10px 28px; }
+.kerncijfers div { display: flex; flex-direction: column; }
+.kerncijfers b { font-family: var(--f-data); font-size: 1.15rem; font-weight: 500; font-variant-numeric: tabular-nums; }
+.formule { font-family: var(--f-data); font-size: .88rem; background: var(--ijs); border: 1px solid var(--lijn); border-radius: 5px; padding: 10px 12px; overflow-x: auto; white-space: pre; line-height: 1.6; }
+.modelgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.modelgrid section { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.heat td.num { font-size: .8rem; }
+ul.punten { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; max-width: 70ch; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="kop">
+    <div class="merk">
+      <h1>Langebaan Rating</h1><span class="armband" aria-hidden="true"></span>
+    </div>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Onderdelen">
+    <button role="tab" id="tab-ranglijst" aria-selected="true" data-tab="ranglijst">Ranglijst</button>
+    <button role="tab" id="tab-rijder" aria-selected="false" data-tab="rijder">Rijder</button>
+    <button role="tab" id="tab-race" aria-selected="false" data-tab="race">Race-simulator</button>
+    <button role="tab" id="tab-model" aria-selected="false" data-tab="model">Model</button>
+  </nav>
+
+  <!-- RANGLIJST -->
+  <section class="paneel" id="p-ranglijst" role="tabpanel" aria-labelledby="tab-ranglijst">
+    <div class="balk">
+      <div class="seg" id="rl-g"></div>
+      <div class="seg" id="rl-a"></div>
+      <label class="veld" for="rl-zoek">Filter <input type="search" id="rl-zoek" placeholder="naam of land"></label>
+    </div>
+    <p class="klein">Verwachte tijd op een gemiddelde dag in Heerenveen. <b>Normaal</b> is de mediaan bij normale vorm, <b>piek</b> is de tijd bij de 10% beste eigen vorm. <b>Piek SLC</b> is de piektijd op een gemiddelde dag in Salt Lake City (<span id="slc-txt"></span>). PR en SB zijn gereden tijden op elke baan. Klik op een rijder voor het profiel.</p>
+    <div class="tabelbak"><table id="rl-tabel"></table></div>
+  </section>
+
+  <!-- RIJDER -->
+  <section class="paneel" id="p-rijder" role="tabpanel" aria-labelledby="tab-rijder" hidden>
+    <div class="balk">
+      <div class="zoek">
+        <label class="veld" for="rd-zoek">Rijder <input type="search" id="rd-zoek" placeholder="zoek een naam" autocomplete="off"></label>
+        <div class="lijstje" id="rd-lijst" hidden></div>
+      </div>
+    </div>
+    <div id="rd-inhoud" style="display:flex;flex-direction:column;gap:16px"></div>
+  </section>
+
+  <!-- RACE -->
+  <section class="paneel" id="p-race" role="tabpanel" aria-labelledby="tab-race" hidden>
+    <div class="balk">
+      <div class="seg" id="rc-g"></div>
+      <div class="seg" id="rc-a"></div>
+      <label class="veld" for="rc-baan">Baan <select id="rc-baan"></select></label>
+      <label class="veld" for="rc-scen">Dag <select id="rc-scen"><option value="normaal">gewone dag</option><option value="piek">piekdag (snel ijs)</option></select></label>
+    </div>
+    <div class="twee">
+      <div style="display:flex;flex-direction:column;gap:10px;min-width:0">
+        <div class="balk" style="justify-content:space-between">
+          <h3>Deelnemers <span class="klein" id="rc-aantal"></span></h3>
+          <div class="balk" style="gap:6px"><button class="knop licht" id="rc-top12" type="button">Top 12</button><button class="knop licht" id="rc-geen" type="button">Leeg</button></div>
+        </div>
+        <label class="veld" for="rc-zoek"><input type="search" id="rc-zoek" placeholder="filter de lijst"></label>
+        <div class="deelnemers" id="rc-lijst"></div>
+        <button class="knop" id="rc-start" type="button">Simuleer 20.000 races</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+        <div class="kerncijfers" id="rc-kern"></div>
+        <div class="tabelbak"><table id="rc-uitslag"></table></div>
+        <p class="klein" id="rc-noot"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- MODEL -->
+  <section class="paneel" id="p-model" role="tabpanel" aria-labelledby="tab-model" hidden></section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const D = /*__DATA__*/null;
+const AF = D.meta.afstanden;
+const R = new Map(D.rijders.map(r => [r.id, r]));
+const BAAN = new Map(D.banen.map(b => [b.naam, b]));
+const DAG0 = Date.UTC(1970, 0, 1);
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const datum = d => new Date(DAG0 + d * 864e5).toLocaleDateString('nl-NL', {day: 'numeric', month: 'short', year: 'numeric'});
+function tijd(t) {
+  if (t == null || !isFinite(t)) return '–';
+  if (t < 60) return t.toFixed(2).replace('.', ',');
+  const m = Math.floor(t / 60), s = t - 60 * m;
+  return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2).replace('.', ',');
+}
+const pct = (x, d = 1) => (x == null ? '–' : x.toFixed(d).replace('.', ',') + '%');
+const GLAB = {m: 'Mannen', v: 'Vrouwen'};
+const GROEP = {senior: 'senior', neo: 'neo-senior', junior_A: 'junior A', junior_B: 'junior B', junior_C: 'junior C', jeugd: 'jeugd', masters_jong: '30+', masters_oud: '55+', onbekend: '–'};
+const ZQ = D.zq;
+function zKwantiel(a, p) {   // kwantiel van de empirische foutverdeling (401 punten)
+  const q = ZQ[a], x = p * (q.length - 1), i = Math.min(Math.floor(x), q.length - 2), f = x - i;
+  return q[i] + f * (q[i + 1] - q[i]);
+}
+const SLC = BAAN.get('Salt Lake City (USA)');
+const slcFactor = SLC ? Math.exp(SLC.mu - D.meta.anker) : null;
+const piekSLC = p => slcFactor ? p.piek * slcFactor : null;
+const Q0 = D.meta.piek_q[0], Q1 = D.meta.piek_q[1];
+function Phi(z) {                  // standaardnormale verdelingsfunctie (Zelen & Severo, fout < 1e-7; diepe staart asymptotisch)
+  if (z < -6) { const z2 = z * z; return Math.exp(-z2 / 2) / (-z * Math.sqrt(2 * Math.PI)) * (1 - 1 / z2 + 3 / (z2 * z2)); }
+  if (z > 6) return 1 - Phi(-z);
+  const t = 1 / (1 + 0.2316419 * Math.abs(z)), d = Math.exp(-z * z / 2) / Math.sqrt(2 * Math.PI);
+  const q = d * t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  return z > 0 ? 1 - q : q;
+}
+function kansTekst(p) {             // 0,38 -> '38%'; 0,0048 -> '1 op 210'
+  if (p >= 0.095) return pct(100 * p, 0);
+  const n = 1 / p, r = n < 100 ? 1 : n < 1000 ? 10 : n < 10000 ? 100 : n < 100000 ? 1000 : 10000;
+  return '1 op ' + (Math.round(n / r) * r).toLocaleString('nl-NL');
+}
+function kansRace(z) {              // kans op een tijd minstens zo snel (snelle kant) of minstens zo traag (trage kant), t.o.v. het veld op die dag
+  return z < 0 ? {kant: 'sneller', p: Phi(z), tekst: 'zo snel of sneller'} : {kant: 'trager', p: Phi(-z), tekst: 'zo traag of trager'};
+}
+function kansChip(r) {
+  const pk = r.pk ?? Q0, base = Q0;
+  const cls = pk >= base * 1.4 ? 'goed' : pk <= base * 0.7 ? 'slecht' : 'neutraal';
+  return `<span class="chip ${cls}" title="kans dat een race bij de snelste 7% van zijn/haar verwachting hoort">${pct(100 * pk, 0)}</span>`;
+}
+function zEigen(pr, z, a) {                                        // piekzone: eigen piekdiepte; snelle kant: eigen schaal
+  const lo = (D.meta.piek_lo || {})[a];
+  if (lo != null && z < lo) z = lo + (z - lo) * (pr.dp ?? 1);
+  return z < 0 ? z * (pr.sf ?? 1) : z;
+}
+function tijdBij(pr, a, p, theta) { return (pr.tl + Math.exp(pr.mu + pr.sd * zEigen(pr, zKwantiel(a, p), a))) * Math.exp(theta); }
+function volChip(p, nm) {
+  if (p.vol == null) return '';
+  const v = p.vol, cls = v >= 1.25 ? 'slecht' : v <= 0.8 ? 'goed' : 'neutraal', w = v >= 1.25 ? 'wisselvallig' : v <= 0.8 ? 'constant' : 'gemiddeld';
+  const diep = (p.dp ?? 1) >= 1.25 ? ` <span class="chip goed" title="piekdiepte: als deze rijder piekt, gaat de piek ${p.dp.toFixed(2).replace('.', ',')}x zo diep als bij een gemiddelde rijder (geschat uit eerdere pieken, 4 jaar geheugen)">diepe pieken ×${p.dp.toFixed(1).replace('.', ',')}</span>` : '';
+  const vorm = (p.vf ?? 1) >= 1.1 ? ` <span class="chip goed" title="recente snelle uitschieter(s): de snelle kant is ×${p.vf.toFixed(2).replace('.', ',')} breder">snelle kant ×${p.vf.toFixed(1).replace('.', ',')}</span>` : '';
+  const titel = nm ? 'eigen spreiding van deze rijder over alle afstanden samen (pieken zijn gecorreleerd), t.o.v. de typische spreiding van de elite op elke afstand' : `spreiding t.o.v. rijders van hetzelfde niveau op deze afstand; snelle kant ×${p.sf.toFixed(2).replace('.', ',')}`;
+  return `<span class="chip ${cls}" title="${titel}">${v.toFixed(2).replace('.', ',')}× ${w}</span>` + vorm + diep;
+}
+
+/* ---------- algemeen ---------- */
+$('#meta').innerHTML = `<span>Voorspelling voor <b>${datum(D.meta.vandaag)}</b></span><span>Resultaten t/m <b>${datum(D.meta.data_tot)}</b></span><span>Standaardbaan <b>Heerenveen</b></span><span><b>${D.rijders.length}</b> rijders</span>`;
+function seg(el, opties, actief, opKlik) {
+  el.innerHTML = opties.map(([k, l]) => `<button type="button" data-k="${k}" aria-pressed="${k === actief}">${l}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('button'); if (!b) return; [...el.children].forEach(c => c.setAttribute('aria-pressed', c === b)); opKlik(b.dataset.k); };
+}
+function toonTab(t) {
+  for (const b of document.querySelectorAll('nav.tabs button')) b.setAttribute('aria-selected', b.dataset.tab === t);
+  for (const p of ['ranglijst', 'rijder', 'race', 'model']) $('#p-' + p).hidden = p !== t;
+  try { history.replaceState(null, '', '#' + t); } catch (e) {}
+}
+$('nav.tabs').onclick = e => { const b = e.target.closest('button'); if (b) toonTab(b.dataset.tab); };
+const tip = $('#tip');
+function toonTip(e, html) { tip.innerHTML = html; tip.hidden = false; const w = tip.offsetWidth, h = tip.offsetHeight; let x = e.clientX + 14, y = e.clientY + 14; if (x + w > innerWidth - 8) x = e.clientX - w - 14; if (y + h > innerHeight - 8) y = e.clientY - h - 14; tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
+function verbergTip() { tip.hidden = true; }
+
+/* ---------- ranglijst ---------- */
+if (SLC) $('#slc-txt').textContent = `${(SLC.pct).toFixed(1).replace('.', ',')}% t.o.v. Heerenveen`;
+const RL = {g: 'm', a: '500m', q: ''};
+const AFLAB = AF.map(a => [a, a.replace('m', ' m')]);
+seg($('#rl-g'), [['m', 'Mannen'], ['v', 'Vrouwen']], RL.g, k => { RL.g = k; tekenRanglijst(); });
+seg($('#rl-a'), AFLAB, RL.a, k => { RL.a = k; tekenRanglijst(); });
+$('#rl-zoek').oninput = e => { RL.q = e.target.value.trim().toLowerCase(); tekenRanglijst(); };
+function tekenRanglijst() {
+  const ids = D.meta.ranglijst[RL.g + '|' + RL.a] || [];
+  let rows = ids.map((id, i) => ({r: R.get(id), i: i + 1}));
+  if (RL.q) rows = rows.filter(x => (x.r.naam + ' ' + x.r.land).toLowerCase().includes(RL.q));
+  const a = RL.a;
+  $('#rl-tabel').innerHTML = `<thead><tr><th class="num">#</th><th>Rijder</th><th>Categorie</th><th class="num">Normaal</th><th class="num">Piek</th><th class="num">Piek SLC</th><th class="num">80%-band</th><th class="num">PR</th><th class="num">SB</th><th>Piekkans</th><th>Volatiliteit</th><th class="num">Races</th></tr></thead><tbody>` +
+    rows.map(({r, i}) => { const p = r.pr[a]; const th = D.meta.anker;
+      return `<tr class="rij" tabindex="0" data-id="${r.id}"><td class="num">${i}</td><td class="naam">${esc(r.naam)}<span class="land">${esc(r.land || '')}</span></td><td>${GROEP[r.groep] || r.groep}</td><td class="num"><b>${tijd(p.norm)}</b></td><td class="num piek">${tijd(p.piek)}</td><td class="num piek">${tijd(piekSLC(p))}</td><td class="num">${tijd(tijdBij(p, a, .1, th))}–${tijd(tijdBij(p, a, .9, th))}</td><td class="num">${tijd(p.pb)}</td><td class="num">${tijd(p.sb)}</td><td>${kansChip(r)}</td><td>${volChip(p, r.nm)}</td><td class="num">${p.n}</td></tr>`; }).join('') + '</tbody>';
+}
+$('#rl-tabel').onclick = e => { const tr = e.target.closest('tr.rij'); if (tr) { toonRijder(+tr.dataset.id); toonTab('rijder'); } };
+$('#rl-tabel').onkeydown = e => { if (e.key === 'Enter') { const tr = e.target.closest('tr.rij'); if (tr) { toonRijder(+tr.dataset.id); toonTab('rijder'); } } };
+
+/* ---------- rijder ---------- */
+const zoekIndex = D.rijders.map(r => ({id: r.id, s: (r.naam + ' ' + (r.land || '')).toLowerCase()}));
+function zoekLijst(inp, lijst, kies) {
+  inp.oninput = () => {
+    const q = inp.value.trim().toLowerCase();
+    if (q.length < 2) { lijst.hidden = true; return; }
+    const hits = zoekIndex.filter(x => x.s.includes(q)).slice(0, 25);
+    lijst.innerHTML = hits.length ? hits.map(h => { const r = R.get(h.id); return `<button type="button" data-id="${r.id}"><span>${esc(r.naam)}</span><span class="land">${esc(r.land || '')} · ${r.g === 'm' ? 'M' : 'V'}</span></button>`; }).join('') : '<div class="klein" style="padding:8px 10px">Geen rijder gevonden. Alleen actieve toppers (top 150 per afstand) staan in deze export.</div>';
+    lijst.hidden = false;
+  };
+  lijst.onclick = e => { const b = e.target.closest('button'); if (!b) return; lijst.hidden = true; inp.value = ''; kies(+b.dataset.id); };
+  document.addEventListener('click', e => { if (!lijst.contains(e.target) && e.target !== inp) lijst.hidden = true; });
+}
+zoekLijst($('#rd-zoek'), $('#rd-lijst'), id => toonRijder(id));
+let rdAfstand = null;
+function heerenveenFactor(baan) { const b = BAAN.get(baan); return b ? 1 + b.pct / 100 : null; }
+function toonRijder(id, afst) {
+  const r = R.get(id); if (!r) return;
+  const gereden = AF.filter(a => r.res.some(x => x[2] === a));
+  if (!afst) afst = gereden.slice().sort((a, b) => r.res.filter(x => x[2] === b).length - r.res.filter(x => x[2] === a).length)[0] || Object.keys(r.pr)[0];
+  rdAfstand = afst;
+  const th = D.meta.anker;
+  const rijen = AF.filter(a => r.pr[a]).map(a => { const p = r.pr[a];
+    const zwak = p.n < 3 ? ' <span class="chip neutraal" title="minder dan 3 races: verwachting leunt op andere afstanden">weinig races</span>' : '';
+    return `<tr><td>${a.replace('m', ' m')}${zwak}</td><td class="num"><b>${tijd(p.norm)}</b></td><td class="num piek">${tijd(p.piek)}</td><td class="num piek">${tijd(piekSLC(p))}</td><td class="num">${tijd(tijdBij(p, a, .1, th))}–${tijd(tijdBij(p, a, .9, th))}</td><td class="num">${tijd(p.pb)}</td><td class="num">${tijd(p.sb)}</td><td>${volChip(p, r.nm)}</td><td class="num">${p.n}</td></tr>`; }).join('');
+  const recent = r.res.slice(-14).reverse().map(x => { const [d, baan, a, t, z, verw] = x;
+    const k = z == null ? null : kansRace(z), tl = k ? ` title="kans op een tijd ${k.tekst}: ${kansTekst(k.p)}"` : '';
+    const chip = z == null ? '' : z > 6 ? `<span class="chip slecht">valpartij</span>` : z <= -1.5 ? `<span class="chip goed"${tl}>piek · ${kansTekst(k.p)}</span>` : z >= 2 ? `<span class="chip slecht"${tl}>traag · ${kansTekst(k.p)}</span>` : `<span class="klein"${tl}>${k.kant} · ${kansTekst(k.p)}</span>`;
+    return `<tr><td>${datum(d)}</td><td>${esc(baan.replace(/ \(.*\)$/, ''))}</td><td>${a.replace('m', ' m')}</td><td class="num"><b>${tijd(t)}</b></td><td class="num">${tijd(verw)}</td><td>${chip}</td></tr>`; }).join('');
+  $('#rd-inhoud').innerHTML = `
+    <div class="profielkop"><div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow">${GLAB[r.g]} · ${GROEP[r.groep] || r.groep} · ${esc(r.land || '')}</span><h2>${esc(r.naam)}</h2>${r.nm ? '<span class="chip goed" style="align-self:flex-start" title="hoort bij de 200 beste vrouwen of 200 beste mannen sinds 2011: kans per rit en volatiliteit uit de elite-methode">elite-methode</span>' : ''}</div>
+      <div class="tags"><button class="knop licht" type="button" id="rd-naarrace">In race-simulator</button></div></div>
+    <div class="kerncijfers"><div><span class="eyebrow">Piekkans per race</span><b>${pct(100 * (r.pk ?? Q0), 1)}</b><span class="klein">gemiddeld ${pct(100 * Q0, 0)}</span></div><div><span class="eyebrow">Kans op slechte dag</span><b>${pct(100 * (r.sl ?? 1 - Q1), 1)}</b><span class="klein">gemiddeld ${pct(100 * (1 - Q1), 0)}</span></div></div>
+    <div class="tabelbak"><table><thead><tr><th>Afstand</th><th class="num">Normaal</th><th class="num">Piek</th><th class="num">Piek SLC</th><th class="num">80%-band</th><th class="num">PR</th><th class="num">SB</th><th title="spreiding t.o.v. rijders van hetzelfde niveau">Volatiliteit</th><th class="num">Races</th></tr></thead><tbody>${rijen}</tbody></table></div>
+    <p class="klein">Verwachting voor ${datum(D.meta.vandaag)} op een gemiddelde dag in Heerenveen. De 80%-band is het bereik waarbinnen 8 van de 10 races vallen (zonder valpartijen).</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="balk" style="justify-content:space-between"><h3>Vorm, laatste 3 jaar</h3><div class="seg" id="rd-a"></div></div>
+      <div class="legend"><span><i style="width:18px;height:2px;background:var(--koud)"></i>verwachting (Heerenveen), incl. tijdelijke vorm</span><span><i style="width:18px;height:0;border-top:2px dashed var(--inkt)"></i>vaste rating (toestand + seizoenspauze)</span><span><i style="width:14px;height:10px;background:var(--koud);opacity:.25"></i>tijdelijke vorm: dooft in weken tot maanden uit</span><span><i style="width:14px;height:10px;background:var(--koud);opacity:.1;outline:1px dotted var(--koud)"></i>80%-band: 8 van de 10 races vallen hierbinnen</span><span><i style="width:9px;height:9px;border-radius:50%;background:var(--band)"></i>gereden, omgerekend naar Heerenveen</span><span><i style="width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid var(--band)"></i>valpartij of uitschieter (buiten de schaal)</span><span>sneller is hoger</span></div>
+      <div id="rd-grafiek"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px"><h3>Laatste races</h3>
+      <div class="tabelbak"><table><thead><tr><th>Datum</th><th>Baan</th><th>Afstand</th><th class="num">Tijd</th><th class="num">Verwacht (Hv)</th><th>Kans op deze tijd</th></tr></thead><tbody>${recent || '<tr><td colspan="6" class="klein">Geen races in de laatste 3 jaar.</td></tr>'}</tbody></table></div>
+      <p class="klein">${r.nm ? 'Elite-methode (200 beste vrouwen en 200 beste mannen sinds 2011): de kans komt uit het eigen niveau op de afstand (robuust lopend gemiddelde, snelle ritten wegen zwaarder), de vorm over alle afstanden, het racepeil van die dag en de eigen spreiding van de rijder over alle afstanden samen; geijkt op eerdere seizoenen van de elite en getoetst: 1 op 100 en 1 op 1000 komen even vaak voor als ze zouden moeten, bij toppers net zo als bij de rest. ' : ''}De kans dat deze rijder op die dag een tijd rijdt die minstens zo snel is (bij een snelle rit) of minstens zo traag (bij een trage rit), ten opzichte van het veld op die dag (het geschatte ijs eruit) en met de eigen scheve verdeling van de rijder. Bij een gewone rit ligt dat tussen 15% en 50%; ‘piek’ is 1 op 15 of zeldzamer, ‘traag’ 1 op 44 of zeldzamer. Valpartijen tellen niet mee.</p></div>`;
+  seg($('#rd-a'), (gereden.length ? gereden : [afst]).map(a => [a, a.replace('m', ' m')]), afst, k => { rdAfstand = k; tekenVorm(r, k); });
+  $('#rd-naarrace').onclick = () => { RC.g = r.g; RC.a = rdAfstand && r.pr[rdAfstand] ? rdAfstand : Object.keys(r.pr)[0]; RC.sel = new Set(standaardVeld(RC.g, RC.a)); RC.sel.add(r.id); RC.extra.add(r.id); initRace(); simuleer(); toonTab('race'); };
+  tekenVorm(r, afst);
+}
+function tekenVorm(r, a) {
+  const pts = r.res.filter(x => x[2] === a).map(([d, baan, af, t, z, verw]) => { const f = heerenveenFactor(baan); return {d, baan, t, z, verw, tv: f ? t / f : null}; });
+  const el = $('#rd-grafiek');
+  if (!pts.length) { el.innerHTML = '<p class="klein">Geen races op deze afstand in de laatste 3 jaar.</p>'; return; }
+  const W = 860, H = 280, L = 62, Rr = 14, T = 12, B = 30;
+  // valpartijen en uitschieters (z > 6, of meer dan 5% van de verwachting) bepalen de schaal niet; ze komen als driehoek op de rand
+  for (const p of pts) p.uit = p.tv == null || (p.z != null && p.z > 6) || (p.verw != null && Math.abs(p.tv / p.verw - 1) > 0.05);
+  const tr = (r.tr && r.tr[a]) || [];
+  const ys = pts.flatMap(p => p.uit ? [p.verw] : [p.tv, p.verw]).concat(tr.flatMap(q => q.length > 4 ? [q[1], q[2], q[1] + q[3] / 100, q[1] + q[4] / 100] : [q[1], q[2]])).filter(v => v != null && isFinite(v));
+  let lo = Math.min(...ys), hi = Math.max(...ys); const pad = (hi - lo) * .08 || 0.3; lo -= pad; hi += pad;
+  const d0 = Math.min(...pts.map(p => p.d)) - 10, d1 = Math.max(D.meta.vandaag, ...pts.map(p => p.d)) + 10;
+  const X = d => L + (d - d0) / (d1 - d0) * (W - L - Rr), Y = v => T + (v - lo) / (hi - lo) * (H - T - B);   // snel (laag) boven
+  const stap = (() => { const r0 = (hi - lo) / 5, m = Math.pow(10, Math.floor(Math.log10(r0))); return [1, 2, 2.5, 5, 10].map(k => k * m).find(k => k >= r0); })();
+  let g = '';
+  for (let v = Math.ceil(lo / stap) * stap; v <= hi; v += stap) g += `<line class="raster" x1="${L}" x2="${W - Rr}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end">${tijd(v)}</text>`;
+  const jr0 = new Date(DAG0 + d0 * 864e5).getUTCFullYear(), jr1 = new Date(DAG0 + d1 * 864e5).getUTCFullYear();
+  for (let y = jr0; y <= jr1; y++) for (const mnd of [0, 6]) { const d = (Date.UTC(y, mnd, 1) - DAG0) / 864e5; if (d > d0 && d < d1) g += `<line class="raster" x1="${X(d)}" x2="${X(d)}" y1="${T}" y2="${H - B}" stroke-dasharray="2 4"/><text x="${X(d)}" y="${H - 10}" text-anchor="middle">${mnd ? 'jul ' : 'jan '}${y}</text>`; }
+  const trz = tr.filter(q => q[0] >= d0);
+  const pad_ = (sel) => trz.map((q, i) => (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(sel(q)).toFixed(1)).join(' ');
+  const lijn = trz.length ? pad_(q => q[1]) : pts.filter(p => p.verw != null).map((p, i) => (i ? 'L' : 'M') + X(p.d).toFixed(1) + ' ' + Y(p.verw).toFixed(1)).join(' ');
+  const basis = trz.length ? pad_(q => q[2]) : '';
+  const vlak = trz.length ? pad_(q => q[1]) + ' ' + trz.slice().reverse().map(q => 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[2]).toFixed(1)).join(' ') + ' Z' : '';
+  const bz = trz.filter(q => q.length > 4);         // 80%-band: q[3], q[4] = 10%- en 90%-tijd min de verwachting, in honderdsten
+  const bandEl = bz.length > 1 ? (() => { const sn = bz.map((q, i) => (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1] + q[3] / 100).toFixed(1)).join(' '),
+      tr_ = bz.map((q, i) => (i ? 'L' : 'M') + X(q[0]).toFixed(1) + ' ' + Y(q[1] + q[4] / 100).toFixed(1)).join(' '),
+      vl = sn + ' ' + bz.slice().reverse().map(q => 'L' + X(q[0]).toFixed(1) + ' ' + Y(q[1] + q[4] / 100).toFixed(1)).join(' ') + ' Z';
+    return `<path d="${vl}" fill="var(--koud)" opacity="0.08"/><path d="${sn}" fill="none" stroke="var(--koud)" stroke-width="1" stroke-dasharray="1 3" opacity="0.7"/><path d="${tr_}" fill="none" stroke="var(--koud)" stroke-width="1" stroke-dasharray="1 3" opacity="0.7"/>`; })() : '';
+  const laatste = trz.length ? {d: trz[trz.length - 1][0], verw: trz[trz.length - 1][1], basis: trz[trz.length - 1][2]} : pts.filter(p => p.verw != null).slice(-1)[0];
+  const randY = p => (p.tv > (p.verw ?? p.tv) ? H - B - 7 : T + 7);
+  let stippen = pts.map((p, i) => p.tv == null ? '' : p.uit ? (() => { const x = X(p.d).toFixed(1), y = randY(p), up = p.tv < (p.verw ?? 0);
+      const pts3 = up ? `${x},${y - 6} ${+x - 6},${y + 5} ${+x + 6},${y + 5}` : `${x},${y + 6} ${+x - 6},${y - 5} ${+x + 6},${y - 5}`;
+      return `<polygon points="${pts3}" fill="var(--vlak)" stroke="var(--band)" stroke-width="2"/><circle cx="${x}" cy="${y}" r="11" fill="transparent" data-i="${i}" style="cursor:pointer"/>`; })() : `<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.tv).toFixed(1)}" r="4.5" fill="var(--band)" stroke="var(--vlak)" stroke-width="2" data-i="${i}"/><circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.tv).toFixed(1)}" r="11" fill="transparent" data-i="${i}" style="cursor:pointer"/>`).join('');
+  const eind = laatste ? `<circle cx="${X(laatste.d)}" cy="${Y(laatste.verw)}" r="4" fill="var(--koud)"/><text x="${Math.max(X(laatste.d) - 6, L)}" y="${Y(laatste.verw) - 8}" text-anchor="end" style="fill:var(--koud)">${tijd(laatste.verw)}</text>` +
+    (laatste.basis != null ? `<text x="${Math.max(X(laatste.d) - 6, L)}" y="${Y(laatste.basis) + 16}" text-anchor="end" style="fill:var(--inkt)">rating ${tijd(laatste.basis)}</text>` : '') : '';
+  const vlakEl = vlak ? `<path d="${vlak}" fill="var(--koud)" opacity="0.14"/>` : '';
+  const basisEl = basis ? `<path d="${basis}" fill="none" stroke="var(--inkt)" stroke-width="1.6" stroke-dasharray="5 3" stroke-linejoin="round"/>` : '';
+  const nu = `<line class="raster" x1="${X(D.meta.vandaag)}" x2="${X(D.meta.vandaag)}" y1="${T}" y2="${H - B}"/>`;
+  el.innerHTML = `<svg class="grafiek" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verwachte en gereden tijden ${a}">${g}${nu}${bandEl}${vlakEl}${basisEl}<path d="${lijn}" fill="none" stroke="var(--koud)" stroke-width="2" stroke-linejoin="round"/>${eind}${stippen}</svg>`;
+  el.querySelector('svg').onmousemove = e => { const c = e.target.closest('circle[data-i]'); if (!c) return verbergTip(); const p = pts[+c.dataset.i];
+    const q = trz.find(q => q[0] === p.d);
+    toonTip(e, `<b>${datum(p.d)}</b> · ${esc(p.baan)}<br>Gereden ${tijd(p.t)} (Heerenveen ${tijd(p.tv)})<br>Verwacht ${tijd(p.verw)}${q ? ' · vaste rating ' + tijd(q[2]) : ''}${q && q.length > 4 ? '<br>80%-band ' + tijd(q[1] + q[3] / 100) + '–' + tijd(q[1] + q[4] / 100) : ''}${p.z != null && p.z <= 6 ? (k => '<br>Kans op een tijd ' + k.tekst + ': ' + kansTekst(k.p))(kansRace(p.z)) : ''}${p.uit ? '<br><i>Buiten de schaal: ' + ((p.z != null && p.z > 6) ? 'valpartij, telt niet mee in het model' : 'uitschieter') + '</i>' : ''}`); };
+  el.querySelector('svg').onmouseleave = verbergTip;
+}
+
+/* ---------- race-simulator ---------- */
+const RC = {g: 'v', a: '1000m', baan: 'Heerenveen (NED)', scen: 'normaal', sel: null, extra: new Set(), q: ''};
+function standaardVeld(g, a) { return (D.meta.ranglijst[g + '|' + a] || []).slice(0, 12); }
+function veldLijst() { const ids = (D.meta.ranglijst[RC.g + '|' + RC.a] || []).slice(0, 60); for (const id of RC.extra) { const r = R.get(id); if (r && r.g === RC.g && r.pr[RC.a] && !ids.includes(id)) ids.push(id); } return ids; }
+function initRace() {
+  seg($('#rc-g'), [['m', 'Mannen'], ['v', 'Vrouwen']], RC.g, k => { RC.g = k; RC.sel = new Set(standaardVeld(RC.g, RC.a)); initRace(); simuleer(); });
+  seg($('#rc-a'), AFLAB, RC.a, k => { RC.a = k; RC.sel = new Set(standaardVeld(RC.g, RC.a)); initRace(); simuleer(); });
+  if (!RC.sel) RC.sel = new Set(standaardVeld(RC.g, RC.a));
+  tekenDeelnemers();
+}
+function tekenDeelnemers() {
+  const ids = veldLijst().filter(id => { const r = R.get(id); return !RC.q || (r.naam + ' ' + r.land).toLowerCase().includes(RC.q); });
+  $('#rc-lijst').innerHTML = ids.map(id => { const r = R.get(id), p = r.pr[RC.a];
+    return `<label for="rc-c${id}"><input type="checkbox" id="rc-c${id}" data-id="${id}" ${RC.sel.has(id) ? 'checked' : ''}><span>${esc(r.naam)}<span class="land">${esc(r.land || '')}</span></span><span class="t">${tijd(p.norm)}</span></label>`; }).join('');
+  $('#rc-aantal').textContent = `(${RC.sel.size} gekozen)`;
+}
+$('#rc-lijst').onchange = e => { const c = e.target; if (!c.dataset.id) return; const id = +c.dataset.id; c.checked ? RC.sel.add(id) : RC.sel.delete(id); $('#rc-aantal').textContent = `(${RC.sel.size} gekozen)`; };
+$('#rc-zoek').oninput = e => { RC.q = e.target.value.trim().toLowerCase(); tekenDeelnemers(); };
+$('#rc-top12').onclick = () => { RC.sel = new Set(standaardVeld(RC.g, RC.a)); tekenDeelnemers(); };
+$('#rc-geen').onclick = () => { RC.sel = new Set(); tekenDeelnemers(); };
+$('#rc-baan').innerHTML = D.banen.slice(0, 60).sort((a, b) => a.naam.localeCompare(b.naam)).map(b => `<option value="${esc(b.naam)}" ${b.naam === RC.baan ? 'selected' : ''}>${esc(b.naam)} (${b.pct > 0 ? '+' : ''}${b.pct.toFixed(1).replace('.', ',')}%)</option>`).join('');
+$('#rc-baan').onchange = e => { RC.baan = e.target.value; simuleer(); };
+$('#rc-scen').onchange = e => { RC.scen = e.target.value; simuleer(); };
+$('#rc-start').onclick = () => simuleer();
+function rng(seed) { let s = seed >>> 0; return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+function simuleer() {
+  const ids = [...RC.sel].filter(id => R.get(id) && R.get(id).pr[RC.a] && R.get(id).g === RC.g);
+  const out = $('#rc-uitslag');
+  if (ids.length < 2) { out.innerHTML = ''; $('#rc-kern').innerHTML = '<p class="klein">Kies minstens twee deelnemers.</p>'; $('#rc-noot').textContent = ''; return; }
+  const N = 20000, a = RC.a, b = BAAN.get(RC.baan) || {mu: D.meta.anker, sd: 0.006};
+  let mu = b.mu, sd = b.sd; if (RC.scen === 'piek') { mu += D.meta.piek_mu; sd = Math.hypot(sd, D.meta.piek_sd); }
+  const u = rng(12345), n = ids.length, P = ids.map(id => R.get(id).pr[a]);
+  const K = ids.map(id => { const r = R.get(id), pk = r.pk ?? Q0, sl = r.sl ?? (1 - Q1); return [pk, 1 - pk - sl, sl]; });
+  const goud = new Float64Array(n), zilver = new Float64Array(n), brons = new Float64Array(n);
+  const tijden = ids.map(() => new Float32Array(N)), win = new Float32Array(N), t = new Float64Array(n);
+  for (let s = 0; s < N; s++) {
+    const theta = mu + sd * Math.sqrt(-2 * Math.log(1 - u())) * Math.cos(2 * Math.PI * u());
+    const et = Math.exp(theta);
+    for (let i = 0; i < n; i++) { const p = P[i], k = K[i], w = u();
+      const q = w < k[0] ? Q0 * u() : w < k[0] + k[1] ? Q0 + (Q1 - Q0) * u() : Q1 + (1 - Q1) * u();
+      t[i] = (p.tl + Math.exp(p.mu + p.sd * zEigen(p, zKwantiel(a, q), a))) * et; tijden[i][s] = t[i]; }
+    let i1 = -1, i2 = -1, i3 = -1;
+    for (let i = 0; i < n; i++) { if (i1 < 0 || t[i] < t[i1]) { i3 = i2; i2 = i1; i1 = i; } else if (i2 < 0 || t[i] < t[i2]) { i3 = i2; i2 = i; } else if (i3 < 0 || t[i] < t[i3]) i3 = i; }
+    goud[i1]++; zilver[i2]++; if (i3 >= 0) brons[i3]++; win[s] = t[i1];
+  }
+  const kw = (arr, p) => { const s = Float32Array.from(arr).sort(); return s[Math.floor(p * (s.length - 1))]; };
+  const rows = ids.map((id, i) => ({r: R.get(id), g: goud[i] / N * 100, z: zilver[i] / N * 100, b: brons[i] / N * 100, med: kw(tijden[i], .5), p10: kw(tijden[i], .1), p90: kw(tijden[i], .9)}))
+    .sort((x, y) => (y.g - x.g) || ((y.g + y.z + y.b) - (x.g + x.z + x.b)));
+  const maxPod = Math.max(...rows.map(x => x.g + x.z + x.b));
+  out.innerHTML = `<thead><tr><th>Rijder</th><th class="num">Goud</th><th class="num">Zilver</th><th class="num">Brons</th><th>Podium</th><th class="num">Mediaan</th><th class="num">80%-band</th><th>Piekkans</th></tr></thead><tbody>` +
+    rows.map(x => { const pod = x.g + x.z + x.b; return `<tr><td class="naam">${esc(x.r.naam)}<span class="land">${esc(x.r.land || '')}</span></td><td class="num"><b>${pct(x.g)}</b></td><td class="num">${pct(x.z)}</td><td class="num">${pct(x.b)}</td><td style="min-width:110px"><div style="display:flex;align-items:center;gap:8px"><div class="staaf" style="flex:1" title="${pct(pod)}"><div style="width:${(pod / Math.max(maxPod, 1) * 100).toFixed(1)}%"></div></div><span class="klein" style="font-family:var(--f-data);min-width:44px;text-align:right">${pct(pod, 0)}</span></div></td><td class="num">${tijd(x.med)}</td><td class="num">${tijd(x.p10)}–${tijd(x.p90)}</td><td>${kansChip(x.r)}</td></tr>`; }).join('') + '</tbody>';
+  $('#rc-kern').innerHTML = `<div><span class="eyebrow">Winnende tijd (mediaan)</span><b>${tijd(kw(win, .5))}</b></div><div><span class="eyebrow">80% van de races</span><b>${tijd(kw(win, .1))}–${tijd(kw(win, .9))}</b></div><div><span class="eyebrow">Favoriet</span><b style="font-family:var(--f-tekst);font-weight:600">${esc(rows[0].r.naam)} ${pct(rows[0].g, 0)}</b></div>`;
+  $('#rc-noot').textContent = `${GLAB[RC.g]} ${a.replace('m', ' m')} in ${RC.baan}, ${RC.scen === 'piek' ? 'piekdag' : 'gewone dag'}, ${n} deelnemers, 20.000 simulaties. Elke simulatie trekt één dag-effect voor het hele veld en een eigen vormafwijking per rijder uit de werkelijke (scheve) foutverdeling, gewogen met de eigen kans op een piek of een slechte dag. Valpartijen zitten er niet in.`;
+}
+
+/* ---------- model ---------- */
+function tekenModel() {
+  const B = D.meta.banden;
+  const heat = g => `<div class="tabelbak heat"><table><thead><tr><th>${GLAB[g]}</th>${B.map(b => `<th class="num">${b}</th>`).join('')}</tr></thead><tbody>` +
+    AF.filter(a => D.meta.loc[g][a].some(v => v !== 0)).map(a => `<tr><td>${a.replace('m', ' m')}</td>${D.meta.loc[g][a].map((v, i) => { const s = D.meta.sc[g][a][i];
+      const kleur = v > 0.1 ? 'var(--band-zacht)' : v < -0.1 ? 'var(--koud-zacht)' : 'transparent';
+      return `<td class="num" style="background:${kleur}" title="schaal ${s.toFixed(2)}">${(v > 0 ? '+' : '') + v.toFixed(2).replace('.', ',')}</td>`; }).join('')}</tr>`).join('') + '</tbody></table></div>';
+  $('#p-model').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:6px"><span class="eyebrow">Specificatie</span><h2>Hoe de verwachting tot stand komt</h2>
+    <p>Elke rijder heeft per afstand een niveau dat na elke race wordt bijgewerkt. Een race op een bepaalde dag en baan levert een tijd op die bestaat uit het niveau van de rijder, een dag-effect dat het hele veld deelt, en een eigen afwijking.</p></div>
+    <div class="modelgrid">
+      <section><h3>1. Tijdschaal</h3><div class="formule">x = ln(T − T_lim)</div><p class="klein">T_lim is per geslacht en afstand een ondergrens onder alle gereden tijden. Op deze schaal is een verbetering van een topper even groot als die van een recreant.</p></section>
+      <section><h3>2. Toestand per rijder</h3><div class="formule">x_t = x_(t−1) + groei(leeftijd, Δt) + w
+w ~ N(0, Q·Δt),  Q gekoppeld over 8 afstanden</div><p class="klein">Een snelle 1000 m schuift ook de 500 m en 1500 m op. De onzekerheid groeit met de tijd sinds de laatste race.</p></section>
+      <section><h3>3. Waarneming</h3><div class="formule">ln T = ln(T_lim + eˣ) + θ_event + ε
+θ_event ~ N(μ_baan, τ²)   ε zwaarstaartig</div><p class="klein">θ is het dag-effect van baan en ijs, geschat uit het hele veld; zwakke rijders tellen daarin minder mee. Valpartijen (meer dan 6 sd te traag) veranderen het niveau niet.</p></section>
+      <section><h3>4. Bijwerken</h3><p class="klein">Uitgebreid Kalman-filter met GARCH-volatiliteit per rijder: wie wisselvallig rijdt, krijgt een bredere verwachting. Snelle tijden tellen volledig mee, trage tijden worden begrensd (een slechte dag zegt weinig over het niveau).</p></section>
+      <section><h3>5. Verwachting vooraf</h3><div class="formule">x̂ = x + ervaring + trend + loc(g, afstand, niveau)·σ
+σ̂ = σ · schaal(g, afstand, niveau)</div><p class="klein">De trend gebruikt eerdere races van dezelfde dag en het recente verloop. De locatie- en schaalcorrectie hieronder is geschat op ${D.meta.loc_schaal_jaren[0]}–${D.meta.loc_schaal_jaren[1]}.</p></section>
+      <section><h3>6. Twee tijden</h3><p class="klein"><b>Normaal</b>: mediaan van de verwachting op een gemiddelde dag in Heerenveen. <b>Piek</b>: dezelfde dag met de 10% beste eigen vorm. Een snelle tijd wijst op verbetering, een trage kan ook een slechte dag zijn.</p></section>
+      <section><h3>7. Piekkans per rijder</h3><div class="formule">P(piek)_i = (pieken_i + m·0,07) / (races_i + m),  m = 100</div><p class="klein">Elke race valt in de snelste 7% (piek), de traagste 7% (slechte dag) of daartussen. Rijders verschillen daarin echt: de spreiding is twee keer zo groot als bij toeval. De eigen kansen wegen de foutverdeling in de voorspelling en de simulatie (log loss −0,005).</p></section>
+      <section><h3>8. Vorm op andere afstanden</h3><div class="formule">trend += ${D.meta.trend_coef.x5o.toFixed(3).replace('.', ',')}·z̄(andere afstand, 1–5 d)
+       + ${D.meta.trend_coef.x14o.toFixed(3).replace('.', ',')}·z̄(andere afstand, 6–14 d)
+       + ${D.meta.trend_coef.cx.toFixed(2).replace('.', ',')}·z(eerdere afstand, zelfde toernooi)</div><p class="klein">Een snelle race op een andere afstand kort ervoor maakt de verwachting sneller. Binnen hetzelfde toernooi is het effect veel sterker dan over een paar dagen.</p></section>
+      <section><h3>9. Na een uitschieter</h3><div class="formule">σ̂ ×= 1 + 0,2·overschot(z &lt; −2 t.o.v. veld)
+       + 0,1·overschot(eigen z &lt; −2,5)</div><p class="klein">Na een race die veel sneller was dan verwacht wordt de verwachting sneller én de spreiding breder. De tweede term meet de verrassing in de eigen spreiding van de rijder, zodat ook toppers met een kleine spreiding (Leerdam, Inzell 2026) een bredere band krijgen.</p></section>
+      <section><h3>10. Vorm en volatiliteit (GAS)</h3><div class="formule">u = m + e^λ·ε,  ε ~ scheve t (snel licht, traag zwaar)
+m, λ ← verval·(m, λ) + a(kant)·score(ε)
+laag 1 per rijder (kort), laag 2 per rijder × afstand (lang)</div><p class="klein">Na elke wedstrijddag schuiven verwachting en spreiding mee met de score van de eigen scheve verdeling. Een snelle verrassing verschuift de verwachting veel sterker (0,050) dan een trage (0,002). Alleen eerdere dagen tellen mee. Log loss −0,014 (2020 en later).</p></section>
+      <section><h3>11. Volatiliteit per rijder</h3><div class="formule">v_i = σ̂_i / mediaan σ̂ (zelfde afstand, zelfde niveau)
+snelle kant: σ̂_snel = σ̂ · v_i^(${D.meta.vol_bf.toFixed(1).replace('.', ',')})</div><p class="klein">Elke rijder heeft een eigen spreiding: wisselvallige rijders hebben een brede band, constante een smalle. Hoge volatiliteit zit vooral aan de trage kant (slechte dagen). De snelle kant groeit minder hard mee, dus een wisselvallige rijder krijgt niet automatisch een veel snellere piektijd. Log loss −0,003.</p></section>
+      <section><h3>12. Vorm t.o.v. het veld</h3><div class="formule">na elke dag: dag-z = uitslag t.o.v. het veld (dag-effect eruit)
+x̂ += (−0,02 + 0,11·w)·z̄(laatste dagen, verval 7 d) + …
+σ̂_snel ×= e^(0,11·F + 0,25·√N)   (F, N: snelle uitschieters, verval 60 d)</div><p class="klein">Vorm wordt gemeten t.o.v. het veld, niet t.o.v. de verwachting vooraf: die is bij toppers vooral ijs-onzekerheid. Bij toppers (w = 1) houdt goede vorm een paar dagen aan. Na een snelle uitschieter (dag-z &lt; −3) wordt de snelle kant direct breder; dat is zo afgesteld dat zulke rijders daarna niet vaker uitzonderlijk snel rijden dan de rest (z &lt; −2,5: 1,0% tegen 1,0%). Leerdam voor Milaan: snelle kant ×1,6, de 1:12,31 kreeg dag-z −2,3 in plaats van −3,7.</p></section>
+      <section><h3>13. IJs per niveau en piekdiepte</h3><div class="formule">dag-relatief: fout −= (ijs − HV)·k(niveau) + hoogland·h(niveau)
+piekzone (z &lt; drempel): z = drempel + (z₀ − drempel)·τ_i
+τ_i = ((Σ overschrijdingen + 20·ē) / (aantal pieken + 20) / ē)^1,5   (verval 4 jaar)</div><p class="klein">Het dag-effect wordt voor het hele veld geschat, maar op snel ijs en op de hooglandbanen lopen de top en de breedte verder uit dan het midden van het veld. Zonder correctie leken elites in Salt Lake City en Calgary structureel te pieken (gemiddelde dag-z −0,69, nu −0,12). Daarnaast heeft elke rijder een eigen piekdiepte: hoe ver de pieken gaan als hij of zij piekt, geschat uit de pieken van de afgelopen jaren. Zo telt één diepe piek per jaar mee in plaats van weg te vallen tegen veel gewone races. Seizoensbeste onder de 5%-lijn (hoort 5%): elite 2010–2019 10% (was 15%), toppers na een extreem seizoen 10% (was 21%); vanaf 2020 elite 20% (was 30%). Sinds 2019 hebben toppers in het algemeen een dikkere snelle staart dan het model; dat is nog niet opgelost.</p></section>
+      <section><h3>14. Niveausprongen per rijder</h3><div class="formule">toestand: mengsel van gewone verandering en sprong (variantie 25·S)
+P(sprong)_i = (Σ posterieure sprongkansen_i + 50·0,02) / (snelle races_i + 50)</div><p class="klein">De toestand is geen normale verdeling: een snelle verrassing kan een echte niveausprong zijn, en dan wordt de onzekerheid groot en volgt het niveau direct. Hoe vaak een rijder echt springt wordt per rijder geleerd (lang geheugen). Lollobrigida en Takagi springen vaker (2,4–2,6% per snelle race), Leerdam zelden (0,7%): haar snelle races zijn pieken, geen sprongen, en worden via de piekdiepte opgevangen. Log loss −0,0015. Varianten die het niveau algemeen volatieler maakten (procesruis per rijder, sprongen aan de trage kant) waren slechter.</p></section>
+      <section><h3>15. Simulatie</h3><div class="formule">T_i = (T_lim + e^(x̂_i + σ̂_i·z_i)) · e^θ   (z_i &lt; 0: σ̂_snel)
+z_i ~ werkelijke foutverdeling, gewogen met P(piek)_i
+θ ~ N(μ_baan, τ²)</div><p class="klein">Alle rijders in een race delen θ; dat verschuift de tijden maar niet de volgorde.</p></section>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px"><h3>Correctie per afstand en niveau</h3>
+      <p class="klein">Verschuiving van de verwachting in eigen standaarddeviaties per niveauband (percentiel binnen geslacht en afstand, 100 = snelst). Rood: rijders zijn trager dan het basismodel zegt. Blauw: sneller. Zo rijden toppers op de 500 m structureel iets trager dan de basisverwachting, en is vrijwel iedereen op de 1000 m sneller.</p>
+      ${heat('m')}${heat('v')}</div>
+    <div style="display:flex;flex-direction:column;gap:8px"><h3>Toetsing</h3>
+      <ul class="punten klein">
+        <li>Eerlijke log loss: aanpassen op 2019 en eerder, toetsen op 2020 en later. De correctie per afstand en niveau verbetert die met 0,011 ± 0,003 (kleine database) en met 0,015 op alle ritten en 0,042 bij de top 2% (volledige database).</li>
+        <li>Een andere verdelingsvorm (Johnson SU, NIG, scheve t, mengsels) levert hooguit 0,002 extra op; de fout zit in locatie en schaal per afstand, niet in de vorm.</li>
+        <li>Olympische Spelen 2014–2026 (40 races): de favoriet won 21 keer, verwacht was 21,5. Log loss van de echte winnaar 1,573.</li>
+        <li>Kalibratie van de toppers (niveau ≥ 98) op 2023–2026: 4,8 / 9,7 / 24,4% onder het 5e/10e/25e percentiel en 25,8 / 10,5 / 4,9% boven het 75e/90e/95e.</li>
+      </ul></div>`;
+}
+
+/* ---------- start ---------- */
+tekenRanglijst();
+toonRijder(D.meta.ranglijst['v|1000m'][1]);
+initRace(); simuleer(); tekenModel();
+const h = (location.hash || '').slice(1); if (['ranglijst', 'rijder', 'race', 'model'].includes(h)) toonTab(h);
+</script>

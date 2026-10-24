@@ -1,0 +1,82 @@
+groei bij gelijk niveau en leeftijd:
+  GROEI WK-titel         mannen : per 5% extra groei in het laatste jaar x 1.02 op de odds (t = 0.1; 52 met een latere zege van 12957)
+  GROEI WK-titel         vrouwen: per 5% extra groei in het laatste jaar x 0.43 op de odds (t = -1.3; 36 met een latere zege van 9485)
+  GROEI World Cup-zege   mannen : per 5% extra groei in het laatste jaar x 1.14 op de odds (t = 0.6; 188 met een latere zege van 12957)
+  GROEI World Cup-zege   vrouwen: per 5% extra groei in het laatste jaar x 0.81 op de odds (t = -0.6; 109 met een latere zege van 9485)
+
+## rel+, samen
+  RES rel+:0    WK-titel         mannen  | winnaars  23 som kansen   21.0 | aantal   54 verwacht   16.4 | log-lik -0.01541 | AUC 0.957 (niveau 0.961) | top-10 7 (niveau 8) top-25 10 (niveau 13)
+  RES rel+:0    WK-titel         vrouwen | winnaars  15 som kansen   13.9 | aantal   36 verwacht   17.4 | log-lik -0.01641 | AUC 0.932 (niveau 0.957) | top-10 4 (niveau 6) top-25 8 (niveau 7)
+  RES rel+:0    olympische titel mannen  | winnaars   7 som kansen   12.2 | aantal    9 verwacht    8.0 | log-lik -0.00704 | AUC 0.959 (niveau 0.985) | top-10 1 (niveau 0) top-25 4 (niveau 3)
+  RES rel+:0    olympische titel vrouwen | winnaars  10 som kansen    6.4 | aantal   12 verwacht    6.9 | log-lik -0.01374 | AUC 0.894 (niveau 0.959) | top-10 1 (niveau 4) top-25 3 (niveau 4)
+  RES rel+:0    World Cup-zege   mannen  | winnaars  86 som kansen   85.1 | aantal  302 verwacht  296.3 | log-lik -0.04968 | AUC 0.914 (niveau 0.915) | top-10 13 (niveau 15) top-25 25 (niveau 24)
+  RES rel+:0    World Cup-zege   vrouwen | winnaars  49 som kansen   54.3 | aantal  223 verwacht  246.1 | log-lik -0.03537 | AUC 0.959 (niveau 0.956) | top-10 14 (niveau 16) top-25 22 (niveau 20)
+
+## rel+, apart
+  RES rel+:1    WK-titel         mannen  | winnaars  23 som kansen   29.2 | aantal   54 verwacht   30.3 | log-lik -0.01641 | AUC 0.949 (niveau 0.961) | top-10 8 (niveau 8) top-25 11 (niveau 13)
+  RES rel+:1    WK-titel         vrouwen | winnaars  15 som kansen    9.7 | aantal   36 verwacht   13.6 | log-lik -0.01624 | AUC 0.926 (niveau 0.957) | top-10 4 (niveau 6) top-25 8 (niveau 7)
+  RES rel+:1    olympische titel mannen  | winnaars   7 som kansen    6.6 | aantal    9 verwacht    6.0 | log-lik -0.00687 | AUC 0.947 (niveau 0.985) | top-10 0 (niveau 0) top-25 4 (niveau 3)
+  RES rel+:1    olympische titel vrouwen | winnaars  10 som kansen   11.4 | aantal   12 verwacht    9.7 | log-lik -0.01280 | AUC 0.894 (niveau 0.959) | top-10 1 (niveau 4) top-25 3 (niveau 4)
+  RES rel+:1    World Cup-zege   mannen  | winnaars  86 som kansen  117.0 | aantal  302 verwacht  518.4 | log-lik -0.05370 | AUC 0.907 (niveau 0.915) | top-10 12 (niveau 15) top-25 24 (niveau 24)
+  RES rel+:1    World Cup-zege   vrouwen | winnaars  49 som kansen   33.1 | aantal  223 verwacht  131.2 | log-lik -0.03948 | AUC 0.944 (niveau 0.956) | top-10 13 (niveau 16) top-25 19 (niveau 20)
+
+## niv, apart
+  RES niv:1     WK-titel         mannen  | winnaars  23 som kansen   52.2 | aantal   54 verwacht   55.7 | log-lik -0.01881 | AUC 0.933 (niveau 0.961) | top-10 8 (niveau 8) top-25 13 (niveau 13)
+  RES niv:1     WK-titel         vrouwen | winnaars  15 som kansen    9.8 | aantal   36 verwacht   27.6 | log-lik -0.01586 | AUC 0.934 (niveau 0.957) | top-10 6 (niveau 6) top-25 7 (niveau 7)
+  RES niv:1     olympische titel mannen  | winnaars   7 som kansen   14.7 | aantal    9 verwacht   14.4 | log-lik -0.00762 | AUC 0.915 (niveau 0.985) | top-10 0 (niveau 0) top-25 5 (niveau 3)
+  RES niv:1     olympische titel vrouwen | winnaars  10 som kansen   13.3 | aantal   12 verwacht   38.1 | log-lik -0.01214 | AUC 0.923 (niveau 0.959) | top-10 3 (niveau 4) top-25 3 (niveau 4)
+  RES niv:1     World Cup-zege   mannen  | winnaars  86 som kansen  110.8 | aantal  302 verwacht 2154.3 | log-lik -0.05252 | AUC 0.911 (niveau 0.915) | top-10 13 (niveau 15) top-25 24 (niveau 24)
+  RES niv:1     World Cup-zege   vrouwen | winnaars  49 som kansen   37.9 | aantal  223 verwacht  323.7 | log-lik -0.03919 | AUC 0.942 (niveau 0.956) | top-10 12 (niveau 16) top-25 20 (niveau 20)
+
+## groei, apart
+  RES groei:1   WK-titel         mannen  | winnaars  23 som kansen   22.7 | aantal   54 verwacht   24.4 | log-lik -0.01663 | AUC 0.940 (niveau 0.961) | top-10 7 (niveau 8) top-25 11 (niveau 13)
+  RES groei:1   WK-titel         vrouwen | winnaars  15 som kansen    8.6 | aantal   36 verwacht   11.9 | log-lik -0.01600 | AUC 0.928 (niveau 0.957) | top-10 5 (niveau 6) top-25 8 (niveau 7)
+  RES groei:1   olympische titel mannen  | winnaars   7 som kansen    4.7 | aantal    9 verwacht    4.4 | log-lik -0.00705 | AUC 0.942 (niveau 0.985) | top-10 0 (niveau 0) top-25 4 (niveau 3)
+  RES groei:1   olympische titel vrouwen | winnaars  10 som kansen   11.0 | aantal   12 verwacht    8.7 | log-lik -0.01225 | AUC 0.913 (niveau 0.959) | top-10 3 (niveau 4) top-25 3 (niveau 4)
+  RES groei:1   World Cup-zege   mannen  | winnaars  86 som kansen  121.7 | aantal  302 verwacht  361.9 | log-lik -0.05411 | AUC 0.908 (niveau 0.915) | top-10 12 (niveau 15) top-25 23 (niveau 24)
+  RES groei:1   World Cup-zege   vrouwen | winnaars  49 som kansen   34.3 | aantal  223 verwacht  117.9 | log-lik -0.03956 | AUC 0.943 (niveau 0.956) | top-10 10 (niveau 16) top-25 18 (niveau 20)
+groei bij gelijk niveau en leeftijd:
+  GROEI WK-titel         mannen : per 5% extra groei in het laatste jaar x 1.02 op de odds (t = 0.1; 52 met een latere zege van 12957)
+  GROEI WK-titel         vrouwen: per 5% extra groei in het laatste jaar x 0.43 op de odds (t = -1.3; 36 met een latere zege van 9485)
+  GROEI World Cup-zege   mannen : per 5% extra groei in het laatste jaar x 1.14 op de odds (t = 0.6; 188 met een latere zege van 12957)
+  GROEI World Cup-zege   vrouwen: per 5% extra groei in het laatste jaar x 0.81 op de odds (t = -0.6; 109 met een latere zege van 9485)
+
+## rel+, samen
+  RES rel+:0    WK-titel         mannen  | winnaars  15 som kansen    6.8 | aantal   30 verwacht   12.6 | log-lik -0.01368 | AUC 0.929 (niveau 0.925) | top-10 2 (niveau 2) top-25 3 (niveau 4)
+  RES rel+:0    WK-titel         vrouwen | winnaars  10 som kansen    4.3 | aantal   32 verwacht    9.1 | log-lik -0.00906 | AUC 0.970 (niveau 0.974) | top-10 5 (niveau 6) top-25 6 (niveau 6)
+  RES rel+:0    olympische titel mannen  | winnaars   9 som kansen    2.1 | aantal   11 verwacht    2.5 | log-lik -0.00893 | AUC 0.946 (niveau 0.945) | top-10 3 (niveau 3) top-25 3 (niveau 3)
+  RES rel+:0    olympische titel vrouwen | winnaars   5 som kansen    2.1 | aantal    5 verwacht    2.4 | log-lik -0.00548 | AUC 0.962 (niveau 0.993) | top-10 3 (niveau 3) top-25 3 (niveau 4)
+  RES rel+:0    World Cup-zege   mannen  | winnaars  68 som kansen   44.1 | aantal  210 verwacht  139.9 | log-lik -0.04368 | AUC 0.922 (niveau 0.914) | top-10 9 (niveau 11) top-25 17 (niveau 19)
+  RES rel+:0    World Cup-zege   vrouwen | winnaars  40 som kansen   30.3 | aantal  198 verwacht  114.0 | log-lik -0.02982 | AUC 0.965 (niveau 0.967) | top-10 8 (niveau 11) top-25 14 (niveau 20)
+
+## rel+, apart
+  RES rel+:1    WK-titel         mannen  | winnaars  15 som kansen    7.2 | aantal   30 verwacht   16.2 | log-lik -0.01343 | AUC 0.933 (niveau 0.925) | top-10 2 (niveau 2) top-25 3 (niveau 4)
+  RES rel+:1    WK-titel         vrouwen | winnaars  10 som kansen    4.3 | aantal   32 verwacht    6.3 | log-lik -0.01005 | AUC 0.958 (niveau 0.974) | top-10 5 (niveau 6) top-25 5 (niveau 6)
+  RES rel+:1    olympische titel mannen  | winnaars   9 som kansen    1.6 | aantal   11 verwacht    2.4 | log-lik -0.00945 | AUC 0.941 (niveau 0.945) | top-10 3 (niveau 3) top-25 3 (niveau 3)
+  RES rel+:1    olympische titel vrouwen | winnaars   5 som kansen    3.8 | aantal    5 verwacht    2.9 | log-lik -0.00484 | AUC 0.983 (niveau 0.993) | top-10 3 (niveau 3) top-25 3 (niveau 4)
+  RES rel+:1    World Cup-zege   mannen  | winnaars  68 som kansen   46.0 | aantal  210 verwacht  163.9 | log-lik -0.04352 | AUC 0.921 (niveau 0.914) | top-10 9 (niveau 11) top-25 17 (niveau 19)
+  RES rel+:1    World Cup-zege   vrouwen | winnaars  40 som kansen   28.6 | aantal  198 verwacht   83.9 | log-lik -0.02943 | AUC 0.968 (niveau 0.967) | top-10 10 (niveau 11) top-25 16 (niveau 20)
+
+## niv, samen
+  RES niv:0     WK-titel         mannen  | winnaars  15 som kansen    7.3 | aantal   30 verwacht   14.1 | log-lik -0.01350 | AUC 0.929 (niveau 0.925) | top-10 3 (niveau 2) top-25 3 (niveau 4)
+  RES niv:0     WK-titel         vrouwen | winnaars  10 som kansen    4.7 | aantal   32 verwacht   14.4 | log-lik -0.00857 | AUC 0.979 (niveau 0.974) | top-10 6 (niveau 6) top-25 6 (niveau 6)
+  RES niv:0     olympische titel mannen  | winnaars   9 som kansen    2.4 | aantal   11 verwacht    3.2 | log-lik -0.00884 | AUC 0.948 (niveau 0.945) | top-10 3 (niveau 3) top-25 3 (niveau 3)
+  RES niv:0     olympische titel vrouwen | winnaars   5 som kansen    2.5 | aantal    5 verwacht    4.1 | log-lik -0.00487 | AUC 0.991 (niveau 0.993) | top-10 3 (niveau 3) top-25 3 (niveau 4)
+  RES niv:0     World Cup-zege   mannen  | winnaars  68 som kansen   39.5 | aantal  210 verwacht  134.0 | log-lik -0.04414 | AUC 0.922 (niveau 0.914) | top-10 8 (niveau 11) top-25 19 (niveau 19)
+  RES niv:0     World Cup-zege   vrouwen | winnaars  40 som kansen   29.3 | aantal  198 verwacht  136.5 | log-lik -0.02968 | AUC 0.968 (niveau 0.967) | top-10 8 (niveau 11) top-25 16 (niveau 20)
+
+## niv, apart
+  RES niv:1     WK-titel         mannen  | winnaars  15 som kansen    8.2 | aantal   30 verwacht   17.1 | log-lik -0.01331 | AUC 0.931 (niveau 0.925) | top-10 3 (niveau 2) top-25 3 (niveau 4)
+  RES niv:1     WK-titel         vrouwen | winnaars  10 som kansen    4.9 | aantal   32 verwacht   11.8 | log-lik -0.00919 | AUC 0.964 (niveau 0.974) | top-10 6 (niveau 6) top-25 6 (niveau 6)
+  RES niv:1     olympische titel mannen  | winnaars   9 som kansen    1.8 | aantal   11 verwacht    2.6 | log-lik -0.00939 | AUC 0.944 (niveau 0.945) | top-10 3 (niveau 3) top-25 3 (niveau 3)
+  RES niv:1     olympische titel vrouwen | winnaars   5 som kansen    3.9 | aantal    5 verwacht    4.9 | log-lik -0.00483 | AUC 0.991 (niveau 0.993) | top-10 2 (niveau 3) top-25 4 (niveau 4)
+  RES niv:1     World Cup-zege   mannen  | winnaars  68 som kansen   42.4 | aantal  210 verwacht  148.7 | log-lik -0.04377 | AUC 0.923 (niveau 0.914) | top-10 8 (niveau 11) top-25 20 (niveau 19)
+  RES niv:1     World Cup-zege   vrouwen | winnaars  40 som kansen   28.4 | aantal  198 verwacht  110.6 | log-lik -0.02941 | AUC 0.969 (niveau 0.967) | top-10 10 (niveau 11) top-25 15 (niveau 20)
+
+## groei, apart
+  RES groei:1   WK-titel         mannen  | winnaars  15 som kansen    7.0 | aantal   30 verwacht   15.5 | log-lik -0.01335 | AUC 0.939 (niveau 0.925) | top-10 2 (niveau 2) top-25 3 (niveau 4)
+  RES groei:1   WK-titel         vrouwen | winnaars  10 som kansen    4.4 | aantal   32 verwacht    6.0 | log-lik -0.00967 | AUC 0.955 (niveau 0.974) | top-10 5 (niveau 6) top-25 6 (niveau 6)
+  RES groei:1   olympische titel mannen  | winnaars   9 som kansen    1.4 | aantal   11 verwacht    2.2 | log-lik -0.00960 | AUC 0.943 (niveau 0.945) | top-10 3 (niveau 3) top-25 3 (niveau 3)
+  RES groei:1   olympische titel vrouwen | winnaars   5 som kansen    3.5 | aantal    5 verwacht    2.7 | log-lik -0.00473 | AUC 0.990 (niveau 0.993) | top-10 2 (niveau 3) top-25 4 (niveau 4)
+  RES groei:1   World Cup-zege   mannen  | winnaars  68 som kansen   42.4 | aantal  210 verwacht  147.3 | log-lik -0.04309 | AUC 0.928 (niveau 0.914) | top-10 9 (niveau 11) top-25 18 (niveau 19)
+  RES groei:1   World Cup-zege   vrouwen | winnaars  40 som kansen   29.5 | aantal  198 verwacht   84.7 | log-lik -0.02913 | AUC 0.969 (niveau 0.967) | top-10 10 (niveau 11) top-25 15 (niveau 20)

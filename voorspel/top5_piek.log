@@ -1,0 +1,64 @@
+448 races, 10601 ritten op WK's en Spelen
+
+2008-2019:
+  top 5    n  1490 | val  0.5% | modelkans: gem z -0.067 (se 0.025) sd 0.971 | snel 1/20 1.05 1/100 0.81 | traag 1/20 0.86 1/100 0.74 | log loss -3.369 | alleen rijder: gem +0.003 (se 0.024) sd 0.923
+  6-10     n  1490 | val  0.4% | modelkans: gem z -0.064 (se 0.025) sd 0.968 | snel 1/20 1.04 1/100 0.88 | traag 1/20 0.85 1/100 0.67 | log loss -3.307 | alleen rijder: gem +0.013 (se 0.025) sd 0.949
+  11+      n  4287 | val  0.6% | modelkans: gem z -0.042 (se 0.015) sd 0.996 | snel 1/20 1.11 1/100 0.99 | traag 1/20 0.89 1/100 0.96 | log loss -3.228 | alleen rijder: gem +0.075 (se 0.015) sd 1.011
+
+2020+:
+  top 5    n   625 | val  0.3% | modelkans: gem z +0.109 (se 0.039) sd 0.972 | snel 1/20 0.83 1/100 0.80 | traag 1/20 1.12 1/100 1.61 | log loss -3.358 | alleen rijder: gem +0.081 (se 0.039) sd 0.971
+  6-10     n   625 | val  0.5% | modelkans: gem z -0.002 (se 0.041) sd 1.014 | snel 1/20 0.96 1/100 0.64 | traag 1/20 1.03 1/100 1.45 | log loss -3.274 | alleen rijder: gem -0.017 (se 0.041) sd 1.032
+  11+      n  1503 | val  0.3% | modelkans: gem z +0.071 (se 0.026) sd 1.019 | snel 1/20 0.92 1/100 0.80 | traag 1/20 1.21 1/100 0.80 | log loss -3.213 | alleen rijder: gem +0.100 (se 0.027) sd 1.037
+
+alle jaren:
+  top 5    n  2115 | val  0.4% | modelkans: gem z -0.015 (se 0.021) sd 0.974 | snel 1/20 0.99 1/100 0.81 | traag 1/20 0.94 1/100 1.00 | log loss -3.366 | alleen rijder: gem +0.026 (se 0.020) sd 0.938
+  6-10     n  2115 | val  0.4% | modelkans: gem z -0.046 (se 0.021) sd 0.982 | snel 1/20 1.02 1/100 0.81 | traag 1/20 0.90 1/100 0.90 | log loss -3.297 | alleen rijder: gem +0.004 (se 0.021) sd 0.974
+  11+      n  5790 | val  0.5% | modelkans: gem z -0.013 (se 0.013) sd 1.003 | snel 1/20 1.06 1/100 0.94 | traag 1/20 0.98 1/100 0.92 | log loss -3.224 | alleen rijder: gem +0.081 (se 0.013) sd 1.017
+
+per soort toernooi (alle jaren), top 5 tegen de rest:
+ Spelen
+  top 5    n   250 | val  0.8% | modelkans: gem z -0.103 (se 0.059) sd 0.924 | snel 1/20 1.21 1/100 0.00 | traag 1/20 0.65 1/100 0.81 | log loss -3.237 | alleen rijder: gem -0.105 (se 0.065) sd 1.016
+  rest     n  1071 | val  0.5% | modelkans: gem z +0.047 (se 0.030) sd 0.975 | snel 1/20 0.90 1/100 0.75 | traag 1/20 1.03 1/100 0.75 | log loss -3.198 | alleen rijder: gem +0.082 (se 0.033) sd 1.085
+ WK afstanden
+  top 5    n   695 | val  0.3% | modelkans: gem z +0.014 (se 0.039) sd 1.023 | snel 1/20 0.87 1/100 0.87 | traag 1/20 1.21 1/100 1.44 | log loss -3.279 | alleen rijder: gem +0.010 (se 0.035) sd 0.924
+  rest     n  2164 | val  0.4% | modelkans: gem z +0.061 (se 0.022) sd 1.007 | snel 1/20 0.84 1/100 0.56 | traag 1/20 1.17 1/100 1.21 | log loss -3.209 | alleen rijder: gem +0.076 (se 0.021) sd 0.983
+ WK allround
+  top 5    n   500 | val  0.4% | modelkans: gem z -0.035 (se 0.042) sd 0.932 | snel 1/20 1.00 1/100 0.60 | traag 1/20 0.76 1/100 0.60 | log loss -3.329 | alleen rijder: gem +0.062 (se 0.041) sd 0.922
+  rest     n  1724 | val  0.2% | modelkans: gem z -0.101 (se 0.024) sd 0.988 | snel 1/20 1.15 1/100 0.93 | traag 1/20 0.79 1/100 0.87 | log loss -3.108 | alleen rijder: gem +0.036 (se 0.025) sd 1.020
+ WK sprint
+  top 5    n   670 | val  0.4% | modelkans: gem z +0.003 (se 0.038) sd 0.972 | snel 1/20 1.02 1/100 1.20 | traag 1/20 0.90 1/100 0.90 | log loss -3.531 | alleen rijder: gem +0.064 (se 0.036) sd 0.931
+  rest     n  2946 | val  0.7% | modelkans: gem z -0.061 (se 0.018) sd 0.999 | snel 1/20 1.19 1/100 1.20 | traag 1/20 0.87 1/100 0.79 | log loss -3.366 | alleen rijder: gem +0.056 (se 0.018) sd 0.986
+
+top 5 per voorspelde plaats (alle jaren):
+  nr 1     n   423 | val  0.0% | modelkans: gem z -0.017 (se 0.047) sd 0.969 | snel 1/20 0.95 1/100 0.71 | traag 1/20 0.95 1/100 1.18 | log loss -3.409 | alleen rijder: gem +0.042 (se 0.044) sd 0.904
+  nr 2     n   423 | val  0.5% | modelkans: gem z -0.060 (se 0.048) sd 0.983 | snel 1/20 1.33 1/100 0.95 | traag 1/20 0.76 1/100 0.71 | log loss -3.374 | alleen rijder: gem -0.044 (se 0.046) sd 0.942
+  nr 3     n   423 | val  0.9% | modelkans: gem z +0.034 (se 0.048) sd 0.984 | snel 1/20 0.91 1/100 0.72 | traag 1/20 1.00 1/100 0.95 | log loss -3.353 | alleen rijder: gem +0.075 (se 0.047) sd 0.960
+  nr 4     n   423 | val  0.7% | modelkans: gem z +0.003 (se 0.045) sd 0.922 | snel 1/20 0.71 1/100 0.48 | traag 1/20 0.76 1/100 0.95 | log loss -3.398 | alleen rijder: gem +0.055 (se 0.044) sd 0.900
+  nr 5     n   423 | val  0.0% | modelkans: gem z -0.033 (se 0.049) sd 1.013 | snel 1/20 1.04 1/100 1.18 | traag 1/20 1.23 1/100 1.18 | log loss -3.295 | alleen rijder: gem +0.001 (se 0.048) sd 0.981
+
+alleen Olympische Spelen: 50 races
+  top 5    n   250 | val  0.8% | modelkans: gem z -0.103 (se 0.059) sd 0.924 | snel 1/20 1.21 1/100 0.00 | traag 1/20 0.65 1/100 0.81 | log loss -3.237 | alleen rijder: gem -0.105 (se 0.065) sd 1.016
+  6-10     n   250 | val  0.8% | modelkans: gem z -0.063 (se 0.062) sd 0.982 | snel 1/20 1.05 1/100 2.02 | traag 1/20 0.81 1/100 0.40 | log loss -3.146 | alleen rijder: gem -0.059 (se 0.073) sd 1.146
+  11+      n   821 | val  0.4% | modelkans: gem z +0.081 (se 0.034) sd 0.971 | snel 1/20 0.86 1/100 0.37 | traag 1/20 1.10 1/100 0.86 | log loss -3.214 | alleen rijder: gem +0.125 (se 0.037) sd 1.063
+per Spelen:
+ 2010
+  top 5    n    50 | val  2.0% | modelkans: gem z -0.314 (se 0.147) sd 1.031 | snel 1/20 2.86 1/100 0.00 | traag 1/20 1.22 1/100 0.00 | log loss -3.170 | alleen rijder: gem -0.073 (se 0.154) sd 1.079
+  rest     n   255 | val  0.0% | modelkans: gem z -0.226 (se 0.068) sd 1.080 | snel 1/20 2.12 1/100 2.35 | traag 1/20 0.78 1/100 1.18 | log loss -3.179 | alleen rijder: gem +0.003 (se 0.068) sd 1.090
+ 2014
+  top 5    n    50 | val  0.0% | modelkans: gem z -0.317 (se 0.109) sd 0.772 | snel 1/20 0.80 1/100 0.00 | traag 1/20 0.00 1/100 0.00 | log loss -3.417 | alleen rijder: gem -0.370 (se 0.129) sd 0.912
+  rest     n   258 | val  0.8% | modelkans: gem z +0.156 (se 0.057) sd 0.907 | snel 1/20 0.55 1/100 0.00 | traag 1/20 1.25 1/100 0.39 | log loss -3.292 | alleen rijder: gem +0.143 (se 0.064) sd 1.024
+ 2018
+  top 5    n    50 | val  0.0% | modelkans: gem z +0.052 (se 0.112) sd 0.789 | snel 1/20 0.00 1/100 0.00 | traag 1/20 0.80 1/100 0.00 | log loss -3.361 | alleen rijder: gem +0.049 (se 0.141) sd 0.998
+  rest     n   195 | val  1.0% | modelkans: gem z +0.058 (se 0.068) sd 0.944 | snel 1/20 0.31 1/100 0.00 | traag 1/20 1.24 1/100 1.04 | log loss -3.180 | alleen rijder: gem +0.100 (se 0.083) sd 1.148
+ 2022
+  top 5    n    50 | val  2.0% | modelkans: gem z +0.161 (se 0.147) sd 1.031 | snel 1/20 1.22 1/100 0.00 | traag 1/20 0.82 1/100 4.08 | log loss -3.075 | alleen rijder: gem +0.037 (se 0.133) sd 0.932
+  rest     n   182 | val  0.5% | modelkans: gem z +0.230 (se 0.072) sd 0.970 | snel 1/20 0.44 1/100 0.00 | traag 1/20 1.22 1/100 0.55 | log loss -3.123 | alleen rijder: gem +0.063 (se 0.077) sd 1.037
+ 2026
+  top 5    n    50 | val  0.0% | modelkans: gem z -0.097 (se 0.128) sd 0.902 | snel 1/20 1.20 1/100 0.00 | traag 1/20 0.40 1/100 0.00 | log loss -3.159 | alleen rijder: gem -0.165 (se 0.159) sd 1.126
+  rest     n   181 | val  0.0% | modelkans: gem z +0.084 (se 0.065) sd 0.876 | snel 1/20 0.77 1/100 1.10 | traag 1/20 0.66 1/100 0.55 | log loss -3.186 | alleen rijder: gem +0.108 (se 0.085) sd 1.143
+top 5 per voorspelde plaats (Spelen):
+  nr 1     n    50 | val  0.0% | modelkans: gem z -0.202 (se 0.121) sd 0.858 | snel 1/20 0.80 1/100 0.00 | traag 1/20 0.80 1/100 2.00 | log loss -3.337 | alleen rijder: gem -0.220 (se 0.122) sd 0.861
+  nr 2     n    50 | val  0.0% | modelkans: gem z -0.235 (se 0.132) sd 0.933 | snel 1/20 1.60 1/100 0.00 | traag 1/20 0.40 1/100 0.00 | log loss -3.229 | alleen rijder: gem -0.262 (se 0.153) sd 1.079
+  nr 3     n    50 | val  2.0% | modelkans: gem z -0.110 (se 0.143) sd 1.001 | snel 1/20 1.63 1/100 0.00 | traag 1/20 0.82 1/100 2.04 | log loss -3.157 | alleen rijder: gem -0.099 (se 0.163) sd 1.141
+  nr 4     n    50 | val  2.0% | modelkans: gem z +0.145 (se 0.135) sd 0.944 | snel 1/20 1.22 1/100 0.00 | traag 1/20 1.22 1/100 0.00 | log loss -3.192 | alleen rijder: gem +0.191 (se 0.148) sd 1.035
+  nr 5     n    50 | val  0.0% | modelkans: gem z -0.109 (se 0.123) sd 0.867 | snel 1/20 0.80 1/100 0.00 | traag 1/20 0.00 1/100 0.00 | log loss -3.270 | alleen rijder: gem -0.129 (se 0.130) sd 0.922

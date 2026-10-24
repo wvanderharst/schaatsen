@@ -1,0 +1,269 @@
+zoeknaam,land,lat,lon,hoogte,bron,ritten,prio,baan
+Heerenveen,NL,52.9573,5.9417,0.0,vast,330951,1653421,Heerenveen (NED)
+Inzell,DE,47.7631,12.7417,690.0,vast,121877,610817,Inzell (GER)
+Hamar,NO,60.7942,11.1,127.0,vast,83248,513198,Hamar (NOR)
+Calgary,CA,51.0767,-114.1356,1105.0,vast,114157,519867,Calgary (CAN)
+Den Haag,NL,52.0705,4.3007,5.0,vast,165385,504285,Den Haag (NED)
+Kolomna,,55.0896,38.7681,120.0,vast,167230,451260,Kolomna
+Haarlem,NL,52.38084,4.63683,10.0,"geo:Haarlem,NL",136062,454862,Haarlem (NED)
+Enschede,NL,52.21833,6.89583,45.0,"geo:Enschede,NL",120902,452152,Enschede (NED)
+Utrecht,NL,52.09083,5.12222,13.0,"geo:Utrecht,NL",140083,450713,Utrecht (NED)
+Erfurt,DE,50.97734,11.03536,194.0,"geo:Erfurt,DE",81149,322219,Erfurt (GER)
+Amsterdam,NL,52.37403,4.88969,13.0,"geo:Amsterdam,NL",98030,315940,Amsterdam (NED)
+Chelyabinsk,,55.1544,61.4026,220.0,vast,143156,310416,Chelyabinsk
+Breda,NL,51.58656,4.77596,9.0,"geo:Breda,NL",93462,326892,Breda (NED)
+Alkmaar,NL,52.63167,4.74861,5.0,"geo:Alkmaar,NL",90579,310489,Alkmaar (NED)
+Groningen,NL,53.21917,6.56667,16.0,"geo:Groningen,NL",87241,300491,Groningen (NED)
+Deventer,NL,52.255,6.16389,12.0,"geo:Deventer,NL",82881,278061,Deventer (NED)
+Hoorn,NL,52.6425,5.05972,3.0,"geo:Hoorn,NL",81496,282306,Hoorn (NED)
+Stavanger,NO,58.97005,5.73332,15.0,"geo:Stavanger,NO",36695,262215,Stavanger (NOR)
+Berlin,DE,52.52437,13.41053,74.0,"geo:Berlin,DE",66590,236180,Berlin (GER)
+Minsk,,53.90019,27.56653,222.0,"geo:Minsk,BY",66130,224600,Minsk
+Tomaszów Mazowiecki,PL,51.53131,20.00855,164.0,"geo:Tomaszów Mazowiecki,PL",63391,190821,Tomaszów-Mazowiecki (POL)
+Leeuwarden,NL,53.20271,5.80973,1.0,"geo:Leeuwarden,NL",46660,184230,Leeuwarden (NED)
+Obihiro,JP,42.91722,143.20444,44.0,"geo:Obihiro,JP",78712,185912,Obihiro (JPN)
+Astana,KZ,51.1801,71.44598,358.0,"geo:Astana,KZ",58607,187287,Astana (KAZ)
+Seoul,KR,37.566,126.9784,38.0,"geo:Seoul,KR",58665,159955,Seoul (KOR)
+Moscow,,55.75204,37.61781,155.0,"geo:Moscow,RU",68411,168421,Moscow
+Salt Lake City,US,40.6625,-111.9886,1423.0,vast,33944,162784,Salt Lake City (USA)
+Collalbo,IT,46.5419,11.4853,1200.0,vast,40732,139642,Collalbo (ITA)
+Bjugn,NO,63.76314,9.80598,27.0,"geo:Bjugn,NO",21680,135270,Bjugn (NOR)
+Baselga di Pinè,IT,46.1306,11.2436,1000.0,vast,37233,130593,Baselga di Pinè (ITA)
+Nagano,JP,36.65,138.18333,372.0,"geo:Nagano,JP",43999,134979,Nagano (JPN)
+Eindhoven,NL,51.44083,5.47778,22.0,"geo:Eindhoven,NL",43921,132901,Eindhoven (NED)
+Milwaukee,US,43.0389,-87.90647,188.0,"geo:Milwaukee,US",33191,127031,Milwaukee (USA)
+Tilburg,NL,51.55551,5.0913,16.0,"geo:Tilburg,NL",34378,123928,Tilburg (NED)
+Dronten,NL,52.525,5.71806,-1.0,"geo:Dronten,NL",31637,118467,Dronten (NED)
+Seinäjoki,FI,62.79446,22.82822,50.0,"geo:Seinäjoki,FI",19928,95908,Seinäjoki (FIN)
+Nijmegen,NL,51.8425,5.85278,25.0,"geo:Nijmegen,NL",32515,94395,Nijmegen (NED)
+Trondheim,NO,63.43049,10.39506,18.0,"geo:Trondheim,NO",17874,85864,Trondheim-Leangen (NOR)
+Zakopane,PL,49.29899,19.94885,819.0,"geo:Zakopane,PL",25044,83754,Zakopane (POL)
+Kirov,,58.59809,49.65783,179.0,"geo:Kirov,RU",43712,81542,Kirov
+Dresden,DE,51.05089,13.73832,116.0,"geo:Dresden,DE",18420,58020,Dresden (GER)
+Bergen,NO,60.39299,5.32415,20.0,"geo:Bergen,NO",15199,74779,Bergen (NOR)
+Geithus,NO,59.93211,9.9679,72.0,"geo:Geithus,NO",10418,67748,Geithus (NOR)
+Warsaw,PL,52.22977,21.01178,113.0,"geo:Warsaw,PL",24469,68839,Warsaw (POL)
+Changchun,CN,43.88,125.32278,206.0,"geo:Changchun,CN",40014,66684,Changchun (CHN)
+Helsinki,FI,60.16952,24.93545,26.0,"geo:Helsinki,FI",12408,59078,Helsinki (FIN)
+Tønsberg,NO,59.26754,10.40762,16.0,"geo:Tønsberg,NO",10210,55090,Tønsberg (NOR)
+Oslo,NO,59.91273,10.74609,26.0,"geo:Oslo,NO",11377,55397,Oslo - Valle Hovin (NOR)
+Olenegorsk,,68.1432,33.25287,170.0,"geo:Olenegorsk,RU",29888,50948,Olenegorsk
+Quebec City,CA,46.796,-71.262,60.0,vast,18004,56824,Quebec City-Boucher (CAN)
+Sanok,PL,49.55573,22.2056,289.0,"geo:Sanok,PL",18281,50201,Sanok (POL)
+Saint Petersburg,,59.93863,30.31413,11.0,"geo:St Petersburg,RU",24001,42511,Saint Petersburg
+Harbin,CN,45.75,126.65,140.0,"geo:Harbin,CN",28091,48281,Harbin (CHN)
+Shibukawa,JP,36.48333,139.0,202.0,"geo:Shibukawa,JP",25126,48606,Shibukawa (JPN)
+Innsbruck,AT,47.26266,11.39454,570.0,"geo:Innsbruck,AT",10029,40159,Innsbruck (AUT)
+Chemnitz,DE,50.8357,12.92922,306.0,"geo:Chemnitz,DE",14040,31710,Chemnitz (GER)
+Assen,NL,52.99667,6.5625,12.0,"geo:Assen,NL",17677,43827,Assen (NED)
+Kushiro,JP,42.975,144.37473,6.0,"geo:Kushiro,JP",22947,42087,Kushiro (JPN)
+Hachinohe,JP,40.505,141.49,20.0,vast,18027,38067,Hachinohe - YS Arena (JPN)
+Tomakomai,JP,42.63694,141.60333,7.0,"geo:Tomakomai,JP",18050,38270,Tomakomai (JPN)
+Roseville,US,38.75212,-121.28801,50.0,"geo:Roseville,US",11325,37935,Roseville (USA)
+Irkutsk,,52.29566,104.29076,415.0,"geo:Irkutsk,RU",21808,32858,Irkutsk-Baikal
+Asker,NO,59.83333,10.43721,119.0,"geo:Asker,NO",5734,32214,Asker (NOR)
+Quebec City,CA,46.796,-71.262,60.0,vast,12955,30395,Quebec City (CAN)
+Grefrath,DE,51.3363,6.34072,38.0,"geo:Grefrath,DE",14948,30628,Grefrath (GER)
+Nizhny Novgorod,,56.32867,44.00205,141.0,"geo:Nizhny Novgorod,RU",20722,30832,Nizhny Novgorod
+Stockholm,SE,59.32938,18.06871,17.0,"geo:Stockholm,SE",7754,31684,Stockholm (SWE)
+Chelyabinsk,,55.1544,61.4026,220.0,vast,25449,29459,Chelyabinsk-Inga
+Vologda,,59.2239,39.88398,125.0,"geo:Vologda,RU",21904,29494,Vologda
+Göteborg,SE,57.68321,11.95111,23.0,"geo:Göteborgs Botaniska Trädgård,SE",6959,28229,Göteborg - Skrinnarhall (SWE)
+Ekaterinburg,,56.74311,60.80273,232.0,"geo:Ekaterinburg Koltsovo Airport,RU",20883,27393,Ekaterinburg
+Jevnaker,NO,60.23979,10.38709,150.0,"geo:Jevnaker,NO",4665,25625,Jevnaker (NOR)
+Perm,,58.01046,56.25017,149.0,"geo:Perm,RU",22005,26615,Perm - Yunost
+Drammen,NO,59.74389,10.20449,11.0,"geo:Drammen,NO",5077,25837,Drammen (NOR)
+Fujiyoshida,JP,35.44032,138.79585,1055.0,"geo:Fujiyoshida,JP",15809,26549,Fujiyoshida (JPN)
+Morioka,JP,39.7,141.15,138.0,"geo:Morioka,JP",13119,25149,Morioka (JPN)
+Krasnoyarsk,,56.03742,92.93136,182.0,"geo:Krasnoyarsk,RU",22362,23652,Krasnoyarsk
+Arendal,NO,58.46151,8.77253,19.0,"geo:Arendal,NO",5813,23103,Arendal (NOR)
+Sundsvall,SE,62.39129,17.3063,26.0,"geo:Sundsvall,SE",4607,23177,Sundsvall (SWE)
+Hagaström,SE,60.66667,17.06667,19.0,"geo:Hagaström,SE",6610,22760,Hagaström (SWE)
+Trollhättan,SE,58.28365,12.28864,49.0,"geo:Trollhättan,SE",5336,21646,Trollhättan (SWE)
+Almaty,KZ,43.25249,76.9115,783.0,"geo:Almaty,KZ",6896,21776,Almaty (KAZ)
+Ena,JP,35.44722,137.38332,358.0,"geo:Ena,JP",10949,21279,Ena (JPN)
+Oslo,NO,59.91273,10.74609,26.0,"geo:Oslo,NO",4062,20422,Oslo - Frogner (NOR)
+Fort St. John,CA,56.24988,-120.85292,696.0,"geo:Fort St. John,CA",7703,21083,Fort St. John (CAN)
+Karuizawa,JP,36.35,138.63333,952.0,"geo:Karuizawa,JP",13496,20716,Karuizawa (JPN)
+Harstad,NO,68.79833,16.54165,1.0,"geo:Harstad,NO",5588,19598,Harstad (NOR)
+Kristiansund,NO,63.11045,7.72795,1.0,"geo:Kristiansund,NO",4807,19187,Kristiansund (NOR)
+Gol,NO,60.7014,8.94572,235.0,"geo:Gol,NO",3446,18546,Gol (NOR)
+Lake Placid,US,44.27962,-73.98198,549.0,"geo:Lake Placid,US",8191,19201,Lake Placid (USA)
+Båstad,NO,59.53,11.35,150.0,vast,3765,17065,Båstad (NOR)
+Hachinohe,JP,40.505,141.49,20.0,vast,12298,18268,Hachinohe-Piping (JPN)
+Kemerovo,,55.35417,86.10435,114.0,"geo:Kemerovo,RU",12014,16364,Kemerovo
+Västerås,SE,59.61617,16.55276,16.0,"geo:Västerås,SE",3550,15850,Västerås (SWE)
+Winnipeg,CA,49.8844,-97.14704,245.0,"geo:Winnipeg,CA",5247,14897,Winnipeg (CAN)
+Beijing,CN,39.9075,116.39723,49.0,"geo:Beijing,CN",3179,12709,Beijing-National (CHN)
+Kongsvinger,NO,60.19049,11.99772,157.0,"geo:Kongsvinger,NO",2593,12583,Kongsvinger (NOR)
+Pori,FI,61.48072,21.78518,20.0,"geo:Pori,FI",3395,13085,Pori (FIN)
+Shenyang,CN,41.79222,123.43278,53.0,"geo:Shenyang,CN",8495,12675,Shenyang (CHN)
+Divnogorsk,,55.957,92.378,288.0,"geo:Divnogorsk,RU",9691,12551,Divnogorsk
+Sapporo,JP,43.06667,141.35,26.0,"geo:Sapporo,JP",4960,12890,Sapporo (JPN)
+München,DE,48.13743,11.57549,524.0,"geo:Munich,DE",7731,12321,München (GER)
+Adavere,EE,58.70611,25.89917,69.0,"geo:Adavere,EE",6309,12269,Adavere (EST)
+Chino,JP,35.9944,138.15428,801.0,"geo:Chino,JP",8024,12594,Chino (JPN)
+Tromsø,NO,69.6489,18.95508,-9999.0,"geo:Tromsø,NO",3484,12034,Tromsø (NOR)
+Saskatoon,CA,52.13238,-106.66892,484.0,"geo:Saskatoon,CA",3260,12730,Saskatoon (CAN)
+Karlstad,SE,59.3793,13.50357,58.0,"geo:Karlstad,SE",2693,11163,Karlstad (SWE)
+Tynset,NO,62.27594,10.78241,483.0,"geo:Tynset,NO",5337,10457,Tynset (NOR)
+Hailar,CN,49.2,119.7,624.0,"geo:Hailar,CN",10162,11462,Hailar (CHN)
+Sochi,,43.59699,39.72477,28.0,"geo:Sochi,RU",1283,10803,Sochi
+Sand,NO,59.48468,6.25109,8.0,"geo:Sand,NO",2815,10395,Sand (NOR)
+Urumqi,CN,43.80096,87.60046,862.0,"geo:Ürümqi,CN",6046,10436,Urumqi (CHN)
+Richmond,CA,49.17003,-123.13683,9.0,"geo:Richmond,CA",2739,11089,Richmond (CAN)
+Eskilstuna,SE,59.36661,16.5077,27.0,"geo:Eskilstuna,SE",2992,10262,Eskilstuna (SWE)
+Ulaanbaatar,MN,47.90771,106.88324,1284.0,"geo:Ulaanbaatar,MN",8510,9760,Ulaanbaatar (MGL)
+Nikko,JP,36.75,139.61667,555.0,"geo:Nikkō,JP",5862,10012,Nikko (JPN)
+Akan,JP,35.0,132.71667,465.0,"geo:Akana,JP",6120,10070,Akan (JPN)
+Geleen,NL,50.97417,5.82917,66.0,"geo:Geleen,NL",5269,9709,Geleen (NED)
+Daqing,CN,46.58333,125.0,146.0,"geo:Daqing,CN",8291,8701,Daqing (CHN)
+Barnaul,,53.36199,83.72786,197.0,"geo:Barnaul,RU",7939,8569,Barnaul
+Ivanovo,,56.99988,40.97257,132.0,"geo:Ivanovo,RU",5566,8106,Ivanovo
+Koumi,JP,36.05572,138.47823,1102.0,"geo:Koumibara,JP",5603,8373,Koumi (JPN)
+Kongsberg,NO,59.66858,9.65017,161.0,"geo:Kongsberg,NO",1450,7720,Kongsberg (NOR)
+Hundorp,NO,61.55523,9.94069,270.0,"geo:Hundorp,NO",1325,6505,Hundorp (NOR)
+Budapest,HU,47.49835,19.04045,104.0,"geo:Budapest,HU",4166,6856,Budapest (HUN)
+Lubin,PL,51.40089,16.20149,128.0,"geo:Lubin,PL",3941,6871,Lubin (POL)
+Monchegorsk,,67.93972,32.87389,131.0,"geo:Monchegorsk,RU",3735,6525,Monchegorsk
+Zürich,CH,47.36667,8.55,429.0,"geo:Zurich,CH",1636,6656,Zürich (SUI)
+Örebro,SE,59.27412,15.2066,35.0,"geo:Örebro,SE",1381,6461,Örebro (SWE)
+Gangneung,KR,37.75266,128.87239,77.0,"geo:Gangneung,KR",669,5839,Gangneung (KOR)
+Murom,,55.56853,42.02388,121.0,"geo:Murom,RU",5495,6045,Murom
+Milano,IT,45.456,9.29,110.0,vast,864,4894,Milano (ITA)
+Tallinn,EE,59.43696,24.75353,12.0,"geo:Tallinn,EE",4153,5923,Tallinn (EST)
+Arkhangelsk-Trud,,,,,niet gevonden,4470,5770,Arkhangelsk-Trud
+.com,,,,,niet gevonden,2252,5632,.com
+Kostanaj,KZ,,,,niet gevonden,3298,5608,Kostanaj (KAZ)
+Hol,NO,60.61511,8.29398,540.0,"geo:Hol,NO",987,5437,Hol (NOR)
+Davos,CH,46.80429,9.83723,1560.0,"geo:Davos,CH",1163,4793,Davos (SUI)
+Uppsala,SE,59.85882,17.63889,20.0,"geo:Uppsala,SE",1018,5488,Uppsala (SWE)
+Leiden,NL,52.15833,4.49306,6.0,"geo:Leiden,NL",5056,5376,Leiden (NED)
+Irkutsk-Trud,,,,,niet gevonden,4177,5287,Irkutsk-Trud
+Okaya,JP,36.05659,138.0451,773.0,"geo:Okaya,JP",3168,4998,Okaya (JPN)
+Omsk,,54.99244,73.36859,90.0,"geo:Omsk,RU",3170,4840,Omsk
+Amsterdam-Olympic,NL,,,,niet gevonden,453,4683,Amsterdam-Olympic (NED)
+Sortavala,,61.71233,30.70953,3.0,"geo:Sortavala,RU",4181,4471,Sortavala
+Ottawa,CA,45.41117,-75.69812,71.0,"geo:Ottawa,CA",2696,4806,Ottawa (CAN)
+Stord,NO,59.924,5.44958,477.0,"geo:Stord,NO",1074,4484,Stord (NOR)
+Halifax,CA,44.64269,-63.57688,60.0,"geo:Halifax,CA",2930,4210,Halifax (CAN)
+Valkeakoski,FI,61.26421,24.03122,98.0,"geo:Valkeakoski,FI",1061,4251,Valkeakoski (FIN)
+Oulu,FI,65.01236,25.46816,15.0,"geo:Oulu,FI",1546,4116,Oulu - Raksila (FIN)
+Cherepovecz,,,,,niet gevonden,3304,4264,Cherepovecz
+Koriyama,JP,37.4,140.38333,236.0,"geo:Kōriyama,JP",3247,4307,Koriyama (JPN)
+Yamagata,JP,38.23333,140.36667,321.0,"geo:Yamagata,JP",2684,4174,Yamagata (JPN)
+Chita,,52.04311,113.49171,690.0,"geo:Chita,RU",3546,3806,Chita
+Perm,,58.01046,56.25017,149.0,"geo:Perm,RU",4081,4081,Perm - Dinamo
+Asama,JP,27.83222,128.8964,12.0,"geo:Asama,JP",1910,3810,Asama (JPN)
+Skien,NO,59.20962,9.60897,27.0,"geo:Skien,NO",778,3698,Skien (NOR)
+Novouralsk,,,,,niet gevonden,3341,3351,Novouralsk
+Falun,SE,60.60357,15.62597,97.0,"geo:Falun,SE",1279,3489,Falun (SWE)
+Elbląg,PL,54.1522,19.40884,8.0,"geo:Elblag,PL",1699,3179,Elbląg (POL)
+Birobidzhan,,48.793,132.92033,84.0,"geo:Birobidzhan,RU",2766,3006,Birobidzhan
+Jyväskylä,FI,62.24147,25.72088,109.0,"geo:Jyväskylä,FI",1549,3159,Jyväskylä (FIN)
+Moscow-Luzhniki,,,,,niet gevonden,964,2874,Moscow-Luzhniki
+Zarechnyj,,64.57112,30.87072,175.0,"geo:Zarechnyj,RU",2623,2723,Zarechnyj
+Arkhangelsk-Dinamo,,,,,niet gevonden,2366,2726,Arkhangelsk-Dinamo
+Kirovo-Chepetsk,,58.55091,50.031,164.0,"geo:Kirovo-Chepetsk,RU",2528,2528,Kirovo-Chepeczk
+Red Deer,CA,52.26682,-113.802,856.0,"geo:Red Deer,CA",1348,2488,Red Deer (CAN)
+Murmansk,,68.96778,33.09922,75.0,"geo:Murmansk,RU",1451,2311,Murmansk
+St. Moritz,CH,46.49937,9.84327,1845.0,"geo:St. Moritz,CH",316,1886,St. Moritz (SUI)
+Åmli-Dølemo,NO,,,,niet gevonden,899,2359,Åmli-Dølemo (NOR)
+Novocheboksarsk,,56.11095,47.47755,105.0,"geo:Novocheboksarsk,RU",2076,2216,Novocheboksarsk
+Sandviken,SE,60.61667,16.76667,66.0,"geo:Sandviken,SE",436,2206,Sandviken (SWE)
+Yatsugatake,JP,35.98333,138.38333,2535.0,"geo:Yatsugatake Mountains,JP",1518,2038,Yatsugatake (JPN)
+Qiqihar,CN,47.33922,123.96154,146.0,"geo:Qiqihar,CN",1454,2004,Qiqihar (CHN)
+Crimmitschau,DE,50.81644,12.39045,236.0,"geo:Crimmitschau,DE",787,877,Crimmitschau (GER)
+Khabarovsk,,48.46204,135.0971,48.0,"geo:Khabarovsk,RU",1342,1582,Khabarovsk
+Wangqing,CN,43.31077,129.76334,252.0,"geo:Wangqing,CN",1880,1880,Wangqing (CHN)
+Kuopio,FI,62.89238,27.67703,90.0,"geo:Kuopio,FI",509,1799,Kuopio (FIN)
+Kazan,,55.78874,49.12214,61.0,"geo:Kazan’,RU",1447,1797,Kazan
+Syktyvkar,,61.66393,50.8163,146.0,"geo:Syktyvkar,RU",1414,1504,Syktyvkar
+Torino,IT,45.07049,7.68682,239.0,"geo:Turin,IT",520,1460,Torino (ITA)
+Izhevsk,,56.85225,53.19862,155.0,"geo:Izhevsk,RU",1387,1387,Izhevsk
+Frankfurt,DE,50.11552,8.68417,113.0,"geo:Frankfurt am Main,DE",685,1305,Frankfurt (GER)
+Erdenet,MN,49.03333,104.08333,1307.0,"geo:Erdenet,MN",953,1063,Erdenet (MGL)
+Skjervøy,NO,70.03114,20.97141,1.0,"geo:Skjervøy,NO",452,1042,Skjervøy (NOR)
+Narvik,NO,68.43838,17.4272,100.0,"geo:Narvik,NO",452,1022,Narvik (NOR)
+Tambov,,52.73632,41.44102,133.0,"geo:Tambov,RU",1000,1000,Tambov
+Berlin-Wilmersdorf,DE,,,,niet gevonden,701,961,Berlin-Wilmersdorf (GER)
+Stange,NO,60.71803,11.19417,220.0,"geo:Stange,NO",383,873,Stange (NOR)
+Rotterdam,NL,51.9225,4.47917,9.0,"geo:Rotterdam,NL",567,937,Rotterdam (NED)
+Ammerstol,NL,51.9275,4.80833,-1.0,"geo:Ammerstol,NL",215,965,Ammerstol (NED)
+Oulu,FI,65.01236,25.46816,15.0,"geo:Oulu,FI",482,872,Oulu - Pateniemen (FIN)
+Tampere-Pyynikin,FI,,,,niet gevonden,624,854,Tampere-Pyynikin (FIN)
+Basel,CH,47.55839,7.57327,279.0,"geo:Basel,CH",264,844,Basel (SUI)
+Whitehorse,CA,60.71611,-135.05376,707.0,"geo:Whitehorse,CA",290,940,Whitehorse (CAN)
+Ede,NL,52.03333,5.65833,20.0,"geo:Ede,NL",283,763,Ede (NED)
+Larvik,NO,59.05328,10.03517,49.0,"geo:Larvik,NO",164,734,Larvik (NOR)
+Sala,SE,59.91993,16.60655,62.0,"geo:Sala,SE",180,690,Sala (SWE)
+Edmonton,CA,53.55014,-113.46871,668.0,"geo:Edmonton,CA",556,686,Edmonton (CAN)
+Göteborg,SE,57.68321,11.95111,23.0,"geo:Göteborgs Botaniska Trädgård,SE",319,649,Göteborg - Ishall (SWE)
+Tula,,54.19609,37.61822,161.0,"geo:Tula,RU",588,608,Tula
+Eidsvoll,NO,60.3311,11.26264,160.0,"geo:Eidsvoll,NO",252,512,Eidsvoll (NOR)
+Skreia,NO,60.65257,10.93564,140.0,"geo:Skreia,NO",136,436,Skreia (NOR)
+Beijing-Erqi,CN,,,,niet gevonden,264,544,Beijing-Erqi (CHN)
+Gjøvik,NO,60.79574,10.69155,127.0,"geo:Gjøvik,NO",243,473,Gjøvik (NOR)
+500m,,,,,niet gevonden,60,530,500m
+Regina,CA,50.45008,-104.6178,577.0,"geo:Regina,CA",406,556,Regina (CAN)
+Prince George,CA,53.9166,-122.75301,578.0,"geo:Prince George,CA",200,530,Prince George (CAN)
+Alta,NO,69.96887,23.27165,65.0,"geo:Alta,NO",166,506,Alta (NOR)
+Severouralsk,,60.15328,59.95205,173.0,"geo:Severouralsk,RU",499,499,Severouralsk
+Haaksbergen,NL,52.15667,6.73889,27.0,"geo:Haaksbergen,NL",176,496,Haaksbergen (NED)
+Yanji,CN,42.88825,129.50241,183.0,"geo:Yanji,CN",474,474,Yanji (CHN)
+Kitami,JP,43.80306,143.89082,79.0,"geo:Kitami,JP",434,494,Kitami (JPN)
+Östersund,SE,63.1792,14.63566,328.0,"geo:Östersund,SE",121,471,Östersund (SWE)
+Motala,SE,58.53706,15.03649,107.0,"geo:Motala,SE",178,438,Motala (SWE)
+Fort St. James,CA,54.45597,-124.26275,700.0,"geo:Fort St. James,CA",209,449,Fort St. James (CAN)
+Tampere-Sorsapuiston,FI,,,,niet gevonden,204,444,Tampere-Sorsapuiston (FIN)
+Asahikawa,JP,43.77063,142.36488,121.0,"geo:Asahikawa,JP",433,443,Asahikawa (JPN)
+Sollentuna,SE,59.42804,17.95093,25.0,"geo:Sollentuna,SE",99,379,Sollentuna (SWE)
+Hengelo,NL,52.26583,6.79306,18.0,"geo:Hengelo,NL",154,294,Hengelo (NED)
+Zlatoust,,55.17182,59.65471,466.0,"geo:Zlatoust,RU",286,286,Zlatoust
+Lærdal,NO,61.10001,7.47374,60.0,"geo:Lærdal,NO",181,181,Lærdal (NOR)
+Zoetermeer,NL,52.0575,4.49306,,"geo:Zoetermeer,NL",170,280,Zoetermeer (NED)
+København,DK,55.65059,12.5978,4.0,"geo:København S,DK",209,269,København (DEN)
+Leh Ladakh,,,,,niet gevonden,228,268,Leh Ladakh (IND)
+Fukang,CN,31.562,121.75979,2.0,"geo:Fukang,CN",253,253,Fukang (CHN)
+Dawson Creek,CA,55.75984,-120.2403,665.0,"geo:Dawson Creek,CA",145,245,Dawson Creek (CAN)
+1500m,,,,,niet gevonden,24,234,1500m
+Pujon,KP,40.48833,127.62028,1247.0,"geo:Pujŏn,KP",220,220,Pujon (PRK)
+Notodden,NO,59.55936,9.25853,38.0,"geo:Notodden,NO",39,209,Notodden (NOR)
+Stord,NO,59.924,5.44958,477.0,"geo:Stord,NO",72,182,Stord - Ishall (NOR)
+Sault Sainte Marie,CA,,,,niet gevonden,102,202,Sault Sainte Marie (CAN)
+Žďár nad Sázavou,CZ,49.56263,15.93924,580.0,"geo:Zdar,CZ",111,201,Žďár nad Sázavou (CZE)
+Weiteveen,NL,52.6725,6.9875,17.0,"geo:Weiteveen,NL",55,195,Weiteveen (NED)
+Zenderen,NL,52.32417,6.72361,14.0,"geo:Zenderen,NL",101,191,Zenderen (NED)
+Samjion,KP,,,,niet gevonden,190,190,Samjion (PRK)
+Moose Jaw,CA,50.40005,-105.53445,552.0,"geo:Moose Jaw,CA",168,168,Moose Jaw (CAN)
+Grou,NL,53.09456,5.83745,2.0,"geo:Grou,NL",51,161,Grou (NED)
+Bogdanovich,,56.77675,62.05072,163.0,"geo:Bogdanovich,RU",151,151,Bogdanovich
+Losser,NL,52.26083,7.00417,37.0,"geo:Losser,NL",104,144,Losser (NED)
+Wirdum,NL,53.14893,5.80387,3.0,"geo:Wirdum,NL",44,74,Wirdum (NED)
+Ust-Ishim,,57.70542,71.15582,51.0,"geo:Ust Ishim,RU",123,123,Ust-Ishim
+Studnice u Hlinsko,CZ,,,,niet gevonden,72,112,Studnice u Hlinsko (CZE)
+Kungur,,57.41435,56.97157,179.0,"geo:Kungur,RU",91,101,Kungur
+Nakashibetsu,JP,43.54849,144.97182,31.0,"geo:Nakashibetsu,JP",88,118,Nakashibetsu (JPN)
+Krasnoturinsk,,59.7666,60.2086,201.0,"geo:Krasnotur'insk,RU",95,95,Krasnoturinsk
+Anchorage,US,61.21806,-149.90028,31.0,"geo:Anchorage,US",87,87,Anchorage (USA)
+Fushun,CN,41.88669,123.94363,85.0,"geo:Fushun,CN",81,81,Fushun (CHN)
+Cheboksary,,56.13218,47.246,141.0,"geo:Cheboksary,RU",80,80,Cheboksary
+Lesnoj,,,,,niet gevonden,77,77,Lesnoj
+Skutskär,SE,60.62507,17.41552,3.0,"geo:Skutskär,SE",12,72,Skutskär (SWE)
+Pijnacker,NL,52.01954,4.42946,,"geo:Pijnacker,NL",39,69,Pijnacker (NED)
+Kansk,,56.20218,95.71848,209.0,"geo:Kansk,RU",58,58,Kansk
+Gävle,SE,60.67452,17.14174,3.0,"geo:Gävle,SE",43,53,Gävle (SWE)
+Shhuchinsk,KZ,,,,niet gevonden,50,50,Shhuchinsk (KAZ)
+Shushenskoe,,,,,niet gevonden,49,49,Shushenskoe
+Nemuro,JP,43.32361,145.575,24.0,"geo:Nemuro,JP",46,46,Nemuro (JPN)
+Selenginsk,,52.00639,106.86472,476.0,"geo:Selenginsk,RU",44,44,Selenginsk
+Zerenda,KZ,52.90599,69.15593,384.0,"geo:Zerenda,KZ",36,36,Zerenda (KAZ)
+Makinsk,KZ,52.6329,70.41911,380.0,"geo:Makīnsk,KZ",35,35,Makinsk (KAZ)
+Kristinehamn,SE,59.30978,14.10808,55.0,"geo:Kristinehamn,SE",12,32,Kristinehamn (SWE)
+Ushuaia,AR,-54.81084,-68.31591,6.0,"geo:Ushuaia,AR",27,27,Ushuaia (ARG)
+Norheimsund,NO,60.37089,6.14562,3.0,"geo:Norheimsund,NO",16,26,Norheimsund (NOR)
+Kvam-Norheimsund,NO,,,,niet gevonden,7,17,Kvam-Norheimsund (NOR)
+Tierra del Fuego,AR,-54.66667,-68.5,807.0,"geo:Parque Nacional Tierra del Fuego,AR",10,10,Tierra del Fuego (ARG)
+Vikøy,NO,68.76146,15.33594,-9999.0,"geo:Vikøya,NO",7,7,Vikøy (NOR)
+Frösön,SE,63.18333,14.53333,392.0,"geo:Frösö,SE",5,5,Frösön (SWE)
+Borlänge,SE,60.4858,15.43714,124.0,"geo:Borlänge,SE",2,2,Borlänge (SWE)

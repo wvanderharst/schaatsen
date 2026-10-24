@@ -1,0 +1,189 @@
+datum,baan,afstand,skater_name,tijd,sneller_%,reden
+2007-02-25,Calgary (CAN),1500m,Agatha VAN DER STARRE,155.13,55.6,rit
+2007-11-04,Alkmaar (NED),1500m,Gerrit MORAS,149.24,42.0,rit
+2007-12-22,Chelyabinsk,1500m,Nikita PAVELEV,120.76,40.1,rit
+2008-01-12,Roseville (USA),500m,Chad JOHNSON,43.76,51.9,rit
+2008-01-13,Utrecht (NED),1000m,Elyse SCHUIJT,111.04,49.9,rit
+2008-01-20,Utrecht (NED),1500m,Wytze SCHUURMANS,141.65,43.1,rit
+2008-01-27,Kolomna,1000m,Dzhambulat MAMUEV,106.58,35.3,rit
+2008-12-13,Kolomna,1000m,Andrej ZOROKHOVICH,99.38,43.1,rit
+2009-02-07,Breda (NED),1500m,Niels STEENBAKKER,132.71,36.1,rit
+2009-02-07,Ulaanbaatar (MGL),500m,D. SHINEBYAMBA,70.1,44.6,rit
+2009-02-21,Tynset (NOR),500m,Jane Wiik LARSEN,55.48,41.1,race
+2009-02-21,Tynset (NOR),1000m,Jane Wiik LARSEN,117.41,42.8,race
+2009-03-21,Enschede (NED),1000m,Eric PASTOOR,90.97,53.6,rit
+2010-02-06,Ulaanbaatar (MGL),500m,E. OYUNCHULUU,62.01,35.5,rit
+2010-02-16,Bergen (NOR),500m,Andreas Solsvik FLEISCHER,90.41,42.4,rit
+2010-10-23,Berlin (GER),1000m,Julius JAHN,99.47,36.3,rit
+2011-12-18,Arkhangelsk-Trud,1500m,Nikita OKOLIN,139.8,35.4,rit
+2012-01-09,Hachinohe-Piping (JPN),1000m,Akira IWASAWA,99.41,42.3,rit
+2012-02-05,Tromsø (NOR),500m,Ragnhild FREDRIKSEN,55.84,42.5,rit
+2012-02-16,Hachinohe-Piping (JPN),500m,Akira IWASAWA,47.16,37.6,rit
+2012-02-19,Chelyabinsk,1500m,Denis EGOROV (1998),127.05,42.3,rit
+2012-02-25,Utrecht (NED),1000m,Jeanne van RIJSSEN,139.88,34.3,rit
+2013-01-06,Wangqing (CHN),500m,WEN Jiafu,44.02,36.7,rit
+2013-01-31,Wangqing (CHN),1000m,HUA Yueting,150.95,39.7,rit
+2013-02-17,Kemerovo,500m,Vlad MAYOROV,47.8,64.6,rit
+2013-02-17,Kemerovo,1000m,Vlad MAYOROV,118.12,50.9,rit
+2013-03-07,Kemerovo,500m,Egor DEMENTEV,59.8,36.7,rit
+2013-03-07,Kemerovo,1000m,Sergej MEKEDA,103.18,51.2,rit
+2013-03-13,Makinsk (KAZ),500m,Alfiya BAPANOVA,47.73,36.0,race
+2013-03-13,Makinsk (KAZ),500m,Aleksandra GERASIMOVA (1),48.95,51.2,race
+2013-03-13,Makinsk (KAZ),500m,Lyubov VASILEVA,49.27,47.9,race
+2013-03-13,Makinsk (KAZ),500m,Valentina KOSTYLEVA,54.54,34.3,race
+2013-03-13,Makinsk (KAZ),500m,Proskovya KUNAKOVA,65.13,42.2,race
+2013-03-16,Enschede (NED),500m,Niek ESSELBRUGGE,60.72,34.4,rit
+2013-03-16,Enschede (NED),1000m,Niek ESSELBRUGGE,124.28,40.1,rit
+2013-10-22,Inzell (GER),1000m,Vincent TULS,103.2,41.7,rit
+2014-01-25,Breda (NED),1000m,Kees LUIJKS,119.49,69.9,rit
+2014-01-25,Breda (NED),3000m,Kees LUIJKS,378.88,54.6,rit
+2014-01-25,Urumqi (CHN),500m,CAI Li,48.65,35.1,rit
+2014-02-08,Tromsø (NOR),500m,Jørgen VIK,49.67,34.5,rit
+2014-03-08,Tilburg (NED),1000m,Leendert van HOUWELINGEN,100.39,33.3,rit
+2014-03-11,Eindhoven (NED),500m,Mengyi GONG,113.45,57.8,rit
+2014-12-05,Harbin (CHN),500m,GAO Hongli,41.33,33.5,rit
+2014-12-14,Kemerovo,500m,Nikita IVANDEEV,73.88,45.3,rit
+2014-12-26,Minsk,1000m,Yuliya CELESH,105.42,42.0,rit
+2015-01-17,Ulaanbaatar (MGL),1000m,J. HASHBOLD,111.15,38.9,rit
+2015-01-22,Zakopane (POL),1000m,Julia SZYMAŃSKA,111.12,50.2,rit
+2015-01-31,Shenyang (CHN),1500m,LU Zhiguo,138.26,52.2,rit
+2015-02-28,Haarlem (NED),1000m,Jack van der BENT,104.98,45.4,rit
+2015-09-29,Changchun (CHN),500m,LU Hualin,43.21,39.8,rit
+2015-09-29,Changchun (CHN),1500m,LU Hualin,139.36,35.5,rit
+2015-11-28,Baselga di Pinè (ITA),500m,Stefano PEDERZOLLI,53.5,64.7,rit
+2015-12-12,Krasnoyarsk,1000m,Anastasiya DESYATOVA,114.22,33.8,rit
+2016-02-27,Alkmaar (NED),1000m,Kaylee JONGEWAARD,122.38,48.9,rit
+2016-02-27,Ulaanbaatar (MGL),500m,B. SUVD-ERDENE,59.23,61.6,rit
+2016-02-27,Ulaanbaatar (MGL),1500m,B. SUVD-ERDENE,195.21,57.6,rit
+2016-02-28,Ulaanbaatar (MGL),1000m,B. SUVD-ERDENE,127.25,51.9,rit
+2016-03-12,Erfurt (GER),1000m,Oliver Huuse THORVALDSEN,89.3,35.7,rit
+2016-03-13,Amsterdam (NED),1500m,Tom BLEKEMOLEN,136.28,39.4,rit
+2016-12-25,Olenegorsk,500m,Vladimir RAEVSKIJ,120.0,41.6,rit
+2017-02-18,Ulaanbaatar (MGL),1000m,S. NYAMDAVAA,105.79,38.4,rit
+2017-02-22,Adavere (EST),500m,Kevin GERMAN,122.85,51.7,rit
+2017-02-25,Daqing (CHN),500m,WANG Letong,49.45,37.4,rit
+2017-02-25,Daqing (CHN),500m,CHEN Yue (1),46.29,41.4,rit
+2017-02-25,Daqing (CHN),1500m,CHEN Yue (1),143.57,45.1,rit
+2017-03-05,Changchun (CHN),1000m,ZOU Siyu,99.74,50.1,rit
+2017-12-01,Ena (JPN),500m,Rui KINOSHITA,75.45,33.2,rit
+2017-12-01,Ena (JPN),500m,Rui KINOSHITA,73.02,35.3,rit
+2018-03-16,Astana (KAZ),500m,Nikita PAUKOV,70.13,41.6,rit
+2019-02-16,Milwaukee (USA),500m,Julio JACOBO,52.43,48.1,rit
+2019-02-24,Leeuwarden (NED),500m,Klaas van der VALK,47.66,51.7,rit
+2019-03-06,Chelyabinsk,500m,Majya GOLIKOVA,52.06,37.4,rit
+2019-03-07,Adavere (EST),500m,Kauri PEETS,91.9,40.8,rit
+2019-03-16,Enschede (NED),500m,Gerdien de ROO,67.9,41.0,rit
+2019-11-17,Amsterdam (NED),1000m,Kim LAMMERS,108.95,36.9,rit
+2019-12-20,Yamagata (JPN),1000m,Sakura AOYAMA,117.97,34.2,rit
+2019-12-21,Irkutsk-Trud,500m,Mariya EFREMOVA,49.2,53.6,rit
+2019-12-21,Irkutsk-Trud,1000m,Mariya EFREMOVA,106.24,47.8,rit
+2020-02-08,Tynset (NOR),10000m,Johnny SVEE,1703.3,36.9,rit
+2020-02-27,Tynset (NOR),500m,Johnny SVEE,66.29,37.0,rit
+2020-12-26,Tynset (NOR),500m,Dag Edvard LARSEN,81.9,45.2,rit
+2021-01-09,Ena (JPN),500m,Yuuya TOMINARI,58.93,54.1,rit
+2022-01-15,Akan (JPN),1500m,Keito MATSUZAKA,165.54,48.1,rit
+2022-01-15,Akan (JPN),1500m,Yuzuki OKADA,193.55,36.5,rit
+2022-01-30,Nagano (JPN),1000m,Yuuya TOMINARI,100.05,45.7,rit
+2022-02-21,Nijmegen (NED),1000m,Maarten PETERS,105.87,40.1,rit
+2022-02-26,Breda (NED),1000m,Yasmina BEN LAHCENE,175.2,45.1,rit
+2022-03-03,Astana (KAZ),500m,Daniil KLOPOCZKIJ,55.12,33.8,rit
+2022-03-13,Kolomna,500m,Sofiya IVANOVA (2),47.59,49.0,rit
+2022-03-13,Kolomna,1000m,Sofiya IVANOVA (2),97.68,44.1,rit
+2022-12-18,Birobidzhan,500m,Sergej KABACHEV,51.45,37.2,rit
+2023-01-08,Hachinohe - YS Arena (JPN),1000m,Manabu HORII,90.96,39.9,rit
+2023-01-14,Akan (JPN),500m,Shuuya TACHIBANA,56.45,35.2,rit
+2023-01-22,Perm - Yunost,1000m,Vadim SVISTUNOV,90.35,40.5,rit
+2023-02-01,Harstad (NOR),500m,Sunniva Lægreid MIKALSEN,131.94,41.8,rit
+2023-02-05,Tynset (NOR),500m,Dag Edvard LARSEN,77.3,34.3,rit
+2023-02-16,Adavere (EST),500m,Voldemar PURRE,86.43,57.4,rit
+2023-03-03,Kirov,500m,Zakhar SHIKHALEEV,57.99,34.8,rit
+2023-03-11,Bergen (NOR),500m,Ida NYGÅRD,74.23,45.6,rit
+2023-03-11,Bergen (NOR),1500m,Ida NYGÅRD,240.84,39.5,rit
+2024-01-18,Chita,500m,Ekaterina BAKSHEEVA,68.8,33.7,rit
+2024-01-27,Khabarovsk,3000m,Vyacheslav NAMOKONOV,339.57,33.6,rit
+2024-02-02,Lake Placid (USA),500m,Gavin CERICOLA,73.91,53.6,rit
+2024-03-06,Astana (KAZ),500m,Zhanerke NURKUL,77.7,43.9,rit
+2024-08-22,Hailar (CHN),5000m,CHEN Haoyang,467.69,65.7,rit
+2024-08-22,Hailar (CHN),5000m,LI Zhengxu,471.57,65.3,rit
+2024-08-22,Hailar (CHN),5000m,ZHANG Bosong,474.4,65.4,rit
+2024-08-22,Hailar (CHN),5000m,ZHANG Haozhe,482.59,63.7,rit
+2024-08-22,Hailar (CHN),5000m,SONG Xianyu,486.18,64.3,rit
+2024-08-22,Hailar (CHN),5000m,HOU Junyu,489.12,64.9,rit
+2024-08-22,Hailar (CHN),5000m,SUN Luwei,493.66,65.2,rit
+2024-08-22,Hailar (CHN),5000m,A Sihan,496.53,63.1,rit
+2024-08-22,Hailar (CHN),5000m,ZHAO Zhifeng (2),513.32,64.7,rit
+2024-08-22,Hailar (CHN),5000m,SONG Baixuan,565.57,64.2,rit
+2024-08-23,Hailar (CHN),500m,GAO Mingyu,41.39,67.2,rit
+2024-08-23,Hailar (CHN),500m,A Qi,41.86,66.3,rit
+2024-08-23,Hailar (CHN),500m,LIU Xiang (2),42.39,67.1,rit
+2024-08-23,Hailar (CHN),500m,DAI Yuecheng,44.08,66.8,rit
+2024-08-23,Hailar (CHN),500m,WANG Junhao,45.03,65.4,rit
+2024-08-23,Hailar (CHN),500m,MA Yongbo,45.04,66.0,rit
+2024-08-23,Hailar (CHN),500m,JIANG Xingze,46.39,66.3,rit
+2024-08-23,Hailar (CHN),500m,SONG Baixuan,46.82,50.4,rit
+2024-08-23,Hailar (CHN),500m,WANG Shiqiang,46.97,65.2,rit
+2024-08-23,Hailar (CHN),500m,LIU Bailiang,47.0,68.2,rit
+2024-08-23,Hailar (CHN),500m,CHEN Junsheng,47.03,65.4,rit
+2024-08-23,Hailar (CHN),500m,YU Kairui,48.05,66.7,rit
+2024-08-23,Hailar (CHN),500m,ZHAO Zhongyu,50.81,64.8,rit
+2024-08-23,Hailar (CHN),500m,CUI Yuhang,61.38,58.1,rit
+2024-08-24,Hailar (CHN),1000m,A Sihan,84.44,44.0,rit
+2024-08-24,Hailar (CHN),1000m,A Qi,86.11,42.3,rit
+2024-08-24,Hailar (CHN),1000m,MA Yongbo,88.67,44.5,rit
+2024-08-24,Hailar (CHN),1000m,ZHAO Zhifeng (2),90.06,44.6,rit
+2024-08-24,Hailar (CHN),1000m,DAI Yuecheng,90.43,43.3,rit
+2024-08-24,Hailar (CHN),1000m,WANG Junhao,90.88,42.1,rit
+2024-08-24,Hailar (CHN),1000m,CHEN Junsheng,92.37,43.6,rit
+2024-08-24,Hailar (CHN),1000m,JIANG Xingze,92.55,44.2,rit
+2024-08-24,Hailar (CHN),1000m,LIU Xiang (2),92.92,40.1,rit
+2024-08-24,Hailar (CHN),1000m,WANG Shiqiang,94.46,42.0,rit
+2024-08-24,Hailar (CHN),1000m,SONG Xianyu,95.02,37.7,rit
+2024-08-24,Hailar (CHN),1000m,GAO Mingyu,95.73,36.8,rit
+2024-08-24,Hailar (CHN),1000m,ZHANG Bosong,97.93,36.0,rit
+2024-08-24,Hailar (CHN),1000m,LI Zhuang,98.44,65.0,rit
+2024-08-24,Hailar (CHN),1000m,YU Kairui,99.72,42.5,rit
+2024-08-24,Hailar (CHN),1000m,CUI Yuhang,103.06,42.2,rit
+2024-08-24,Hailar (CHN),1000m,LIU Bailiang,107.63,39.4,rit
+2024-10-16,Hailar (CHN),500m,WANG Yingbo,41.31,35.4,rit
+2024-10-25,Hailar (CHN),3000m,LI Zhengxu,284.92,39.4,rit
+2024-10-25,Hailar (CHN),3000m,HOU Junyu,288.07,40.6,rit
+2024-10-26,Hailar (CHN),500m,HOU Junyu,42.91,40.7,rit
+2024-10-26,Hailar (CHN),1500m,HOU Junyu,135.1,34.0,rit
+2025-02-08,Berlin (GER),500m,Carla ENGELHARDT,58.47,62.0,rit
+2025-03-05,Chita,3000m,ZHANG Yulin,283.72,48.0,rit
+2025-03-06,Chita,500m,ZHANG Yulin,42.93,46.9,rit
+2025-03-06,Chita,1500m,ZHANG Yulin,132.86,40.9,rit
+2025-03-07,Chita,1000m,ZHANG Yulin,83.92,36.4,rit
+2025-11-13,Hailar (CHN),3000m,SUN Luwei,278.38,45.4,rit
+2025-11-13,Hailar (CHN),3000m,CHEN Haoyang,279.94,43.0,rit
+2025-11-13,Hailar (CHN),3000m,CHI Yanxin,304.96,43.4,rit
+2025-11-13,Minsk,500m,Stepan SVIRIDOV,67.29,37.5,rit
+2025-11-14,Hailar (CHN),1500m,CHI Yanxin,126.06,45.9,rit
+2025-11-14,Hailar (CHN),1500m,ZHAO Zhongyu,155.79,37.3,rit
+2025-11-15,Hailar (CHN),500m,CHI Yanxin,40.03,46.1,rit
+2025-11-15,Hailar (CHN),500m,CHEN Haoyang,41.43,39.2,rit
+2025-11-15,Hailar (CHN),500m,SUN Luwei,41.62,41.1,rit
+2025-11-15,Hailar (CHN),500m,BAI Zimo,42.97,52.8,rit
+2025-11-16,Hailar (CHN),1000m,CHI Yanxin,79.53,38.5,rit
+2025-11-16,Hailar (CHN),1000m,BAI Zimo,89.77,40.7,rit
+2025-11-29,Calgary (CAN),1500m,Nigel EMBLIN,133.62,35.7,rit
+2025-12-04,Daqing (CHN),3000m,ZHANG Yifan (4),295.49,34.9,rit
+2025-12-04,Murom,500m,Mikhail ORINICHEV,58.76,42.2,rit
+2025-12-04,Murom,500m,Olga LOPATINA,54.72,39.4,rit
+2025-12-06,Daqing (CHN),500m,REN Jiyun,38.8,34.3,rit
+2025-12-06,Daqing (CHN),500m,ZHANG Haozhe,39.93,39.0,rit
+2025-12-06,Daqing (CHN),500m,CHE Peize,40.16,40.6,rit
+2025-12-06,Daqing (CHN),500m,SHA Qitong,40.89,44.8,rit
+2025-12-06,Daqing (CHN),500m,BAI Jiakun,43.66,38.3,rit
+2025-12-06,Daqing (CHN),500m,ZHANG Yifan (4),44.21,41.3,rit
+2026-01-11,Fujiyoshida (JPN),500m,Eito KUROIWA,57.34,49.3,rit
+2026-01-11,Fujiyoshida (JPN),500m,Isshin TAKAMIZAWA,57.95,51.0,rit
+2026-01-11,Fujiyoshida (JPN),500m,Keita MIYAZAKI,59.73,48.3,rit
+2026-01-11,Fujiyoshida (JPN),500m,Takei ASUKAI,61.17,49.5,rit
+2026-01-11,Fujiyoshida (JPN),500m,Ryouta FUKAZAWA,65.26,49.3,rit
+2026-01-11,Fujiyoshida (JPN),500m,Haruyuki TATEISHI,76.27,39.9,rit
+2026-01-22,Leh Ladakh (IND),500m,Nikkhil VANISHKUMAR,54.95,46.7,rit
+2026-02-08,Groningen (NED),1000m,Ruben BOLT,165.53,37.3,rit
+2026-02-09,Hagaström (SWE),500m,Johan WIMALM,66.28,35.4,rit
+2026-02-22,Tomaszów-Mazowiecki (POL),500m,Laura ZIELIŃSKA,63.08,33.3,rit
+2026-02-25,Dresden (GER),500m,Viliam ŠTOUDEK,58.19,46.5,rit

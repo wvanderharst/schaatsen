@@ -1,0 +1,8 @@
+__pycache__/
+.test_model_cache_*.pkl
+*.pkl
+*.pkl.extra
+*.npz
+ch_*.log
+bouw.out
+schaatsmodel/speedskating_historie_*.csv

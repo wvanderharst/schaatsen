@@ -1,0 +1,61 @@
+# Haalt luchtdruk en weer per baan en wedstrijddag op (Open-Meteo, ERA5) en commit de uitkomst in voorspel/weer/.
+# Draait bij een push naar de branch die luchtdruk.py, de invoer of deze workflow wijzigt, of met de hand (workflow_dispatch).
+# Gratis API: 10.000 calls per dag; alles samen is ~13.000 calls, dus de tweede run (een dag later) maakt het af.
+name: luchtdruk
+
+on:
+  push:
+    branches: [claude/new-session-tj1971]
+    paths:
+      - 'voorspel/luchtdruk.py'
+      - 'voorspel/weer/banen.csv'
+      - 'voorspel/weer/baan_dagen.csv'
+      - 'voorspel/weer/start.txt'
+      - '.github/workflows/luchtdruk.yml'
+  workflow_dispatch:
+    inputs:
+      budget:
+        description: 'Maximum aantal API-calls in deze run'
+        default: '9000'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: luchtdruk
+  cancel-in-progress: false
+
+jobs:
+  haal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pandas numpy requests
+      - name: Verbindingstest
+        timeout-minutes: 5
+        run: |
+          curl -sS -m 20 -o /dev/null -w "geocoding %{http_code} %{time_total}s\n" "https://geocoding-api.open-meteo.com/v1/search?name=Heerenveen&count=1"
+          curl -sS -m 30 -o /dev/null -w "archief %{http_code} %{time_total}s\n" "https://archive-api.open-meteo.com/v1/archive?latitude=52.96&longitude=5.94&start_date=2026-02-07&end_date=2026-02-07&hourly=surface_pressure"
+          python voorspel/luchtdruk.py test
+      - name: Plaatsbepaling banen
+        timeout-minutes: 30
+        run: python voorspel/luchtdruk.py voorspel/weer banen
+      - name: Weer per wedstrijddag
+        run: python voorspel/luchtdruk.py voorspel/weer haal ${{ github.event.inputs.budget || '9000' }}
+      - name: Uitkomst committen
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git status --short
+          git add voorspel/weer
+          git commit -m "Weerdata per baan en wedstrijddag bijgewerkt (Open-Meteo)" || exit 0
+          for i in 1 2 3; do git pull --rebase --autostash origin ${{ github.ref_name }} && git push origin HEAD:${{ github.ref_name }} && break; sleep 5; done

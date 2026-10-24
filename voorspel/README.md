@@ -645,3 +645,8 @@ sprint in even jaren, Spelen elke vier jaar. Daardoor minder te verwachten titel
 plaats van 10,5). Website: tabblad Kampioenen (alle rijders met een wereld- of olympische titel: titels en zeges tot dan, kansen en verwachte
 aantallen voor de rest van de carriere; nu actief, alle kampioenen ooit of per seizoen); Talenten alleen zonder titel; in de simulatie een
 leeftijdsgrens (niveau uit seizoenen tot en met die leeftijd, en de top 12 binnen die leeftijd). Kansen in de blokken: `site_kansen.py`.
+Live wedstrijd (website): eigen wedstrijd aanmaken (naam, baan, geslacht, afstand, soort), deelnemers toevoegen of het veld van Simuleren
+overnemen, tijden invullen. IJs van vandaag: gewogen gemiddelde van ln(tijd) - verwachting (niveau Heerenveen nu + peil van de baan) van de
+gereden ritten (afgekapt op +-4%), met als voorkennis een normale dag (spreiding van het ijs per wedstrijd op die baan, Heerenveen 0,6%) en
+een rijderspreiding van 0,9% per rit; daarna 4.000 simulaties met de gereden tijden vast. Bewaard per browser (localStorage). Teksten op de
+website herschreven voor andere gebruikers; tabblad Uitleg met begrippen, beperkingen en bronnen.

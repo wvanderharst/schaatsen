@@ -94,7 +94,7 @@ tr.titelrij td { background: var(--accent-zacht) }
 <header class="balk">
   <h1>Schaatsarchief</h1>
   <nav class="nav" aria-label="Weergaven">
-    <button data-v="rijder">Rijder</button><button data-v="ranglijsten">Ranglijsten</button><button data-v="talenten">Talenten</button><button data-v="kampioenen">Kampioenen</button><button data-v="vergelijken">Vergelijken<span class="tel" id="tel"></span></button><button data-v="simuleren">Simuleren</button>
+    <button data-v="rijder">Rijder</button><button data-v="ranglijsten">Ranglijsten</button><button data-v="talenten">Talenten</button><button data-v="kampioenen">Kampioenen</button><button data-v="vergelijken">Vergelijken<span class="tel" id="tel"></span></button><button data-v="simuleren">Simuleren</button><button data-v="live">Live wedstrijd</button><button data-v="uitleg">Uitleg</button>
   </nav>
   <div class="zoekbak">
     <input id="zoek" type="search" placeholder="Zoek een rijder, bijv. Daleman" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="suggesties" aria-label="Zoek een rijder">
@@ -117,7 +117,7 @@ tr.titelrij td { background: var(--accent-zacht) }
       <div><label for="rl-min">Minimaal ritten</label><select id="rl-min"><option>2</option><option selected>3</option><option>5</option><option>10</option></select></div>
       <label class="vink"><input type="checkbox" id="rl-een" checked> Eén regel per rijder</label>
     </div>
-    <p class="uitleg" style="margin-top:10px">Niveau aan het eind van het seizoen. De achterstand op de top-10 van dat seizoen vergelijkt eerlijk over de jaren heen: het stijgende niveau en de verbetering van baan en materiaal tellen niet mee. De Heerenveen-tijd is absoluut. Leeftijd: in het jaar waarin het seizoen begint.</p>
+    <p class="uitleg" style="margin-top:10px">De ranglijst gebruikt het niveau van elke rijder aan het eind van een seizoen. Met 'achterstand op de top-10' vergelijk je eerlijk over de jaren heen: je ziet hoe ver iemand achter de nummer 10 van de wereld zat in dat seizoen, zodat sneller ijs, beter materiaal en het stijgende niveau niet meetellen. De Heerenveen-tijd is de tijd die bij dat niveau hoort op een normale dag in Thialf. Leeftijd: de leeftijd in het jaar waarin het seizoen begon.</p>
     <div class="status" id="rl-status" style="margin-top:8px"></div>
     <div class="tabelbak" id="rl-tabel" style="margin-top:8px"></div><div class="meer" id="rl-meer"></div>
   </section>
@@ -133,7 +133,7 @@ tr.titelrij td { background: var(--accent-zacht) }
         <option value="3">Kans WK-titel</option><option value="4">Verwacht aantal WK-titels</option><option value="5">Kans olympische titel</option><option value="6">Verwacht olympische titels</option>
         <option value="7">Kans World Cup-zege</option><option value="8">Verwacht World Cup-zeges</option><option value="9">Groei laatste jaar</option><option value="10">Niveau (achter top-10)</option></select></div>
     </div>
-    <p class="uitleg" style="margin-top:10px">Rijders zonder wereld- of olympische titel (de kampioenen staan in hun eigen tabblad). Kansen vanaf het volgende seizoen tot het eind van de carrière, zoals het model ze aan het eind van dat seizoen gaf: de kans op minstens één (nog een) titel of zege en het verwachte aantal. Tot 18 jaar uit het juniorenmodel, vanaf 18 jaar ook met wat de rijder al won. Groei: hoeveel sneller dan het seizoen ervoor (junioren). Niveau: achterstand op de seniorentop-10 van dat seizoen op de beste afstand.</p>
+    <p class="uitleg" style="margin-top:10px">Rijders die nog geen wereld- of olympische titel hebben (kampioenen staan bij Kampioenen). Per rijder de geschatte kans om in de rest van de carrière minstens één WK-titel, olympische titel of World Cup-zege te halen, en hoeveel. Het model kijkt vooral naar hoe ver een rijder al achter de seniorentop zit, in combinatie met de leeftijd. Groei: hoeveel sneller dan het seizoen ervoor. Het zijn schattingen: in een terugblik klopte het totaal goed, maar wie laat doorbreekt, wordt soms gemist.</p>
     <div class="status" id="tl-status" style="margin-top:8px"></div>
     <div class="tabelbak" id="tl-tabel" style="margin-top:8px"></div><div class="meer" id="tl-meer"></div>
   </section>
@@ -149,7 +149,7 @@ tr.titelrij td { background: var(--accent-zacht) }
         <option value="t">Titels tot dan (WK + Spelen)</option><option value="12">WK-titels tot dan</option><option value="13">Olympische titels tot dan</option><option value="14">World Cup-zeges tot dan</option>
         <option value="4">Nog te verwachten WK-titels</option><option value="tv">Verwacht totaal WK-titels in de carrière</option><option value="6">Nog te verwachten olympische titels</option><option value="10">Niveau (achter top-10)</option></select></div>
     </div>
-    <p class="uitleg" style="margin-top:10px">Alle rijders die al een wereldtitel (WK afstanden, allround, sprint) of een olympische titel hebben: de gearriveerde schaatsers. Titels en zeges tot en met dat seizoen; "nog te verwachten" vanaf het volgende seizoen tot het eind van de carrière, met de kalender van nu (WK afstanden in oneven jaren, allround en sprint in even jaren, Spelen elke vier jaar).</p>
+    <p class="uitleg" style="margin-top:10px">Alle rijders die al een wereldtitel (WK afstanden, allround of sprint) of een olympische titel hebben. Je ziet hoeveel titels en World Cup-zeges ze tot en met dat seizoen hadden, en wat het model nog verwacht tot het eind van de carrière, met de kalender van nu: WK afstanden in oneven jaren, allround en sprint in even jaren, de Spelen elke vier jaar.</p>
     <div class="status" id="kp-status" style="margin-top:8px"></div>
     <div class="tabelbak" id="kp-tabel" style="margin-top:8px"></div><div class="meer" id="kp-meer"></div>
   </section>
@@ -168,7 +168,7 @@ tr.titelrij td { background: var(--accent-zacht) }
       <div><label for="sm-n">Aantal rijders</label><select id="sm-n"><option>4</option><option>8</option><option selected>12</option><option>16</option><option>24</option></select></div>
       <div><label>&nbsp;</label><button class="knop" id="sm-top" type="button" aria-pressed="true">Stel samen en simuleer</button></div>
     </div>
-    <p class="uitleg" style="margin-top:6px">Neemt de beste rijders binnen de categorieën (niveau aan het eind van het seizoen, achterstand op de top-10 van dat seizoen, minstens drie ritten). Thuisbaan: de baan waarop de rijder de meeste ritten reed.</p>
+    <p class="uitleg" style="margin-top:6px">Kies de categorieën en klik op de knop: de beste rijders binnen die keuze vormen het veld, en de wedstrijd wordt meteen gesimuleerd. 'Beste' betekent het niveau aan het eind van het seizoen, met minstens drie ritten op de afstand. Thuisbaan: de baan waar iemand de meeste ritten reed.</p>
     <h3 style="margin-top:16px">Deelnemers</h3>
     <div id="sm-chips" class="chips" style="margin-top:6px"></div>
     <div class="filters" style="margin-top:8px">
@@ -184,15 +184,61 @@ tr.titelrij td { background: var(--accent-zacht) }
       <div><label for="sm-soort">Soort wedstrijd</label><select id="sm-soort"><option value="1">Regionale of nationale wedstrijd</option><option value="0.9">World Cup</option><option value="0.8">WK of Spelen</option></select></div>
       <div><label>&nbsp;</label><button class="knop" id="sm-start" type="button">Simuleer opnieuw</button></div>
     </div>
-    <p class="uitleg" style="margin-top:10px">Een normale dag in Heerenveen of op de gekozen baan, 10.000 keer. Baan: het typische peil van een wedstrijd op die baan (laatste vier seizoenen, per geslacht en afstand) en hoe sterk het ijs daar per wedstrijd wisselt (buitenbanen veel meer dan Thialf); bij een thuisbaan als categorie wordt die baan de wedstrijdbaan. Niveau: de verwachte tijd aan het eind van het seizoen (het gekozen seizoen, het laatste of het beste), alleen seizoenen tot en met de gekozen leeftijd (bijvoorbeeld tot en met 16 jaar: hoe snel waren ze onder de 17); "omgerekend naar de top van nu" zet rijders uit verschillende jaren eerlijk tegen elkaar (achterstand op de top-10 van hun seizoen, toegepast op de top-10 van nu). Per race een gedeelde ijsschok voor iedereen en per rijder een eigen afwijking, getrokken uit de eigen ritten van de laatste twee seizoenen (alleen de rijder, ijs achteraf eruit), gekrompen naar die van alle toprijders. Op World Cups is de spreiding 10% en op WK's en Spelen 20% kleiner: daar rijden de toppers constanter.</p>
+    <p class="uitleg" style="margin-top:10px">De wedstrijd wordt 10.000 keer nagespeeld. Elke keer krijgt het ijs een eigen snelheid, voor iedereen dezelfde, en rijdt elke rijder iets sneller of trager dan het eigen niveau, zoals in de eigen ritten van de laatste twee seizoenen: wie wisselvallig rijdt, heeft meer kans op een uitschieter naar boven en naar beneden. Op World Cups en vooral op WK's en Spelen rijden de toppers constanter. Kies je een baan, dan worden de tijden omgerekend naar een normale dag op die baan; op buitenbanen wisselt het ijs meer. 'Omgerekend naar de top van nu' laat rijders uit verschillende jaren eerlijk tegen elkaar rijden. Bij een leeftijd tellen alleen seizoenen tot en met die leeftijd.</p>
     <div class="status" id="sm-status" style="margin-top:8px"></div>
     <div class="tabelbak" id="sm-tabel" style="margin-top:8px"></div>
     <div class="sectie" id="sm-voorbeeld"></div>
   </section>
 
+  <section id="v-live" class="paneel" hidden>
+    <p class="uitleg">Maak je eigen wedstrijd aan en vul de tijden in zodra rijders binnen zijn. Na elke tijd schat het model hoe snel het ijs vandaag is, door de gereden tijden te vergelijken met het niveau van die rijders, en past het meteen de verwachte tijden van de rest aan, met de kans op winst en podium. Je wedstrijden blijven bewaard in deze browser.</p>
+    <div class="filters" style="margin-top:10px">
+      <div><label for="lv-kies">Wedstrijd</label><select id="lv-kies"></select></div>
+      <div><label>&nbsp;</label><button class="knop" id="lv-nieuw" type="button">Nieuwe wedstrijd</button></div>
+      <div><label>&nbsp;</label><button class="knop" id="lv-weg" type="button">Wedstrijd verwijderen</button></div>
+    </div>
+    <div id="lv-werk" hidden>
+      <div class="filters" style="margin-top:14px">
+        <div style="grid-column: span 2"><label for="lv-naam">Naam</label><input id="lv-naam" type="text" placeholder="Bijv. Clubkampioenschap Den Haag"></div>
+        <div><label for="lv-baan">Baan</label><select id="lv-baan"><option value="">Normale dag in Heerenveen</option></select></div>
+        <div><label for="lv-g">Geslacht</label><select id="lv-g"><option value="v">Vrouwen</option><option value="m">Mannen</option></select></div>
+        <div><label for="lv-af">Afstand</label><select id="lv-af"></select></div>
+        <div><label for="lv-soort">Soort wedstrijd</label><select id="lv-soort"><option value="1">Regionale of nationale wedstrijd</option><option value="0.9">World Cup</option><option value="0.8">WK of Spelen</option></select></div>
+      </div>
+      <div class="filters" style="margin-top:10px">
+        <div style="grid-column: span 2"><label for="lv-zoek">Deelnemer toevoegen</label><input id="lv-zoek" type="search" placeholder="Naam" autocomplete="off"><ul id="lv-sugg" class="suggesties" style="position:relative;top:4px" hidden></ul></div>
+        <div><label>&nbsp;</label><button class="knop" id="lv-sim" type="button">Neem het veld van Simuleren over</button></div>
+      </div>
+      <div class="status" id="lv-ijs" style="margin-top:12px"></div>
+      <h3 style="margin-top:12px">Startlijst en tijden</h3>
+      <p class="uitleg">Vul een tijd in als 1:12,34 of 38,95. Laat leeg wie nog moet rijden. Een rit zonder geldige tijd (val, diskwalificatie) markeer je met "Geen tijd".</p>
+      <div class="tabelbak" id="lv-start" style="margin-top:6px"></div>
+      <h3 style="margin-top:16px">Verwachte uitslag</h3>
+      <div class="tabelbak" id="lv-stand" style="margin-top:6px"></div>
+    </div>
+  </section>
+
+  <section id="v-uitleg" class="paneel" hidden>
+    <div style="max-width:75ch; display:grid; gap:12px">
+      <h2>Over het Schaatsarchief</h2>
+      <p>Alle langebaanritten sinds 2006 (meer dan 4 miljoen, van ruim 118.000 rijders), met een model dat elke rit eerlijk vergelijkbaar maakt: over banen, ijs en jaren heen. Zoek een rijder in de balk bovenaan, of gebruik de tabbladen.</p>
+      <h3>Begrippen</h3>
+      <p><b>Niveau.</b> Hoe snel een rijder op een afstand is, geschat uit alle eigen ritten tot dan toe. Het model weegt recente ritten zwaarder en houdt rekening met groei en vorm. Het niveau aan het eind van een seizoen staat in de seizoenstabellen.</p>
+      <p><b>Heerenveen-tijd.</b> Elke tijd omgerekend naar een normale dag in Thialf. Eerst schat het model hoe snel het ijs bij een wedstrijd was, uit de tijden van het hele veld; daarna wordt de tijd verschoven naar Heerenveen. Zo kun je een rit in Inzell, Salt Lake City of op een buitenbaan direct vergelijken. "Nu" gebruikt het ijs en materiaal van nu, "toen" dat van het seizoen zelf.</p>
+      <p><b>Achterstand op de top-10.</b> Hoeveel procent iemand langzamer was dan de nummer 10 van de wereld in dat seizoen. Omdat elk seizoen met de top van dat jaar wordt vergeleken, tellen sneller ijs, beter materiaal en het stijgende niveau niet mee: zo vergelijk je rijders uit 2010 eerlijk met rijders van nu. Negatief betekent sneller dan de nummer 10.</p>
+      <p><b>Eigen prestatie.</b> Hoeveel sneller (+) of trager (−) een rijder reed dan het model vooraf verwachtte, met de ijssnelheid van die dag eruit gehaald. De kans erachter zegt hoe vaak zo'n prestatie voorkomt bij toprijders.</p>
+      <p><b>Titelkansen.</b> De kans om in de rest van de carrière minstens één WK-titel, olympische titel of World Cup-zege te halen, en het verwachte aantal. Het model heeft geleerd van eerdere jaargangen: vooral hoe ver iemand op een bepaalde leeftijd al achter de seniorentop zit. In een terugblik klopte het totaal aantal kampioenen goed, maar het model vindt de latere kampioenen niet veel beter dan simpelweg sorteren op niveau, en recente generaties worden jonger kampioen dan vroeger. Lees de kansen dus als een grove inschatting.</p>
+      <p><b>Simuleren en Live wedstrijd.</b> Een wedstrijd wordt 10.000 keer nagespeeld: per keer een ijssnelheid voor iedereen en per rijder een afwijking zoals in de eigen ritten van de laatste twee seizoenen. In Live wedstrijd vul je echte tijden in; het model leert daaruit hoe snel het ijs vandaag is en past de verwachting voor de rest aan.</p>
+      <h3>Wat het model niet weet</h3>
+      <p>Blessures, ziekte, materiaalwissels, trainingsblokken en de motivatie van de dag ziet het model alleen terug in gereden tijden. Rijders met weinig ritten hebben een onzeker niveau. Ritten die onmogelijk snel lijken, zijn gemarkeerd als verdacht en tellen niet mee.</p>
+      <h3>Bronnen</h3>
+      <p>Uitslagen van officiële wedstrijden sinds 2006, met per rijder geslacht, land en geboortejaar. Titels: WK afstanden, allround en sprint en de Olympische Spelen. World Cup-zeges: internationale wedstrijden buiten WK en Spelen met een veld van minstens tien senioren.</p>
+    </div>
+  </section>
+
   <section id="v-vergelijken" class="paneel" hidden>
     <div id="vg-chips" class="chips"></div>
-    <p class="uitleg" style="margin-top:10px">Voeg rijders toe met de knop "Vergelijk" in een ranglijst, bij de talenten of op een rijderblad (maximaal 8). De grafiek zet de loopbanen naast elkaar op leeftijd: achterstand op de top-10 van elk seizoen, hoger is beter.</p>
+    <p class="uitleg" style="margin-top:10px">Voeg rijders toe met de knop Vergelijk, in een lijst of op een rijderpagina (tot 8). De grafiek legt de loopbanen naast elkaar op leeftijd: hoe ver zat iemand achter de nummer 10 van de wereld in dat seizoen. Hoger is beter. In de tabel kies je wat je per leeftijd wilt zien.</p>
     <div class="filters" style="margin-top:10px">
       <div><label for="vg-af">Afstand</label><select id="vg-af"><option value="">Beste afstand per seizoen</option></select></div>
       <div><label for="vg-maat">Tabel</label><select id="vg-maat"><option value="achter">Achter top-10</option><option value="p_wk">Kans WK-titel</option><option value="e_wk">Verwacht WK-titels</option><option value="p_os">Kans olympische titel</option><option value="p_wc">Kans World Cup-zege</option><option value="groei">Groei</option></select></div>
@@ -236,7 +282,7 @@ const opties = (el, lijst) => { el.innerHTML = lijst.map(([v, t]) => `<option va
 /* ---------- weergaven ---------- */
 function toon(v, push = true) {
   weergave = v;
-  for (const x of ['rijder', 'ranglijsten', 'talenten', 'kampioenen', 'vergelijken', 'wedstrijd', 'simuleren']) $('v-' + x).hidden = x !== v;
+  for (const x of ['rijder', 'ranglijsten', 'talenten', 'kampioenen', 'vergelijken', 'wedstrijd', 'simuleren', 'live', 'uitleg']) $('v-' + x).hidden = x !== v;
   document.querySelectorAll('.nav button').forEach(b => b.setAttribute('aria-current', b.dataset.v === (v === 'wedstrijd' ? 'rijder' : v) ? 'page' : 'false'));
   if (push && v !== 'rijder' && v !== 'wedstrijd') { try { history.replaceState(null, '', '#' + v); } catch (e) {} }
   if (v === 'ranglijsten') tekenRanglijst();
@@ -244,6 +290,7 @@ function toon(v, push = true) {
   if (v === 'kampioenen') tekenKampioenen();
   if (v === 'vergelijken') tekenVergelijk();
   if (v === 'simuleren') tekenSimChips();
+  if (v === 'live') tekenLive();
   window.scrollTo({ top: 0 });
 }
 document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click', () => {
@@ -311,6 +358,8 @@ async function start() {
     const jaren = []; for (let j = META.laatste; j >= 2006; j--) jaren.push([j, sz(j)]);
     opties($('rl-sz'), [['', 'Alle seizoenen']].concat(jaren));
     opties($('tl-sz'), [['nu', 'Nu (laatste seizoen per rijder)'], ['', 'Alle seizoenen']].concat(jaren));
+    opties($('lv-af'), SEN.map(a => [a, AFN[AFK.indexOf(a)]]));
+    $('lv-baan').insertAdjacentHTML('beforeend', Object.keys(META.baanpeil || {}).sort((a, b) => META.banen[a].localeCompare(META.banen[b])).map(b => `<option value="${b}">${esc(META.banen[b])}</option>`).join(''));
     opties($('sm-vsz'), [['nu', 'Nu (laatste twee seizoenen)']].concat(jaren));
     $('sm-baan').insertAdjacentHTML('beforeend', Object.keys(META.baanpeil || {}).sort((a, b) => META.banen[a].localeCompare(META.banen[b])).map(b => `<option value="${b}">${esc(META.banen[b])}</option>`).join(''));
     { const tel = {}; rijders.forEach(r => { if (r.thuis != null) tel[r.thuis] = (tel[r.thuis] || 0) + 1; });
@@ -326,7 +375,7 @@ async function start() {
     const h = location.hash;
     const m = h.match(/^#r(\d+)$/);
     if (m) openRijder(+m[1]);
-    else if (['#ranglijsten', '#talenten', '#kampioenen', '#vergelijken', '#simuleren'].includes(h)) toon(h.slice(1));
+    else if (['#ranglijsten', '#talenten', '#kampioenen', '#vergelijken', '#simuleren', '#live', '#uitleg'].includes(h)) toon(h.slice(1));
     else toon('talenten');
   } catch (e) { $('blad').innerHTML = `<div class="leeg">De rijders konden niet laden: ${esc(e.message)}</div>`; toon('rijder', false); }
 }
@@ -449,18 +498,18 @@ function tekenBlad() {
       <span>WK-titels <b>${r.wk}</b></span><span>Olympische titels <b>${r.os}</b></span><span>World Cup-zeges <b>${r.wc}</b></span></div>
     ${titels.length ? `<div class="titels">${titels.map(t => `<span class="pil goud">${esc(t)}</span>`).join('')}</div>` : ''}
     <section class="sectie"><h3>Loopbaan</h3>
-      <p class="uitleg">Achterstand op de top-10 van elk seizoen (niveau aan het eind van het seizoen, alleen afstanden met minstens drie ritten). Hoger in de grafiek is beter; 0% is precies het niveau van de nummer 10 van de wereld dat jaar. Zo telt het stijgende niveau over de jaren mee.</p>
+      <p class="uitleg">Hoe ver deze rijder per seizoen achter de nummer 10 van de wereld zat, per afstand (alleen seizoenen met minstens drie ritten op die afstand). 0% is precies het niveau van de nummer 10; hoger in de grafiek is beter. Omdat elk seizoen met de top van dat jaar wordt vergeleken, tellen sneller ijs en beter materiaal niet mee.</p>
       <div class="grafiek" id="grafiek"></div></section>
     <section class="sectie"><h3>Per seizoen</h3>
       <div class="tabs" role="group" aria-label="Afstand">${afIn.map(a => `<button data-af="${a}" aria-pressed="${a === huidig.af}">${AFN[AFK.indexOf(a)]}</button>`).join('')}</div>
-      <p class="uitleg">Niveau Heerenveen nu: de verwachte tijd op een normale dag in Heerenveen met het ijs en het materiaal van nu. Heerenveen toen: hetzelfde niveau op het ijs en met het materiaal van dat seizoen (Thialf en materiaal waren in 2008 ongeveer 1,4% trager; de renovatie van 2016 en nieuw materiaal maakten het verschil). "In niveau van nu": dezelfde achterstand op de top-10, omgerekend naar de top-10 van ${sz(META.laatste)}. Groei staat bij de junioren (13 tot en met 19 jaar). De titelkansen staan bij elk seizoen vanaf 15 jaar: de kans op minstens één (nog een) titel of zege en het verwachte aantal, vanaf het volgende seizoen tot het eind van de carrière, zoals het model ze aan het eind van dat seizoen gaf (tot 18 jaar uit het juniorenmodel, vanaf 18 jaar met wat de rijder al won).</p>
+      <p class="uitleg">Heerenveen nu: de tijd die bij het niveau hoort op een normale dag in Thialf, met het ijs en materiaal van nu. Heerenveen toen: dezelfde tijd met het ijs en materiaal van dat seizoen (in 2008 was dat ongeveer 1,4% trager). In niveau van nu: dezelfde achterstand op de top-10, toegepast op de top van ${sz(META.laatste)}. Wereldrang: plaats op de wereldranglijst van dat seizoen op deze afstand. Bij junioren staat de groei ten opzichte van het jaar ervoor. De kansen gaan over de rest van de carrière, zoals het model ze aan het eind van dat seizoen gaf.</p>
       <div class="tabelbak" id="seizoenen"></div></section>
     <section class="sectie"><h3>Alle ritten</h3>
       <div class="filters" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))">
         <div><label for="rsz">Seizoen</label><select id="rsz"><option value="">Alle seizoenen</option>${[...new Set(d.r.map(x => seizoenVan(x[0])))].sort((a, b) => b - a).map(s => `<option value="${s}">${sz(s)}</option>`).join('')}</select></div>
         <div><label for="raf">Afstand</label><select id="raf"><option value="">Alle afstanden</option>${[...new Set(d.r.map(x => x[1]))].sort((a, b) => a - b).map(a => `<option value="${a}">${AFN[a]}</option>`).join('')}</select></div>
       </div>
-      <p class="uitleg">Heerenveen nu: de rit omgerekend naar een normale dag in Heerenveen met het ijs en materiaal van nu (peil van die race achteraf, uit het hele veld). Heerenveen toen: met het ijs en materiaal van dat seizoen; het verschil is de verbetering van baan en materiaal sindsdien. Eigen prestatie: alleen de rijder, met het ijs achteraf gecorrigeerd via de mediaan van het veld; positief is sneller dan verwacht. Kans: hoe zeldzaam zo'n eigen prestatie is. Klik op een datum voor de hele uitslag van die wedstrijd.</p>
+      <p class="uitleg">Heerenveen nu: de rit omgerekend naar een normale dag in Thialf, met het ijs en materiaal van nu. Daarvoor wordt eerst bepaald hoe snel het ijs die dag was, uit de tijden van het hele veld. Heerenveen toen: met het ijs en materiaal van dat seizoen. Eigen prestatie: hoeveel sneller (+) of trager (−) de rijder reed dan verwacht, met het ijs eruit gehaald. Kans: hoe vaak zo'n prestatie voorkomt. Klik op een datum voor de hele uitslag van die wedstrijd.</p>
       <div class="tabelbak" id="ritten"></div><div class="meer" id="meer"></div></section>`;
   blad.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { huidig.af = b.dataset.af; tekenBlad(); }));
   document.getElementById('rsz').value = huidig.rsz; document.getElementById('raf').value = huidig.raf;
@@ -536,7 +585,7 @@ async function openWedstrijd(key) {
   $('wd').innerHTML = `<div class="naamkop">${terug}</div>
     <div class="naamkop" style="margin-top:6px"><h2>${AFN[a]} ${g === 'v' ? 'vrouwen' : 'mannen'}</h2><button class="knop" id="wd-sim" type="button">Simuleer met deze rijders</button></div>
     <div class="feiten"><span><b>${datum(dag)}</b></span><span>${esc(META.banen[bi])}</span>${soort ? `<span><b>${SOORT[soort]}</b></span>` : ''}<span><b>${rows.length}</b> ritten</span></div>
-    <p class="uitleg" style="margin-top:10px">Alle ritten op deze baan, deze dag en deze afstand, gesorteerd op tijd (ook als ze in verschillende onderdelen of omlopen werden gereden; "plaats" is de plaats in het eigen onderdeel). Eigen prestatie: alleen de rijder, met het ijs achteraf eruit; positief is sneller dan verwacht.</p>
+    <p class="uitleg" style="margin-top:10px">Alle ritten op deze baan, op deze dag en deze afstand, op volgorde van tijd. Ritten uit verschillende onderdelen of omlopen staan samen; 'Plaats' is de plaats in het eigen onderdeel. Eigen prestatie: hoeveel sneller (+) of trager (−) dan verwacht, met het ijs eruit gehaald.</p>
     <div class="tabelbak" style="margin-top:10px"><table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th>Geboren</th><th>Tijd</th><th>Achter winnaar</th><th>Heerenveen nu</th><th>Plaats</th><th>Eigen prestatie</th><th class="l">Kans</th><th></th></tr>
     ${rows.map((r, i) => { const rr = perId.get(r[0]) || {}; const sp = r[6], k = r[7];
       const eig = sp == null ? '' : `<span class="${sp < 0 ? 'snel' : 'traag'}">${(sp < 0 ? '+' : '−') + Math.abs(sp).toFixed(1).replace('.', ',')}%</span>`;
@@ -663,6 +712,110 @@ async function tekenKampioenen() {
       <td class="c">${kans(r[3])}</td><td class="c${k('4')}">${getal(r[4], 2)}</td><td class="c${k('tv')}">${r[4] != null ? getal(r[12] + r[4], 1) : ''}</td><td class="c">${kans(r[5])}</td><td class="c${k('6')}">${getal(r[6], 2)}</td><td class="c">${getal(r[8], 1)}</td><td>${vgKnop(r[0])}</td></tr>`).join('') + '</table>'
     : '<div class="leeg">Geen kampioenen met deze filters. Verruim de leeftijd of kies een ander seizoen.</div>';
   pagina($('kp-meer'), n, pag, P, p => { kpPag = p; tekenKampioenen(); });
+}
+
+/* ---------- live wedstrijd ---------- */
+let live = { lijst: [], actief: null }; try { live = JSON.parse(localStorage.getItem('live') || 'null') || live; } catch (e) {}
+const bewaarLive = () => { try { localStorage.setItem('live', JSON.stringify(live)); } catch (e) {} };
+const huidigeLive = () => live.lijst.find(w => w.id === live.actief);
+function leesTijd(t) {
+  t = String(t || '').trim().replace(',', '.'); if (!t) return null;
+  const m = t.match(/^(?:(\d+):)?(\d+(?:\.\d+)?)$/); if (!m) return NaN;
+  return (m[1] ? 60 * +m[1] : 0) + +m[2];
+}
+function tekenLive() {
+  $('lv-kies').innerHTML = live.lijst.length ? live.lijst.map(w => `<option value="${w.id}">${esc(w.naam || 'Wedstrijd zonder naam')}</option>`).join('') : '<option value="">Nog geen wedstrijden</option>';
+  const w = huidigeLive(); $('lv-werk').hidden = !w; $('lv-weg').disabled = !w;
+  if (!w) return;
+  $('lv-kies').value = w.id; $('lv-naam').value = w.naam || ''; $('lv-baan').value = w.baan || ''; $('lv-g').value = w.g; $('lv-af').value = w.af; $('lv-soort').value = String(w.soort);
+  rekenLive();
+}
+$('lv-nieuw').addEventListener('click', () => {
+  const w = { id: Date.now(), naam: '', baan: '', g: 'v', af: '500m', soort: 1, deeln: [] };
+  live.lijst.push(w); live.actief = w.id; bewaarLive(); tekenLive(); $('lv-naam').focus();
+});
+$('lv-weg').addEventListener('click', () => {
+  const w = huidigeLive(); if (!w) return;
+  if ($('lv-weg').dataset.zeker !== '1') { $('lv-weg').dataset.zeker = '1'; $('lv-weg').textContent = 'Klik nogmaals om te verwijderen'; setTimeout(() => { $('lv-weg').dataset.zeker = ''; $('lv-weg').textContent = 'Wedstrijd verwijderen'; }, 4000); return; }
+  live.lijst = live.lijst.filter(x => x.id !== w.id); live.actief = live.lijst[0]?.id ?? null; $('lv-weg').dataset.zeker = ''; $('lv-weg').textContent = 'Wedstrijd verwijderen'; bewaarLive(); tekenLive();
+});
+$('lv-kies').addEventListener('input', () => { live.actief = +$('lv-kies').value; bewaarLive(); tekenLive(); });
+[['lv-naam', 'naam'], ['lv-baan', 'baan'], ['lv-g', 'g'], ['lv-af', 'af'], ['lv-soort', 'soort']].forEach(([id, k]) => $(id).addEventListener('input', () => {
+  const w = huidigeLive(); if (!w) return; w[k] = k === 'soort' ? +$(id).value : $(id).value; bewaarLive();
+  if (k === 'naam') { const o = $('lv-kies').selectedOptions[0]; if (o) o.textContent = w.naam || 'Wedstrijd zonder naam'; } else rekenLive();
+}));
+let lvSugg = [];
+$('lv-zoek').addEventListener('input', () => {
+  const q = norm($('lv-zoek').value.trim()), ul = $('lv-sugg'), w = huidigeLive();
+  if (q.length < 2 || !w) { ul.hidden = true; return; }
+  const best = r => r.best == null ? 99 : r.best;
+  lvSugg = rijders.filter(r => r.z.includes(q) && r.g === w.g).sort((a, b) => (b.z.startsWith(q) - a.z.startsWith(q)) || best(a) - best(b)).slice(0, 8);
+  ul.innerHTML = lvSugg.map((r, i) => `<li data-i="${i}"><span class="n">${esc(r.naam)}</span><span class="m">${esc(r.land)}${r.geb ? ' · ' + r.geb : ''}</span></li>`).join('') || '<li><span class="m">Geen rijder met die naam bij dit geslacht.</span></li>';
+  ul.hidden = false;
+});
+const voegLiveToe = r => { const w = huidigeLive(); if (!w || w.deeln.some(d => d.id === r.id)) return; w.deeln.push({ id: r.id, tijd: '' }); bewaarLive(); $('lv-zoek').value = ''; $('lv-sugg').hidden = true; rekenLive(); };
+$('lv-sugg').addEventListener('mousedown', e => { const li = e.target.closest('li[data-i]'); if (li) { e.preventDefault(); voegLiveToe(lvSugg[+li.dataset.i]); } });
+$('lv-zoek').addEventListener('keydown', e => { if (e.key === 'Enter' && lvSugg[0]) { e.preventDefault(); voegLiveToe(lvSugg[0]); } });
+$('lv-zoek').addEventListener('blur', () => setTimeout(() => { $('lv-sugg').hidden = true; }, 150));
+$('lv-sim').addEventListener('click', () => { const w = huidigeLive(); if (!w) return;
+  sim.forEach(id => { if (!w.deeln.some(d => d.id === id)) w.deeln.push({ id, tijd: '' }); });
+  w.g = $('sm-g').value; w.af = $('sm-af').value; w.baan = $('sm-baan').value; w.soort = +$('sm-soort').value; bewaarLive(); tekenLive(); });
+document.addEventListener('input', e => { const t = e.target.closest('[data-lvt]'); if (!t) return; const w = huidigeLive(); const d = w?.deeln.find(x => x.id === +t.dataset.lvt); if (!d) return;
+  d.tijd = t.value; bewaarLive(); clearTimeout(t._tm); t._tm = setTimeout(() => rekenLive(false), 250); });
+document.addEventListener('click', e => {
+  const x = e.target.closest('[data-lvx]'); if (x) { const w = huidigeLive(); w.deeln = w.deeln.filter(d => d.id !== +x.dataset.lvx); bewaarLive(); rekenLive(); return; }
+  const v = e.target.closest('[data-lvv]'); if (v) { const w = huidigeLive(); const d = w.deeln.find(d => d.id === +v.dataset.lvv); d.val = !d.val; bewaarLive(); rekenLive(); }
+});
+
+async function rekenLive(startOpnieuw = true) {
+  const w = huidigeLive(); if (!w) return;
+  if (!schokRef) { try { schokRef = (await (await fetch('schokref.json')).json()).q; } catch (e) { $('lv-ijs').textContent = 'De referentieverdeling kon niet laden.'; return; } }
+  const data = await Promise.all(w.deeln.map(d => rijderData(d.id)));
+  const bp = w.baan ? META.baanpeil?.[w.baan]?.[`${w.g}|${w.af}`] : null;
+  const ijsSd = bp ? bp[1] : 0.006, delta = bp ? bp[0] : 0;      // ijs per wedstrijd (Heerenveen: robuust ±0,55%)
+  const ppl = w.deeln.map((d, i) => {
+    const dd = data[i], kand = dd ? Object.entries(dd.s).map(([s, e]) => [+s, e.af[w.af]]).filter(([, v]) => v && v[4] >= 2 && v[0] != null).sort((a, b) => b[0] - a[0]) : [];
+    const lv = kand[0];
+    const eigen = dd ? dd.r.filter(x => x[8] != null && !x[10] && lv && seizoenVan(x[0]) >= lv[0] - 1).map(x => Math.log1p(x[8] / 100)) : [];
+    const t = leesTijd(d.tijd);
+    return { id: d.id, val: !!d.val, tijd: t, fout: Number.isNaN(t), L: lv ? Math.log(lv[1][0]) + delta : null, s: lv?.[0], eigen, w: eigen.length / (eigen.length + 20) };
+  });
+  // ijs van vandaag: robuust gemiddelde van (ln tijd - verwacht) van de gereden ritten, gekrompen naar 0 (prior: ijsspreiding van de baan)
+  const sdRit = 0.009, gereden = ppl.filter(p => p.tijd > 0 && p.L != null && !p.val);
+  const res = gereden.map(p => Math.max(-0.04, Math.min(0.04, Math.log(p.tijd) - p.L)));
+  const prec = 1 / (ijsSd * ijsSd) + res.length / (sdRit * sdRit);
+  const ijs = res.length ? (res.reduce((a, b) => a + b, 0) / (sdRit * sdRit)) / prec : 0, ijsOnz = Math.sqrt(1 / prec);
+  $('lv-ijs').textContent = `${w.baan ? 'Normale dag in ' + META.banen[w.baan] : 'Normale dag in Heerenveen'}${w.baan && !bp ? ' (geen gegevens voor deze afstand op deze baan: Heerenveen gebruikt)' : ''}. `
+    + (res.length ? `IJs vandaag, geschat uit ${res.length} ${res.length === 1 ? 'rit' : 'ritten'}: ${Math.abs(100 * (Math.exp(ijs) - 1)) < 0.05 ? 'normaal' : (100 * Math.abs(Math.exp(ijs) - 1)).toFixed(1).replace('.', ',') + '% ' + (ijs < 0 ? 'sneller' : 'trager') + ' dan normaal'} (onzekerheid ±${(100 * ijsOnz).toFixed(1).replace('.', ',')}%).`
+                  : 'Nog geen tijden: verwachting op een normale dag.');
+  // simulatie: gereden tijden vast, de rest getrokken met de geschatte ijssnelheid
+  const N = 4000, n = ppl.length, winst = new Float64Array(n), pod = new Float64Array(n), plaats = new Float64Array(n), tij = ppl.map(() => new Float64Array(N));
+  const c = w.soort || 1, t = new Float64Array(n), idx = [...Array(n).keys()];
+  for (let k = 0; k < N; k++) {
+    const ijsK = ijs + ijsOnz * normaal();
+    for (let i = 0; i < n; i++) { const p = ppl[i];
+      if (p.val) t[i] = Infinity; else if (p.tijd > 0) t[i] = p.tijd;
+      else if (p.L == null) t[i] = NaN;
+      else t[i] = Math.exp(p.L + ijsK + c * ((p.eigen.length && Math.random() < p.w) ? trek(p.eigen) : trek(schokRef)));
+      tij[i][k] = t[i]; }
+    const ok = idx.filter(i => Number.isFinite(t[i])).sort((a, b) => t[a] - t[b]);
+    ok.forEach((i, r) => { plaats[i] += r + 1; if (r === 0) winst[i]++; if (r < 3) pod[i]++; });
+  }
+  const uit = ppl.map((p, i) => { const ts = Array.from(tij[i]).filter(Number.isFinite).sort((a, b) => a - b);
+    return { ...p, winst: winst[i] / N, pod: pod[i] / N, pl: plaats[i] / N, med: ts.length ? ts[ts.length >> 1] : null, p10: ts[Math.floor(ts.length * .1)], p90: ts[Math.floor(ts.length * .9)] }; });
+  if (startOpnieuw || !$('lv-start').querySelector('table')) {
+    $('lv-start').innerHTML = uit.length ? `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th>Verwacht vooraf</th><th>Gereden tijd</th><th></th><th></th></tr>` +
+      uit.map((p, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(p.id)}</td><td class="l">${esc(perId.get(p.id)?.land || '')}</td><td class="c">${p.L != null ? tijd(Math.exp(p.L)) : 'geen niveau'}</td>
+        <td><input data-lvt="${p.id}" value="${esc(w.deeln[i].tijd || '')}" inputmode="decimal" style="width:110px;text-align:right;font-family:var(--cijfer)" aria-label="Tijd van ${esc(perId.get(p.id)?.naam || '')}"></td>
+        <td><button class="mini" data-lvv="${p.id}" aria-pressed="${p.val}">Geen tijd</button></td><td><button class="mini" data-lvx="${p.id}" aria-label="Verwijderen">×</button></td></tr>`).join('') + '</table>'
+      : '<div class="leeg">Nog geen deelnemers. Zoek rijders hierboven of neem het veld van Simuleren over.</div>';
+  }
+  document.querySelectorAll('[data-lvt]').forEach(inp => { const p = ppl.find(x => x.id === +inp.dataset.lvt); inp.style.borderColor = p?.fout ? 'var(--slecht)' : ''; });
+  const st = uit.filter(p => !p.val && (p.tijd > 0 || p.L != null)).sort((a, b) => (a.tijd > 0 ? a.tijd : a.med) - (b.tijd > 0 ? b.tijd : b.med));
+  $('lv-stand').innerHTML = st.length ? `<table><tr><th>#</th><th class="l">Rijder</th><th>Tijd</th><th class="l">Status</th><th>80% van de verwachte tijden</th><th class="sort">Kans winst</th><th>Kans podium</th><th>Verwachte plaats</th></tr>` +
+    st.map((p, i) => `<tr${p.tijd > 0 ? '' : ' style="color:var(--zacht)"'}><td class="nr">${i + 1}</td><td class="l">${naamCel(p.id)}</td><td class="c">${tijd(p.tijd > 0 ? p.tijd : p.med)}</td><td class="l">${p.tijd > 0 ? 'gereden' : 'verwacht'}</td>
+      <td class="c">${p.tijd > 0 ? '' : tijd(p.p10) + ' – ' + tijd(p.p90)}</td><td class="c sort">${kans(p.winst)}</td><td class="c">${kans(p.pod)}</td><td class="c">${getal(p.pl, 1)}</td></tr>`).join('') + '</table>'
+    : '<div class="leeg">De verwachte uitslag verschijnt zodra er deelnemers met een niveau op deze afstand zijn.</div>';
 }
 start();
 </script>

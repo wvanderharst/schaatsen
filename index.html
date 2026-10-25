@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Schaatsarchief</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: een vaste balk bovenaan met naam, tabbladen en zoeken; daaronder steeds een volle-breedte weergave (rijder, ranglijsten,
+   talenten, vergelijken). Het rijderblad leest als een wedstrijduitslag: smalle cijferkolommen, het ijsblauw als achtergrond en het
+   oranje van de baanmarkering als enige accent. */
+:root {
+  --bg: #f3f6f9; --paneel: #ffffff; --lijn: #d6dee6; --fg: #14202b; --zacht: #5a6b7a;
+  --accent: #d9480f; --accent-zacht: #fde6d9; --ijs: #2f6f9f; --goed: #2b8a3e; --slecht: #b42318;
+  --kop: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --tekst: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --cijfer: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e1620; --paneel: #15212d; --lijn: #283847; --fg: #e3ebf2; --zacht: #8fa3b5;
+  --accent: #ff7a3d; --accent-zacht: #3a2116; --ijs: #7fb6e0; --goed: #5fd07a; --slecht: #ff8a7a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e1620; --paneel: #15212d; --lijn: #283847; --fg: #e3ebf2; --zacht: #8fa3b5;
+  --accent: #ff7a3d; --accent-zacht: #3a2116; --ijs: #7fb6e0; --goed: #5fd07a; --slecht: #ff8a7a; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font-family: var(--tekst); font-size: 15px; line-height: 1.45; margin: 0;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 40px }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg) }
+h1, h2, h3 { font-family: var(--kop); font-weight: 600; letter-spacing: .01em; text-wrap: balance; margin: 0 }
+h1 { font-size: 26px; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap }
+h2 { font-size: 26px }
+h3 { font-size: 18px; text-transform: uppercase; letter-spacing: .06em; color: var(--zacht) }
+.balk { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--lijn);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding-block: 12px; margin-bottom: 16px }
+.nav { display: flex; flex-wrap: wrap; gap: 4px }
+.nav button { font-family: var(--kop); font-size: 17px; letter-spacing: .04em; text-transform: uppercase; border: 0; background: none; color: var(--zacht); padding: 4px 8px; border-bottom: 2px solid transparent; cursor: pointer }
+.nav button[aria-current="page"] { color: var(--fg); border-bottom-color: var(--accent) }
+.nav .tel { font-family: var(--cijfer); font-size: 12px; color: var(--accent); margin-left: 3px }
+.zoekbak { position: relative; flex: 1 1 260px; min-width: 0; max-width: 460px; margin-left: auto }
+.suggesties { position: absolute; left: 0; right: 0; top: calc(100% + 4px); background: var(--paneel); border: 1px solid var(--lijn); border-radius: 6px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / .12); max-height: min(70vh, 520px); overflow-y: auto; z-index: 6; margin: 0; padding: 4px 0; list-style: none }
+.suggesties li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 10px; padding: 7px 12px; cursor: pointer }
+.suggesties li[aria-selected="true"], .suggesties li:hover { background: var(--accent-zacht) }
+.suggesties .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.suggesties .m { color: var(--zacht); font-size: 13px; grid-column: 1 }
+.suggesties .t { font-family: var(--cijfer); font-size: 12px; color: var(--accent); text-align: right; grid-row: 1 / span 2; grid-column: 2; align-self: center }
+.paneel { background: var(--paneel); border: 1px solid var(--lijn); border-radius: 6px; padding: 16px; min-width: 0 }
+label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--zacht); display: block; margin-bottom: 2px }
+input, select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--lijn); border-radius: 4px; padding: 7px 9px; width: 100% }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+.filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px 10px; align-items: end }
+.vink { display: flex; gap: 6px; align-items: center; font-size: 14px; color: var(--fg); text-transform: none; letter-spacing: 0; padding-bottom: 8px }
+.vink input { width: auto }
+.leeg { color: var(--zacht); padding: 18px 4px }
+.naamkop { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center }
+.naamkop h2 { font-size: 34px; text-transform: uppercase; letter-spacing: .03em }
+.feiten { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--zacht); margin-top: 4px }
+.feiten b { color: var(--fg); font-weight: 600 }
+.titels { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px }
+.pil { font-family: var(--kop); font-size: 14px; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--lijn); border-radius: 3px; padding: 2px 7px; background: var(--bg) }
+.pil.goud { border-color: var(--accent); color: var(--accent) }
+.knop { font-family: var(--kop); font-size: 15px; letter-spacing: .04em; text-transform: uppercase; border: 1px solid var(--accent); color: var(--accent); background: none; border-radius: 3px; padding: 3px 10px; cursor: pointer }
+.knop[aria-pressed="true"] { background: var(--accent); color: var(--paneel) }
+.mini { font-family: var(--cijfer); font-size: 12px; border: 1px solid var(--lijn); background: var(--bg); color: var(--zacht); border-radius: 3px; padding: 1px 6px; cursor: pointer }
+.mini[aria-pressed="true"] { border-color: var(--accent); color: var(--accent) }
+.naamknop { font: inherit; font-weight: 600; color: var(--fg); background: none; border: 0; padding: 0; cursor: pointer; text-align: left }
+.naamknop:hover { color: var(--accent); text-decoration: underline }
+.sectie { margin-top: 22px; display: grid; gap: 10px }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px }
+.tabs button { font-family: var(--kop); font-size: 15px; letter-spacing: .03em; border: 1px solid var(--lijn); background: var(--bg); color: var(--fg); padding: 4px 10px; border-radius: 3px; cursor: pointer }
+.tabs button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg) }
+.tabelbak { overflow-x: auto; border: 1px solid var(--lijn); border-radius: 4px }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px }
+th, td { padding: 5px 8px; border-bottom: 1px solid var(--lijn); text-align: right; white-space: nowrap }
+th { font-family: var(--kop); font-weight: 600; font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--zacht); background: var(--paneel) }
+td.l, th.l { text-align: left }
+td.c { font-family: var(--cijfer); font-variant-numeric: tabular-nums }
+td.nr { color: var(--zacht); font-family: var(--cijfer) }
+td.sort, th.sort { background: var(--accent-zacht) }
+tr.titelrij td { background: var(--accent-zacht) }
+.snel { color: var(--goed) } .traag { color: var(--slecht) }
+.uitleg { color: var(--zacht); font-size: 13px; max-width: 85ch; margin: 0 }
+.grafiek svg { width: 100%; height: auto; display: block }
+.grafiek text { fill: var(--zacht); font-family: var(--cijfer); font-size: 10px }
+.legenda { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--zacht) }
+.legenda span::before { content: ""; display: inline-block; width: 12px; height: 3px; margin-right: 5px; vertical-align: middle; background: var(--k) }
+.meer { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--zacht); font-size: 13px }
+.meer button { font: inherit; border: 1px solid var(--lijn); background: var(--bg); color: var(--fg); padding: 4px 10px; border-radius: 3px; cursor: pointer }
+.kans { font-family: var(--cijfer); font-size: 12.5px }
+.status { color: var(--zacht); font-size: 13px }
+.chips { display: flex; flex-wrap: wrap; gap: 6px }
+.chip { display: inline-flex; gap: 6px; align-items: center; border: 1px solid var(--lijn); border-left: 4px solid var(--k); border-radius: 3px; padding: 3px 4px 3px 8px; background: var(--bg) }
+.chip button { border: 0; background: none; color: var(--zacht); cursor: pointer; font-size: 15px; line-height: 1 }
+</style>
+
+<header class="balk">
+  <h1>Schaatsarchief</h1>
+  <nav class="nav" aria-label="Weergaven">
+    <button data-v="rijder">Rijder</button><button data-v="ranglijsten">Ranglijsten</button><button data-v="talenten">Talenten</button><button data-v="kampioenen">Kampioenen</button><button data-v="vergelijken">Vergelijken<span class="tel" id="tel"></span></button><button data-v="simuleren">Simuleren</button><button data-v="live">Live wedstrijd</button><button data-v="uitleg">Uitleg</button>
+  </nav>
+  <div class="zoekbak">
+    <input id="zoek" type="search" placeholder="Zoek een rijder, bijv. Daleman" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="suggesties" aria-label="Zoek een rijder">
+    <ul id="suggesties" class="suggesties" role="listbox" hidden></ul>
+  </div>
+</header>
+
+<main>
+  <section id="v-rijder" class="paneel" hidden><div id="blad"><div class="leeg">Zoek een rijder hierboven, of kies een naam in een ranglijst.</div></div></section>
+
+  <section id="v-ranglijsten" class="paneel" hidden>
+    <div class="filters">
+      <div><label for="rl-g">Geslacht</label><select id="rl-g"><option value="v">Vrouwen</option><option value="m">Mannen</option></select></div>
+      <div><label for="rl-af">Afstand</label><select id="rl-af"></select></div>
+      <div><label for="rl-van">Leeftijd van</label><select id="rl-van"></select></div>
+      <div><label for="rl-tot">Leeftijd tot en met</label><select id="rl-tot"></select></div>
+      <div><label for="rl-sz">Seizoen</label><select id="rl-sz"></select></div>
+      <div><label for="rl-land">Land</label><select id="rl-land"><option value="">Alle landen</option></select></div>
+      <div><label for="rl-maat">Rangschik op</label><select id="rl-maat"><option value="achter">Achterstand op de top-10 van dat seizoen</option><option value="hv">Tijd Heerenveen (ijs en materiaal van nu)</option><option value="toen">Tijd Heerenveen (ijs en materiaal van toen)</option></select></div>
+      <div><label for="rl-min">Minimaal ritten</label><select id="rl-min"><option>2</option><option selected>3</option><option>5</option><option>10</option></select></div>
+      <label class="vink"><input type="checkbox" id="rl-een" checked> Eén regel per rijder</label>
+    </div>
+    <p class="uitleg" style="margin-top:10px">De ranglijst gebruikt het niveau van elke rijder aan het eind van een seizoen. Met 'achterstand op de top-10' vergelijk je eerlijk over de jaren heen: je ziet hoe ver iemand achter de nummer 10 van de wereld zat in dat seizoen, zodat sneller ijs, beter materiaal en het stijgende niveau niet meetellen. De Heerenveen-tijd is de tijd die bij dat niveau hoort op een normale dag in Thialf. Leeftijd: de leeftijd in het jaar waarin het seizoen begon.</p>
+    <div class="status" id="rl-status" style="margin-top:8px"></div>
+    <div class="tabelbak" id="rl-tabel" style="margin-top:8px"></div><div class="meer" id="rl-meer"></div>
+  </section>
+
+  <section id="v-talenten" class="paneel" hidden>
+    <div class="filters">
+      <div><label for="tl-g">Geslacht</label><select id="tl-g"><option value="">Beide</option><option value="v">Vrouwen</option><option value="m">Mannen</option></select></div>
+      <div><label for="tl-van">Leeftijd van</label><select id="tl-van"></select></div>
+      <div><label for="tl-tot">Leeftijd tot en met</label><select id="tl-tot"></select></div>
+      <div><label for="tl-sz">Seizoen</label><select id="tl-sz"></select></div>
+      <div><label for="tl-land">Land</label><select id="tl-land"><option value="">Alle landen</option></select></div>
+      <div><label for="tl-sort">Sorteer op</label><select id="tl-sort">
+        <option value="3">Kans WK-titel</option><option value="4">Verwacht aantal WK-titels</option><option value="5">Kans olympische titel</option><option value="6">Verwacht olympische titels</option>
+        <option value="7">Kans World Cup-zege</option><option value="8">Verwacht World Cup-zeges</option><option value="9">Groei laatste jaar</option><option value="10">Niveau (achter top-10)</option></select></div>
+    </div>
+    <p class="uitleg" style="margin-top:10px">Rijders die nog geen wereld- of olympische titel hebben (kampioenen staan bij Kampioenen). Per rijder de geschatte kans om in de rest van de carrière minstens één WK-titel, olympische titel of World Cup-zege te halen, en hoeveel. Het model kijkt vooral naar hoe ver een rijder al achter de seniorentop zit, in combinatie met de leeftijd. Groei: hoeveel sneller dan het seizoen ervoor. Het zijn schattingen: in een terugblik klopte het totaal goed, maar wie laat doorbreekt, wordt soms gemist.</p>
+    <div class="status" id="tl-status" style="margin-top:8px"></div>
+    <div class="tabelbak" id="tl-tabel" style="margin-top:8px"></div><div class="meer" id="tl-meer"></div>
+  </section>
+
+  <section id="v-kampioenen" class="paneel" hidden>
+    <div class="filters">
+      <div><label for="kp-g">Geslacht</label><select id="kp-g"><option value="">Beide</option><option value="v">Vrouwen</option><option value="m">Mannen</option></select></div>
+      <div><label for="kp-van">Leeftijd van</label><select id="kp-van"></select></div>
+      <div><label for="kp-tot">Leeftijd tot en met</label><select id="kp-tot"></select></div>
+      <div><label for="kp-sz">Seizoen</label><select id="kp-sz"></select></div>
+      <div><label for="kp-land">Land</label><select id="kp-land"><option value="">Alle landen</option></select></div>
+      <div><label for="kp-sort">Sorteer op</label><select id="kp-sort">
+        <option value="t">Titels tot dan (WK + Spelen)</option><option value="12">WK-titels tot dan</option><option value="13">Olympische titels tot dan</option><option value="14">World Cup-zeges tot dan</option>
+        <option value="4">Nog te verwachten WK-titels</option><option value="tv">Verwacht totaal WK-titels in de carrière</option><option value="6">Nog te verwachten olympische titels</option><option value="10">Niveau (achter top-10)</option></select></div>
+    </div>
+    <p class="uitleg" style="margin-top:10px">Alle rijders die al een wereldtitel (WK afstanden, allround of sprint) of een olympische titel hebben. Je ziet hoeveel titels en World Cup-zeges ze tot en met dat seizoen hadden, en wat het model nog verwacht tot het eind van de carrière, met de kalender van nu: WK afstanden in oneven jaren, allround en sprint in even jaren, de Spelen elke vier jaar.</p>
+    <div class="status" id="kp-status" style="margin-top:8px"></div>
+    <div class="tabelbak" id="kp-tabel" style="margin-top:8px"></div><div class="meer" id="kp-meer"></div>
+  </section>
+
+  <section id="v-wedstrijd" class="paneel" hidden><div id="wd"></div></section>
+
+  <section id="v-simuleren" class="paneel" hidden>
+    <h3>Veld samenstellen</h3>
+    <div class="filters" style="margin-top:6px">
+      <div><label for="sm-g">Geslacht</label><select id="sm-g"><option value="v">Vrouwen</option><option value="m">Mannen</option></select></div>
+      <div><label for="sm-af">Afstand</label><select id="sm-af"></select></div>
+      <div><label for="sm-vsz">Seizoen</label><select id="sm-vsz"></select></div>
+      <div><label for="sm-lft">Leeftijd</label><select id="sm-lft"></select></div>
+      <div><label for="sm-land">Land</label><select id="sm-land"><option value="">Alle landen</option></select></div>
+      <div><label for="sm-thuis">Thuisbaan</label><select id="sm-thuis"><option value="">Alle banen</option></select></div>
+      <div><label for="sm-n">Aantal rijders</label><select id="sm-n"><option>4</option><option>8</option><option selected>12</option><option>16</option><option>24</option></select></div>
+      <div><label>&nbsp;</label><button class="knop" id="sm-top" type="button" aria-pressed="true">Stel samen en simuleer</button></div>
+    </div>
+    <p class="uitleg" style="margin-top:6px">Kies de categorieën en klik op de knop: de beste rijders binnen die keuze vormen het veld, en de wedstrijd wordt meteen gesimuleerd. 'Beste' betekent het niveau aan het eind van het seizoen, met minstens drie ritten op de afstand. Thuisbaan: de baan waar iemand de meeste ritten reed.</p>
+    <h3 style="margin-top:16px">Deelnemers</h3>
+    <div id="sm-chips" class="chips" style="margin-top:6px"></div>
+    <div class="filters" style="margin-top:8px">
+      <div style="grid-column: span 2"><label for="sm-zoek">Rijder toevoegen</label><input id="sm-zoek" type="search" placeholder="Naam" autocomplete="off"><ul id="sm-sugg" class="suggesties" style="position:relative;top:4px" hidden></ul></div>
+      <div><label>&nbsp;</label><button class="knop" id="sm-vg" type="button">Neem vergelijklijst over</button></div>
+      <div><label>&nbsp;</label><button class="knop" id="sm-leeg" type="button">Alles wissen</button></div>
+    </div>
+    <h3 style="margin-top:16px">Wedstrijd</h3>
+    <div class="filters" style="margin-top:6px">
+      <div><label for="sm-sz">Niveau uit</label><select id="sm-sz"><option value="sz">Het gekozen seizoen</option><option value="laatst">Laatste seizoen met ritten</option><option value="best">Beste seizoen</option></select></div>
+      <div><label for="sm-mod">Tijdperk</label><select id="sm-mod"><option value="nu">Omgerekend naar de top van nu</option><option value="abs">Absoluut (ijs en materiaal van nu)</option></select></div>
+      <div><label for="sm-baan">Baan</label><select id="sm-baan"><option value="">Normale dag in Heerenveen</option></select></div>
+      <div><label for="sm-soort">Soort wedstrijd</label><select id="sm-soort"><option value="1">Regionale of nationale wedstrijd</option><option value="0.9">World Cup</option><option value="0.8">WK of Spelen</option></select></div>
+      <div><label>&nbsp;</label><button class="knop" id="sm-start" type="button">Simuleer opnieuw</button></div>
+    </div>
+    <p class="uitleg" style="margin-top:10px">De wedstrijd wordt 10.000 keer nagespeeld. Elke keer krijgt het ijs een eigen snelheid, voor iedereen dezelfde, en rijdt elke rijder iets sneller of trager dan het eigen niveau, zoals in de eigen ritten van de laatste twee seizoenen: wie wisselvallig rijdt, heeft meer kans op een uitschieter naar boven en naar beneden. Op World Cups en vooral op WK's en Spelen rijden de toppers constanter. Kies je een baan, dan worden de tijden omgerekend naar een normale dag op die baan; op buitenbanen wisselt het ijs meer. 'Omgerekend naar de top van nu' laat rijders uit verschillende jaren eerlijk tegen elkaar rijden. Bij een leeftijd tellen alleen seizoenen tot en met die leeftijd. Meerkampen (kies ze bij Afstand): de eindstand gaat in punten, de tijd per 500 meter opgeteld; de ritten van een rijder op dezelfde dag hangen iets samen (dagvorm), net als het ijs op een dag. Iedereen rijdt alle vier de afstanden.</p>
+    <div class="status" id="sm-status" style="margin-top:8px"></div>
+    <div class="tabelbak" id="sm-tabel" style="margin-top:8px"></div>
+    <div class="sectie" id="sm-voorbeeld"></div>
+  </section>
+
+  <section id="v-live" class="paneel" hidden>
+    <p class="uitleg">Maak je eigen wedstrijd aan en vul de tijden in zodra rijders binnen zijn. Na elke tijd schat het model hoe snel het ijs vandaag is, door de gereden tijden te vergelijken met het niveau van die rijders, en past het meteen de verwachte tijden van de rest aan, met de kans op winst en podium. Je wedstrijden blijven bewaard in deze browser.</p>
+    <div class="filters" style="margin-top:10px">
+      <div><label for="lv-kies">Wedstrijd</label><select id="lv-kies"></select></div>
+      <div><label>&nbsp;</label><button class="knop" id="lv-nieuw" type="button">Nieuwe wedstrijd</button></div>
+      <div><label>&nbsp;</label><button class="knop" id="lv-weg" type="button">Wedstrijd verwijderen</button></div>
+    </div>
+    <div id="lv-werk" hidden>
+      <div class="filters" style="margin-top:14px">
+        <div style="grid-column: span 2"><label for="lv-naam">Naam</label><input id="lv-naam" type="text" placeholder="Bijv. Clubkampioenschap Den Haag"></div>
+        <div><label for="lv-baan">Baan</label><select id="lv-baan"><option value="">Normale dag in Heerenveen</option></select></div>
+        <div><label for="lv-g">Geslacht</label><select id="lv-g"><option value="v">Vrouwen</option><option value="m">Mannen</option></select></div>
+        <div><label for="lv-af">Afstand</label><select id="lv-af"></select></div>
+        <div><label for="lv-soort">Soort wedstrijd</label><select id="lv-soort"><option value="1">Regionale of nationale wedstrijd</option><option value="0.9">World Cup</option><option value="0.8">WK of Spelen</option></select></div>
+      </div>
+      <div class="filters" style="margin-top:10px">
+        <div style="grid-column: span 2"><label for="lv-zoek">Deelnemer toevoegen</label><input id="lv-zoek" type="search" placeholder="Naam" autocomplete="off"><ul id="lv-sugg" class="suggesties" style="position:relative;top:4px" hidden></ul></div>
+        <div><label>&nbsp;</label><button class="knop" id="lv-sim" type="button">Neem het veld van Simuleren over</button></div>
+      </div>
+      <div class="status" id="lv-ijs" style="margin-top:12px"></div>
+      <h3 style="margin-top:12px">Startlijst en tijden</h3>
+      <p class="uitleg">Vul een tijd in als 1:12,34 of 38,95. Geen dubbele punt op je telefoon? Een punt of spatie werkt ook: 1.12,34 of 1 12,34. Laat leeg wie nog moet rijden. Een rit zonder geldige tijd (val, diskwalificatie) markeer je met "Geen tijd".</p>
+      <div class="tabelbak" id="lv-start" style="margin-top:6px"></div>
+      <h3 style="margin-top:16px">Verwachte uitslag</h3>
+      <div class="tabelbak" id="lv-stand" style="margin-top:6px"></div>
+    </div>
+  </section>
+
+  <section id="v-uitleg" class="paneel" hidden>
+    <div style="max-width:75ch; display:grid; gap:12px">
+      <h2>Over het Schaatsarchief</h2>
+      <p>Alle langebaanritten sinds 2006 (meer dan 4 miljoen, van ruim 118.000 rijders), met een model dat elke rit eerlijk vergelijkbaar maakt: over banen, ijs en jaren heen. Zoek een rijder in de balk bovenaan, of gebruik de tabbladen.</p>
+      <h3>Begrippen</h3>
+      <p><b>Niveau.</b> Hoe snel een rijder op een afstand is, geschat uit alle eigen ritten tot dan toe. Het model weegt recente ritten zwaarder en houdt rekening met groei en vorm. Het niveau aan het eind van een seizoen staat in de seizoenstabellen.</p>
+      <p><b>Heerenveen-tijd.</b> Elke tijd omgerekend naar een normale dag in Thialf. Eerst schat het model hoe snel het ijs bij een wedstrijd was, uit de tijden van het hele veld; daarna wordt de tijd verschoven naar Heerenveen. Zo kun je een rit in Inzell, Salt Lake City of op een buitenbaan direct vergelijken. "Nu" gebruikt het ijs en materiaal van nu, "toen" dat van het seizoen zelf.</p>
+      <p><b>Achterstand op de top-10.</b> Hoeveel procent iemand langzamer was dan de nummer 10 van de wereld in dat seizoen. Omdat elk seizoen met de top van dat jaar wordt vergeleken, tellen sneller ijs, beter materiaal en het stijgende niveau niet mee: zo vergelijk je rijders uit 2010 eerlijk met rijders van nu. Negatief betekent sneller dan de nummer 10.</p>
+      <p><b>Eigen prestatie.</b> Hoeveel sneller (+) of trager (−) een rijder reed dan het model vooraf verwachtte, met de ijssnelheid van die dag eruit gehaald. De kans erachter zegt hoe vaak zo'n prestatie voorkomt bij toprijders.</p>
+      <p><b>Titelkansen.</b> De kans om in de rest van de carrière minstens één WK-titel, olympische titel of World Cup-zege te halen, en het verwachte aantal. Het model heeft geleerd van eerdere jaargangen: vooral hoe ver iemand op een bepaalde leeftijd al achter de seniorentop zit. In een terugblik klopte het totaal aantal kampioenen goed, maar het model vindt de latere kampioenen niet veel beter dan simpelweg sorteren op niveau, en recente generaties worden jonger kampioen dan vroeger. Lees de kansen dus als een grove inschatting.</p>
+      <p><b>Simuleren en Live wedstrijd.</b> Een wedstrijd wordt 10.000 keer nagespeeld: per keer een ijssnelheid voor iedereen en per rijder een afwijking zoals in de eigen ritten van de laatste twee seizoenen. In Live wedstrijd vul je echte tijden in; het model leert daaruit hoe snel het ijs vandaag is en past de verwachting voor de rest aan.</p>
+      <h3>Wat het model niet weet</h3>
+      <p>Blessures, ziekte, materiaalwissels, trainingsblokken en de motivatie van de dag ziet het model alleen terug in gereden tijden. Rijders met weinig ritten hebben een onzeker niveau. Ritten die onmogelijk snel lijken, zijn gemarkeerd als verdacht en tellen niet mee.</p>
+      <h3>Bronnen</h3>
+      <p>Uitslagen van officiële wedstrijden sinds 2006, met per rijder geslacht, land en geboortejaar. Titels: WK afstanden, allround en sprint en de Olympische Spelen. World Cup-zeges: internationale wedstrijden buiten WK en Spelen met een veld van minstens tien senioren.</p>
+    </div>
+  </section>
+
+  <section id="v-vergelijken" class="paneel" hidden>
+    <div id="vg-chips" class="chips"></div>
+    <p class="uitleg" style="margin-top:10px">Voeg rijders toe met de knop Vergelijk, in een lijst of op een rijderpagina (tot 8). De grafiek legt de loopbanen naast elkaar op leeftijd: hoe ver zat iemand achter de nummer 10 van de wereld in dat seizoen. Hoger is beter. In de tabel kies je wat je per leeftijd wilt zien.</p>
+    <div class="filters" style="margin-top:10px">
+      <div><label for="vg-af">Afstand</label><select id="vg-af"><option value="">Beste afstand per seizoen</option></select></div>
+      <div><label for="vg-maat">Tabel</label><select id="vg-maat"><option value="achter">Achter top-10</option><option value="p_wk">Kans WK-titel</option><option value="e_wk">Verwacht WK-titels</option><option value="p_os">Kans olympische titel</option><option value="p_wc">Kans World Cup-zege</option><option value="groei">Groei</option></select></div>
+    </div>
+    <div class="grafiek" id="vg-grafiek" style="margin-top:10px"></div>
+    <div class="tabelbak" id="vg-tabel" style="margin-top:10px"></div>
+  </section>
+</main>
+
+<script>
+const AFN = ['100 m', '300 m', '500 m', '1000 m', '1500 m', '3000 m', '5000 m', '10.000 m'];
+const AFK = ['100m', '300m', '500m', '1000m', '1500m', '3000m', '5000m', '10000m'];
+const SEN = ['500m', '1000m', '1500m', '3000m', '5000m', '10000m'];
+const KLEUR = ['#9aa9b6', '#7d8f9f', '#d9480f', '#e8890c', '#2f6f9f', '#5b8c2a', '#7b4fa3', '#a0306a'];
+const VKLEUR = ['#d9480f', '#2f6f9f', '#2b8a3e', '#7b4fa3', '#c2255c', '#e8890c', '#0b7285', '#5c6b7a'];
+const SOORT = { S: 'Spelen', W: 'WK', C: 'World Cup' };
+let META = null, rijders = [], perId = new Map(), blokken = new Map(), huidig = null, lijsten = new Map(), weergave = 'rijder';
+let vergelijk = []; try { vergelijk = JSON.parse(localStorage.getItem('vergelijk') || '[]'); } catch (e) {}
+
+async function gz(pad) {
+  // data staat als base64-tekst van gzip-JSON (de artifact-host serveert geen .gz)
+  const r = await fetch(pad);
+  if (!r.ok) throw new Error(pad + ': ' + r.status);
+  if (!('DecompressionStream' in window)) throw new Error('Deze browser kan de gecomprimeerde data niet openen.');
+  const bin = atob((await r.text()).trim()), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  const s = new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(s).text());
+}
+const tijd = s => { if (s == null) return ''; const m = Math.floor(s / 60), r = s - 60 * m; return (m ? m + ':' + r.toFixed(2).padStart(5, '0') : r.toFixed(2)).replace('.', ','); };
+const pct = (v, d = 1) => v == null ? '' : (v > 0 ? '+' : '') + v.toFixed(d).replace('.', ',') + '%';
+const datum = d => { const x = new Date(d * 864e5); return String(x.getUTCDate()).padStart(2, '0') + '-' + String(x.getUTCMonth() + 1).padStart(2, '0') + '-' + x.getUTCFullYear(); };
+const sz = s => s + '/' + String((s + 1) % 100).padStart(2, '0');
+const kans = p => p == null ? '' : p >= 0.995 ? '>99%' : p < 0.001 ? '<0,1%' : (100 * p).toFixed(p < 0.1 ? 1 : 0).replace('.', ',') + '%';
+const getal = (v, d) => v == null ? '' : v.toFixed(d).replace('.', ',');
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const $ = id => document.getElementById(id);
+const opties = (el, lijst) => { el.innerHTML = lijst.map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join(''); };
+
+/* ---------- weergaven ---------- */
+function toon(v, push = true) {
+  weergave = v;
+  for (const x of ['rijder', 'ranglijsten', 'talenten', 'kampioenen', 'vergelijken', 'wedstrijd', 'simuleren', 'live', 'uitleg']) $('v-' + x).hidden = x !== v;
+  document.querySelectorAll('.nav button').forEach(b => b.setAttribute('aria-current', b.dataset.v === (v === 'wedstrijd' ? 'rijder' : v) ? 'page' : 'false'));
+  if (push && v !== 'rijder' && v !== 'wedstrijd') { try { history.replaceState(null, '', '#' + v); } catch (e) {} }
+  if (v === 'ranglijsten') tekenRanglijst();
+  if (v === 'talenten') tekenTalenten();
+  if (v === 'kampioenen') tekenKampioenen();
+  if (v === 'vergelijken') tekenVergelijk();
+  if (v === 'simuleren') tekenSimChips();
+  if (v === 'live') tekenLive();
+  window.scrollTo({ top: 0 });
+}
+document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click', () => {
+  if (b.dataset.v === 'rijder' && huidig) { try { history.replaceState(null, '', '#r' + huidig.r.id); } catch (e) {} }
+  toon(b.dataset.v);
+}));
+
+/* ---------- zoeken met suggesties ---------- */
+let sugg = [], sel = -1;
+function zoekSuggesties() {
+  const q = norm($('zoek').value.trim()), ul = $('suggesties');
+  if (q.length < 2) { ul.hidden = true; $('zoek').setAttribute('aria-expanded', 'false'); return; }
+  const best = r => r.best == null ? 99 : r.best;
+  sugg = rijders.filter(r => r.z.includes(q)).sort((a, b) => (b.z.startsWith(q) - a.z.startsWith(q)) || best(a) - best(b)).slice(0, 12);
+  sel = sugg.length ? 0 : -1;
+  ul.innerHTML = sugg.length ? sugg.map((r, i) => `<li role="option" id="s${i}" data-id="${r.id}" aria-selected="${i === sel}"><span class="n">${esc(r.naam)}</span>
+      <span class="t">${r.wk + r.os ? (r.wk + r.os) + '× titel' : r.wc ? r.wc + '× WC' : r.best != null ? pct(r.best) : ''}</span>
+      <span class="m">${esc(r.land)} · ${r.g === 'v' ? 'vrouw' : 'man'}${r.geb ? ' · ' + r.geb : ''} · ${sz(r.van)}–${sz(r.tot)}</span></li>`).join('')
+    : '<li class="m" aria-disabled="true"><span class="m">Geen rijder met die naam.</span></li>';
+  ul.hidden = false; $('zoek').setAttribute('aria-expanded', 'true');
+}
+function kiesSugg(i) { const r = sugg[i]; if (!r) return; $('zoek').value = ''; $('suggesties').hidden = true; openRijder(r.id); }
+$('zoek').addEventListener('input', zoekSuggesties);
+$('zoek').addEventListener('keydown', e => {
+  const ul = $('suggesties'); if (ul.hidden) return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(0, Math.min(sugg.length - 1, sel + (e.key === 'ArrowDown' ? 1 : -1)));
+    ul.querySelectorAll('li').forEach((li, i) => li.setAttribute('aria-selected', i === sel)); ul.querySelector(`#s${sel}`)?.scrollIntoView({ block: 'nearest' }); }
+  else if (e.key === 'Enter') { e.preventDefault(); kiesSugg(sel); }
+  else if (e.key === 'Escape') { ul.hidden = true; }
+});
+$('suggesties').addEventListener('mousedown', e => { const li = e.target.closest('li[data-id]'); if (li) { e.preventDefault(); kiesSugg([...$('suggesties').children].indexOf(li)); } });
+$('zoek').addEventListener('blur', () => setTimeout(() => { $('suggesties').hidden = true; }, 150));
+
+/* ---------- vergelijken: lijst bijhouden ---------- */
+function bewaar() { try { localStorage.setItem('vergelijk', JSON.stringify(vergelijk)); } catch (e) {} $('tel').textContent = vergelijk.length ? vergelijk.length : ''; }
+function wissel(id) {
+  const i = vergelijk.indexOf(id);
+  if (i >= 0) vergelijk.splice(i, 1); else if (vergelijk.length < 8) vergelijk.push(id);
+  bewaar(); document.querySelectorAll(`[data-vg="${id}"]`).forEach(b => b.setAttribute('aria-pressed', vergelijk.includes(id)));
+  if (weergave === 'vergelijken') tekenVergelijk();
+}
+const vgKnop = id => `<button class="mini" data-vg="${id}" aria-pressed="${vergelijk.includes(id)}" title="Toevoegen aan vergelijken">Vergelijk</button>`;
+document.addEventListener('click', e => {
+  const v = e.target.closest('[data-vg]'); if (v) { wissel(+v.dataset.vg); return; }
+  const n = e.target.closest('[data-open]'); if (n) openRijder(+n.dataset.open);
+  const w = e.target.closest('[data-race]'); if (w) openWedstrijd(w.dataset.race);
+});
+const naamCel = id => { const r = perId.get(id); return r ? `<button class="naamknop" data-open="${id}">${esc(r.naam)}</button>` : id; };
+
+/* ---------- start ---------- */
+async function start() {
+  try {
+    const d = await gz('index.txt'); META = d.meta;
+    rijders = d.rijders.map(r => ({ id: r[0], naam: r[1], g: r[2], land: r[3], geb: r[4], van: r[5], tot: r[6], ritten: r[7], wk: r[8], os: r[9], wc: r[10], best: r[11], thuis: r[12], z: norm(r[1]) }));
+    rijders.forEach(r => perId.set(r.id, r));
+    const landen = [...new Set(rijders.map(r => r.land))].sort();
+    for (const id of ['rl-land', 'tl-land', 'kp-land', 'sm-land']) $(id).insertAdjacentHTML('beforeend', landen.map(l => `<option>${esc(l)}</option>`).join(''));
+    opties($('rl-af'), AFK.map((a, i) => [a, AFN[i]])); $('rl-af').value = '1000m';
+    const lft = []; for (let a = 10; a <= 45; a++) lft.push([a, a + ' jaar']);
+    opties($('rl-van'), [['', 'Alle']].concat(lft)); opties($('rl-tot'), [['', 'Alle']].concat(lft));
+    opties($('tl-van'), lft.filter(x => x[0] >= 13 && x[0] <= 39)); opties($('tl-tot'), lft.filter(x => x[0] >= 13 && x[0] <= 39));
+    $('tl-van').value = 15; $('tl-tot').value = 19;
+    opties($('kp-van'), lft.filter(x => x[0] >= 13)); opties($('kp-tot'), lft.filter(x => x[0] >= 13)); $('kp-van').value = 13; $('kp-tot').value = 45;
+    opties($('sm-lft'), [['', 'Alle leeftijden']].concat(lft.filter(x => x[0] <= 40).map(([a]) => [a, 'tot en met ' + a + ' jaar'])));
+    const jaren = []; for (let j = META.laatste; j >= 2006; j--) jaren.push([j, sz(j)]);
+    opties($('rl-sz'), [['', 'Alle seizoenen']].concat(jaren));
+    opties($('tl-sz'), [['nu', 'Nu (laatste seizoen per rijder)'], ['', 'Alle seizoenen']].concat(jaren));
+    opties($('lv-af'), SEN.map(a => [a, AFN[AFK.indexOf(a)]]));
+    $('lv-baan').insertAdjacentHTML('beforeend', Object.keys(META.baanpeil || {}).sort((a, b) => META.banen[a].localeCompare(META.banen[b])).map(b => `<option value="${b}">${esc(META.banen[b])}</option>`).join(''));
+    opties($('sm-vsz'), [['nu', 'Nu (laatste twee seizoenen)']].concat(jaren));
+    $('sm-baan').insertAdjacentHTML('beforeend', Object.keys(META.baanpeil || {}).sort((a, b) => META.banen[a].localeCompare(META.banen[b])).map(b => `<option value="${b}">${esc(META.banen[b])}</option>`).join(''));
+    { const tel = {}; rijders.forEach(r => { if (r.thuis != null) tel[r.thuis] = (tel[r.thuis] || 0) + 1; });
+      $('sm-thuis').insertAdjacentHTML('beforeend', Object.entries(tel).filter(([, n]) => n >= 20).sort((a, b) => META.banen[a[0]].localeCompare(META.banen[b[0]])).map(([b, n]) => `<option value="${b}">${esc(META.banen[b])} (${n.toLocaleString('nl-NL')})</option>`).join('')); }
+    opties($('kp-sz'), [['nu', 'Nu actief (laatste seizoen)'], ['ooit', 'Alle kampioenen ooit (laatste seizoen)'], ['', 'Alle seizoenen']].concat(jaren));
+    opties($('sm-af'), SEN.map(a => [a, AFN[AFK.indexOf(a)]])); $('sm-af').value = '1000m';
+    $('sm-af').insertAdjacentHTML('beforeend', '<optgroup label="Meerkampen">' + Object.entries(MK).map(([k, m]) => `<option value="mk:${k}">${m.naam}</option>`).join('') + '</optgroup>');
+    $('vg-af').insertAdjacentHTML('beforeend', SEN.map(a => `<option value="${a}">${AFN[AFK.indexOf(a)]}</option>`).join(''));
+    ['rl-g', 'rl-af', 'rl-van', 'rl-tot', 'rl-sz', 'rl-land', 'rl-maat', 'rl-min', 'rl-een'].forEach(id => $(id).addEventListener('input', () => { rlPag = 0; tekenRanglijst(); }));
+    ['tl-g', 'tl-van', 'tl-tot', 'tl-sz', 'tl-land', 'tl-sort'].forEach(id => $(id).addEventListener('input', () => { tlPag = 0; tekenTalenten(); }));
+    ['kp-g', 'kp-van', 'kp-tot', 'kp-sz', 'kp-land', 'kp-sort'].forEach(id => $(id).addEventListener('input', () => { kpPag = 0; tekenKampioenen(); }));
+    ['vg-af', 'vg-maat'].forEach(id => $(id).addEventListener('input', tekenVergelijk));
+    bewaar();
+    const h = location.hash;
+    const m = h.match(/^#r(\d+)$/);
+    if (m) openRijder(+m[1]);
+    else if (['#ranglijsten', '#talenten', '#kampioenen', '#vergelijken', '#simuleren', '#live', '#uitleg'].includes(h)) toon(h.slice(1));
+    else toon('talenten');
+  } catch (e) { $('blad').innerHTML = `<div class="leeg">De rijders konden niet laden: ${esc(e.message)}</div>`; toon('rijder', false); }
+}
+
+async function lijst(naam) {
+  if (!lijsten.has(naam)) lijsten.set(naam, gz(`l/${naam}.txt`));
+  return lijsten.get(naam);
+}
+
+/* ---------- ranglijsten ---------- */
+let rlPag = 0;
+async function tekenRanglijst() {
+  const g = $('rl-g').value, af = $('rl-af').value, van = +$('rl-van').value || 0, tot = +$('rl-tot').value || 99, s = +$('rl-sz').value || 0,
+        land = $('rl-land').value, maat = $('rl-maat').value, min = +$('rl-min').value, een = $('rl-een').checked;
+  if (g === 'v' && af === '10000m') { $('rl-status').textContent = 'Bij de vrouwen is de 10.000 m geen officiële afstand; er is geen ranglijst.'; $('rl-tabel').innerHTML = ''; $('rl-meer').innerHTML = ''; return; }
+  $('rl-status').textContent = 'Laden…';
+  let rows; try { rows = await lijst(`${g}_${af}`); } catch (e) { $('rl-status').textContent = 'Deze lijst kon niet laden: ' + e.message; return; }
+  const waarde = r => maat === 'achter' ? r[4] : maat === 'hv' ? r[3] : toen(r[3], r[1]);
+  let x = rows.filter(r => r[6] >= min && r[4] != null && (r[2] == null ? !van && tot === 99 : r[2] >= van && r[2] <= tot) && (!s || r[1] === s) && (!land || perId.get(r[0])?.land === land));
+  x.sort((a, b) => waarde(a) - waarde(b));
+  if (een) { const gezien = new Set(); x = x.filter(r => !gezien.has(r[0]) && gezien.add(r[0])); }
+  const n = x.length, P = 100; const pag = Math.min(rlPag, Math.max(0, Math.ceil(n / P) - 1));
+  $('rl-status').textContent = n ? `${n.toLocaleString('nl-NL')} ${een ? 'rijders' : 'rijder-seizoenen'}` : '';
+  const k = c => maat === c ? ' sort' : '';
+  $('rl-tabel').innerHTML = n ? `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th class="l">Seizoen</th><th>Leeftijd</th><th class="${k('hv')}">Heerenveen nu</th><th class="${k('toen')}">Heerenveen toen</th><th class="${k('achter')}">Achter top-10</th><th>Wereldrang</th><th>Ritten</th><th></th></tr>` +
+    x.slice(pag * P, pag * P + P).map((r, i) => `<tr><td class="nr">${pag * P + i + 1}</td><td class="l">${naamCel(r[0])}</td><td class="l">${esc(perId.get(r[0])?.land || '')}</td><td class="l">${sz(r[1])}</td><td class="c">${r[2] ?? ''}</td>
+      <td class="c${k('hv')}">${tijd(r[3])}</td><td class="c${k('toen')}">${tijd(toen(r[3], r[1]))}</td><td class="c${k('achter')}">${pct(r[4])}</td><td class="c">${r[5] ?? ''}</td><td class="c">${r[6]}</td><td>${vgKnop(r[0])}</td></tr>`).join('') + '</table>'
+    : '<div class="leeg">Geen rijders met deze filters. Verruim de leeftijd of het seizoen, of verlaag het minimale aantal ritten.</div>';
+  pagina($('rl-meer'), n, pag, P, p => { rlPag = p; tekenRanglijst(); });
+}
+function pagina(el, n, pag, P, ga) {
+  el.innerHTML = n > P ? `<button data-p="${pag - 1}" ${pag === 0 ? 'disabled' : ''}>Vorige 100</button><span>${(pag * P + 1).toLocaleString('nl-NL')}–${Math.min(n, pag * P + P).toLocaleString('nl-NL')} van ${n.toLocaleString('nl-NL')}</span><button data-p="${pag + 1}" ${pag * P + P >= n ? 'disabled' : ''}>Volgende 100</button>` : '';
+  el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { ga(+b.dataset.p); el.parentElement.scrollIntoView({ block: 'start' }); }));
+}
+
+/* ---------- talenten ---------- */
+let tlPag = 0;
+async function tekenTalenten() {
+  const g = $('tl-g').value, van = +$('tl-van').value, tot = +$('tl-tot').value, szk = $('tl-sz').value, land = $('tl-land').value, sk = +$('tl-sort').value;
+  $('tl-status').textContent = 'Laden…';
+  let rows; try { rows = await lijst('kans'); } catch (e) { $('tl-status').textContent = 'De kansen konden niet laden: ' + e.message; return; }
+  let x = rows.filter(r => r[2] != null && r[2] >= van && r[2] <= tot && r[3] != null && !(r[12] + r[13]) && (!g || perId.get(r[0])?.g === g) && (!land || perId.get(r[0])?.land === land)
+                       && (szk === 'nu' ? r[1] >= META.laatste - 1 : !szk || r[1] === +szk));
+  if (szk === 'nu') { const m = new Map(); x.forEach(r => { const o = m.get(r[0]); if (!o || r[1] > o[1]) m.set(r[0], r); }); x = [...m.values()]; }
+  const waarde = r => sk === 10 ? (r[10] == null ? 99 : r[10]) : -(r[sk] ?? -1e9);
+  x.sort((a, b) => waarde(a) - waarde(b));
+  const n = x.length, P = 100, pag = Math.min(tlPag, Math.max(0, Math.ceil(n / P) - 1));
+  $('tl-status').textContent = n ? `${n.toLocaleString('nl-NL')} rijders${szk === 'nu' ? ' (laatste seizoen per rijder)' : ''}` : '';
+  const k = c => sk === c ? ' sort' : '';
+  $('tl-tabel').innerHTML = n ? `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th class="l">Seizoen</th><th>Leeftijd</th><th class="l">Beste afstand</th><th class="${k(10)}">Achter top-10</th><th class="${k(9)}">Groei</th>
+      <th class="${k(3)}">Kans WK-titel</th><th class="${k(4)}">Verwacht WK</th><th class="${k(5)}">Kans olympisch</th><th class="${k(6)}">Verwacht olympisch</th><th class="${k(7)}">Kans WC-zege</th><th class="${k(8)}">Verwacht WC</th><th></th></tr>` +
+    x.slice(pag * P, pag * P + P).map((r, i) => `<tr><td class="nr">${pag * P + i + 1}</td><td class="l">${naamCel(r[0])}</td><td class="l">${esc(perId.get(r[0])?.land || '')}</td><td class="l">${sz(r[1])}</td><td class="c">${r[2]}</td>
+      <td class="l">${r[11] != null ? AFN[AFK.indexOf(SEN[r[11]])] : ''}</td><td class="c${k(10)}">${pct(r[10])}</td><td class="c${k(9)} ${r[9] > 0 ? 'snel' : r[9] < 0 ? 'traag' : ''}">${pct(r[9])}</td>
+      <td class="c${k(3)}">${kans(r[3])}</td><td class="c${k(4)}">${getal(r[4], 2)}</td><td class="c${k(5)}">${kans(r[5])}</td><td class="c${k(6)}">${getal(r[6], 2)}</td><td class="c${k(7)}">${kans(r[7])}</td><td class="c${k(8)}">${getal(r[8], 1)}</td><td>${vgKnop(r[0])}</td></tr>`).join('') + '</table>'
+    : '<div class="leeg">Geen rijders met deze filters. Verruim de leeftijd of kies een ander seizoen.</div>';
+  pagina($('tl-meer'), n, pag, P, p => { tlPag = p; tekenTalenten(); });
+}
+
+/* ---------- vergelijken ---------- */
+async function rijderData(id) {
+  const b = id % META.nb;
+  if (!blokken.has(b)) blokken.set(b, await gz(`r/${b}.txt`));
+  return blokken.get(b)[id];
+}
+async function tekenVergelijk() {
+  $('vg-chips').innerHTML = vergelijk.length ? vergelijk.map((id, i) => `<span class="chip" style="--k:${VKLEUR[i]}"><button class="naamknop" data-open="${id}">${esc(perId.get(id)?.naam || id)}</button><button aria-label="Verwijderen" data-vg="${id}">×</button></span>`).join('')
+    : '<span class="status">Nog geen rijders gekozen.</span>';
+  if (!vergelijk.length) { $('vg-grafiek').innerHTML = ''; $('vg-tabel').innerHTML = ''; return; }
+  const af = $('vg-af').value, maat = $('vg-maat').value;
+  const data = await Promise.all(vergelijk.map(rijderData));
+  const reeks = data.map(d => Object.entries(d?.s || {}).map(([s, e]) => {
+    let v = null;
+    if (af) { const a = e.af[af]; if (a && a[4] >= 3) v = a[1]; }
+    else SEN.forEach(a => { const w = e.af[a]; if (w && w[4] >= 3 && w[1] != null && (v == null || w[1] < v)) v = w[1]; });
+    return { s: +s, l: e.lft, v, k: e.kans, groei: e.groei };
+  }).filter(p => p.l != null).sort((a, b) => a.l - b.l));
+  let lmin = 99, lmax = 0, ymin = 0, ymax = 2;
+  reeks.forEach(p => p.forEach(q => { if (q.v == null) return; lmin = Math.min(lmin, q.l); lmax = Math.max(lmax, q.l); ymin = Math.min(ymin, q.v); ymax = Math.max(ymax, q.v); }));
+  if (lmin > lmax) { $('vg-grafiek').innerHTML = '<p class="uitleg">Geen seizoenen met minstens drie ritten op deze afstand.</p>'; }
+  else {
+    ymax = Math.min(ymax, 40);
+    const W = 680, H = 260, L = 44, R = 12, T = 10, B = 28;
+    const xs = l => L + (lmax === lmin ? (W - L - R) / 2 : (l - lmin) / (lmax - lmin) * (W - L - R)), ys = v => T + (Math.min(v, ymax) - ymin) / (ymax - ymin) * (H - T - B);
+    const stap = ymax - ymin > 20 ? 10 : ymax - ymin > 8 ? 4 : ymax - ymin > 4 ? 2 : 1;
+    let g = '';
+    for (let v = Math.ceil(ymin / stap) * stap; v <= ymax + 1e-9; v += stap) g += `<line x1="${L}" x2="${W - R}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--lijn)" stroke-width="${v === 0 ? 1.4 : .7}"/><text x="${L - 6}" y="${ys(v) + 3}" text-anchor="end">${v > 0 ? '+' : ''}${v}%</text>`;
+    for (let l = lmin; l <= lmax; l++) g += `<text x="${xs(l)}" y="${H - 9}" text-anchor="middle">${l}</text>`;
+    reeks.forEach((p, i) => { const q = p.filter(x => x.v != null);
+      g += `<polyline fill="none" stroke="${VKLEUR[i]}" stroke-width="2" points="${q.map(x => xs(x.l) + ',' + ys(x.v)).join(' ')}"/>` + q.map(x => `<circle cx="${xs(x.l)}" cy="${ys(x.v)}" r="2.6" fill="${VKLEUR[i]}"><title>${esc(perId.get(vergelijk[i])?.naam || '')}, ${x.l} jaar (${sz(x.s)}): ${pct(x.v)}</title></circle>`).join(''); });
+    $('vg-grafiek').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Loopbanen naast elkaar op leeftijd">${g}</svg><div class="legenda"><span style="--k:transparent">Leeftijd →</span>${vergelijk.map((id, i) => `<span style="--k:${VKLEUR[i]}">${esc(perId.get(id)?.naam || '')}</span>`).join('')}</div>`;
+  }
+  const lft = [...new Set(reeks.flat().map(q => q.l))].sort((a, b) => a - b);
+  const cel = q => { if (!q) return ''; if (maat === 'achter') return pct(q.v); if (maat === 'groei') return pct(q.groei);
+    if (!q.k) return ''; return maat.startsWith('p_') ? kans(q.k[maat]) : getal(q.k[maat], 2); };
+  $('vg-tabel').innerHTML = `<table><tr><th class="l">Rijder</th>${lft.map(l => `<th>${l} jaar</th>`).join('')}</tr>` +
+    reeks.map((p, i) => `<tr><td class="l" style="border-left:4px solid ${VKLEUR[i]}">${naamCel(vergelijk[i])}</td>${lft.map(l => `<td class="c">${cel(p.find(q => q.l === l))}</td>`).join('')}</tr>`).join('') + '</table>';
+}
+
+/* ---------- rijderblad ---------- */
+async function openRijder(id) {
+  const r = perId.get(id); if (!r) return;
+  toon('rijder', false);
+  $('blad').innerHTML = `<div class="status">${esc(r.naam)} laden…</div>`;
+  try { history.replaceState(null, '', '#r' + id); } catch (e) {}
+  const d = await rijderData(id); huidig = { r, d, af: null, rpag: 0, rsz: '', raf: '' };
+  const telling = {}; d.r.forEach(x => telling[x[1]] = (telling[x[1]] || 0) + 1);
+  const best = {}; Object.values(d.s).forEach(e => Object.entries(e.af).forEach(([a, v]) => { if (v[1] != null && v[4] >= 3 && (best[a] == null || v[1] < best[a])) best[a] = v[1]; }));
+  const voorkeur = Object.entries(best).sort((p, q) => p[1] - q[1])[0];
+  huidig.af = voorkeur ? voorkeur[0] : AFK[(+Object.entries(telling).sort((p, q) => q[1] - p[1])[0]?.[0]) || 2];
+  tekenBlad(); window.scrollTo({ top: 0 });
+}
+function tekenBlad() {
+  const { r, d } = huidig, blad = document.getElementById('blad');
+  const titels = []; Object.entries(d.s).forEach(([s, e]) => (e.titels || []).forEach(t => titels.push(t)));
+  const afIn = AFK.filter(a => Object.values(d.s).some(e => e.af[a]));
+  blad.innerHTML = `
+    <div class="naamkop"><h2>${esc(r.naam)}</h2><button class="knop" data-vg="${r.id}" aria-pressed="${vergelijk.includes(r.id)}">Vergelijk</button></div>
+    <div class="feiten"><span><b>${esc(r.land)}</b></span><span>${r.g === 'v' ? 'Vrouw' : 'Man'}</span>${r.geb ? `<span>Geboren <b>${r.geb}</b></span>` : ''}
+      <span>Actief <b>${sz(r.van)} – ${sz(r.tot)}</b></span><span><b>${r.ritten.toLocaleString('nl-NL')}</b> ritten</span>
+      <span>WK-titels <b>${r.wk}</b></span><span>Olympische titels <b>${r.os}</b></span><span>World Cup-zeges <b>${r.wc}</b></span></div>
+    ${titels.length ? `<div class="titels">${titels.map(t => `<span class="pil goud">${esc(t)}</span>`).join('')}</div>` : ''}
+    <section class="sectie"><h3>Loopbaan</h3>
+      <p class="uitleg">Hoe ver deze rijder per seizoen achter de nummer 10 van de wereld zat, per afstand (alleen seizoenen met minstens drie ritten op die afstand). 0% is precies het niveau van de nummer 10; hoger in de grafiek is beter. Omdat elk seizoen met de top van dat jaar wordt vergeleken, tellen sneller ijs en beter materiaal niet mee.</p>
+      <div class="grafiek" id="grafiek"></div></section>
+    <section class="sectie"><h3>Per seizoen</h3>
+      <div class="tabs" role="group" aria-label="Afstand">${afIn.map(a => `<button data-af="${a}" aria-pressed="${a === huidig.af}">${AFN[AFK.indexOf(a)]}</button>`).join('')}</div>
+      <p class="uitleg">Heerenveen nu: de tijd die bij het niveau hoort op een normale dag in Thialf, met het ijs en materiaal van nu. Heerenveen toen: dezelfde tijd met het ijs en materiaal van dat seizoen (in 2008 was dat ongeveer 1,4% trager). In niveau van nu: dezelfde achterstand op de top-10, toegepast op de top van ${sz(META.laatste)}. Wereldrang: plaats op de wereldranglijst van dat seizoen op deze afstand. Bij junioren staat de groei ten opzichte van het jaar ervoor. De kansen gaan over de rest van de carrière, zoals het model ze aan het eind van dat seizoen gaf.</p>
+      <div class="tabelbak" id="seizoenen"></div></section>
+    <section class="sectie"><h3>Alle ritten</h3>
+      <div class="filters" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr))">
+        <div><label for="rsz">Seizoen</label><select id="rsz"><option value="">Alle seizoenen</option>${[...new Set(d.r.map(x => seizoenVan(x[0])))].sort((a, b) => b - a).map(s => `<option value="${s}">${sz(s)}</option>`).join('')}</select></div>
+        <div><label for="raf">Afstand</label><select id="raf"><option value="">Alle afstanden</option>${[...new Set(d.r.map(x => x[1]))].sort((a, b) => a - b).map(a => `<option value="${a}">${AFN[a]}</option>`).join('')}</select></div>
+      </div>
+      <p class="uitleg">Heerenveen nu: de rit omgerekend naar een normale dag in Thialf, met het ijs en materiaal van nu. Daarvoor wordt eerst bepaald hoe snel het ijs die dag was, uit de tijden van het hele veld. Heerenveen toen: met het ijs en materiaal van dat seizoen. Eigen prestatie: hoeveel sneller (+) of trager (−) de rijder reed dan verwacht, met het ijs eruit gehaald. Kans: hoe vaak zo'n prestatie voorkomt. Klik op een datum voor de hele uitslag van die wedstrijd.</p>
+      <div class="tabelbak" id="ritten"></div><div class="meer" id="meer"></div></section>`;
+  blad.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { huidig.af = b.dataset.af; tekenBlad(); }));
+  document.getElementById('rsz').value = huidig.rsz; document.getElementById('raf').value = huidig.raf;
+  document.getElementById('rsz').addEventListener('input', e => { huidig.rsz = e.target.value; huidig.rpag = 0; tekenRitten(); });
+  document.getElementById('raf').addEventListener('input', e => { huidig.raf = e.target.value; huidig.rpag = 0; tekenRitten(); });
+  tekenGrafiek(); tekenSeizoenen(); tekenRitten();
+}
+const toen = (t, s) => t == null ? null : t * Math.exp((META.era && (META.era[s] ?? (s < 2007 ? META.era[2007] : 0))) || 0);
+const seizoenVan = d => { const x = new Date(d * 864e5); return x.getUTCMonth() >= 6 ? x.getUTCFullYear() : x.getUTCFullYear() - 1; };
+
+function tekenGrafiek() {
+  const { d } = huidig, el = document.getElementById('grafiek');
+  const reeks = {}; let smin = 1e9, smax = -1e9, ymax = 0, ymin = 0;
+  Object.entries(d.s).forEach(([s, e]) => Object.entries(e.af).forEach(([a, v]) => { if (v[1] == null || v[4] < 3) return; (reeks[a] = reeks[a] || []).push([+s, v[1]]); smin = Math.min(smin, +s); smax = Math.max(smax, +s); ymax = Math.max(ymax, v[1]); ymin = Math.min(ymin, v[1]); }));
+  const ks = Object.keys(reeks);
+  if (!ks.length) { el.innerHTML = '<p class="uitleg">Nog geen afstand met minstens drie ritten in een seizoen.</p>'; return; }
+  ymax = Math.min(Math.max(ymax, 2), 40); ymin = Math.min(ymin, 0);
+  const W = 640, H = 220, L = 44, R = 12, T = 10, B = 26;
+  const xs = s => L + (smax === smin ? (W - L - R) / 2 : (s - smin) / (smax - smin) * (W - L - R)), ys = v => T + (Math.min(v, ymax) - ymin) / (ymax - ymin) * (H - T - B);
+  const stap = ymax - ymin > 20 ? 10 : ymax - ymin > 8 ? 4 : ymax - ymin > 4 ? 2 : 1;
+  let g = '';
+  for (let v = Math.ceil(ymin / stap) * stap; v <= ymax + 1e-9; v += stap) g += `<line x1="${L}" x2="${W - R}" y1="${ys(v)}" y2="${ys(v)}" stroke="var(--lijn)" stroke-width="${v === 0 ? 1.4 : .7}"/><text x="${L - 6}" y="${ys(v) + 3}" text-anchor="end">${v > 0 ? '+' : ''}${v}%</text>`;
+  const sstap = Math.max(1, Math.ceil((smax - smin) / 8));
+  for (let s = smin; s <= smax; s += sstap) g += `<text x="${xs(s)}" y="${H - 8}" text-anchor="middle">${sz(s)}</text>`;
+  ks.forEach(a => { const i = AFK.indexOf(a), p = reeks[a].sort((x, y) => x[0] - y[0]);
+    g += `<polyline fill="none" stroke="${KLEUR[i]}" stroke-width="${a === huidig.af ? 2.6 : 1.4}" points="${p.map(([s, v]) => xs(s) + ',' + ys(v)).join(' ')}"/>` + p.map(([s, v]) => `<circle cx="${xs(s)}" cy="${ys(v)}" r="${a === huidig.af ? 3 : 2}" fill="${KLEUR[i]}"><title>${AFN[i]} ${sz(s)}: ${pct(v)}</title></circle>`).join(''); });
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Achterstand op de top-10 per seizoen">${g}</svg><div class="legenda">${ks.map(a => `<span style="--k:${KLEUR[AFK.indexOf(a)]}">${AFN[AFK.indexOf(a)]}</span>`).join('')}</div>`;
+}
+
+function tekenSeizoenen() {
+  const { d, af } = huidig;
+  const rijen = Object.entries(d.s).map(([s, e]) => [+s, e]).sort((a, b) => b[0] - a[0]);
+  const jeugd = rijen.some(([, e]) => e.kans || e.groei != null);
+  const kop = `<tr><th class="l">Seizoen</th><th>Leeftijd</th><th>Niveau Heerenveen nu</th><th>Heerenveen toen</th><th>Achter top-10</th><th>In niveau van nu</th><th>Wereldrang</th><th>Ritten</th><th>WK</th><th>Spelen</th><th>WC-zeges</th>${jeugd ? '<th>Groei</th><th>Kans WK-titel</th><th>Verwacht WK</th><th>Kans olympisch</th><th>Verwacht olympisch</th><th>Kans WC-zege</th><th>Verwacht WC</th>' : ''}</tr>`;
+  const body = rijen.map(([s, e]) => { const v = e.af[af]; const k = e.kans;
+    return `<tr class="${(e.wk || e.os) ? 'titelrij' : ''}"><td class="l">${sz(s)}</td><td class="c">${e.lft ?? ''}</td>
+      <td class="c">${v ? tijd(v[0]) : ''}</td><td class="c">${v ? tijd(toen(v[0], s)) : ''}</td><td class="c">${v ? pct(v[1]) : ''}</td><td class="c">${v ? tijd(v[2]) : ''}</td><td class="c">${v && v[3] ? v[3] : ''}</td><td class="c">${v ? v[4] : ''}</td>
+      <td class="c">${e.wk || ''}</td><td class="c">${e.os || ''}</td><td class="c">${e.wc || ''}</td>
+      ${jeugd ? `<td class="c ${e.groei > 0 ? 'snel' : e.groei < 0 ? 'traag' : ''}">${e.groei != null ? pct(e.groei) : ''}</td><td class="c">${k ? kans(k.p_wk) : ''}</td><td class="c">${k ? k.e_wk.toFixed(2).replace('.', ',') : ''}</td><td class="c">${k ? kans(k.p_os) : ''}</td><td class="c">${k ? k.e_os.toFixed(2).replace('.', ',') : ''}</td><td class="c">${k ? kans(k.p_wc) : ''}</td><td class="c">${k ? k.e_wc.toFixed(1).replace('.', ',') : ''}</td>` : ''}</tr>`; }).join('');
+  document.getElementById('seizoenen').innerHTML = `<table>${kop}${body}</table>`;
+}
+
+function tekenRitten() {
+  const { d } = huidig, P = 100;
+  let x = d.r.filter(v => (!huidig.rsz || seizoenVan(v[0]) === +huidig.rsz) && (huidig.raf === '' || v[1] === +huidig.raf)).slice().reverse();
+  const n = x.length, pag = Math.min(huidig.rpag, Math.max(0, Math.ceil(n / P) - 1)); x = x.slice(pag * P, pag * P + P);
+  const kop = '<tr><th class="l">Datum</th><th class="l">Afstand</th><th class="l">Baan</th><th class="l">Wedstrijd</th><th>Tijd</th><th>Heerenveen nu</th><th>Heerenveen toen</th><th>Plaats</th><th>Eigen prestatie</th><th>Kans</th></tr>';
+  const body = x.map(v => { const sp = v[8], k = v[9];
+    const eig = sp == null ? '' : `<span class="${sp < 0 ? 'snel' : 'traag'}">${(sp < 0 ? '+' : '−') + Math.abs(sp).toFixed(1).replace('.', ',')}%</span>`;
+    const kk = k == null ? '' : k < 0.5 ? `1 op ${Math.round(1 / k).toLocaleString('nl-NL')} sneller` : `1 op ${Math.round(1 / (1 - k)).toLocaleString('nl-NL')} trager`;
+    return `<tr><td class="l c"><button class="naamknop" style="font-weight:400;font-family:var(--cijfer)" data-race="${v[0]}|${v[2]}|${huidig.r.g}|${v[1]}" title="Hele uitslag">${datum(v[0])}</button></td><td class="l">${AFN[v[1]]}</td><td class="l">${esc(META.banen[v[2]])}</td><td class="l">${SOORT[v[7]] || ''}${v[10] ? ' (verdacht)' : ''}</td>
+      <td class="c">${tijd(v[3])}</td><td class="c">${tijd(v[4])}</td><td class="c">${tijd(toen(v[4], seizoenVan(v[0])))}</td><td class="c">${v[5] ? v[5] + '/' + v[6] : ''}</td><td class="c">${eig}</td><td class="kans">${kk}</td></tr>`; }).join('');
+  document.getElementById('ritten').innerHTML = n ? `<table>${kop}${body}</table>` : '<div class="leeg">Geen ritten met deze filters.</div>';
+  const m = document.getElementById('meer');
+  m.innerHTML = n > P ? `<button id="vorige" ${pag === 0 ? 'disabled' : ''}>Nieuwere</button><span>${(pag * P + 1).toLocaleString('nl-NL')}–${Math.min(n, pag * P + P).toLocaleString('nl-NL')} van ${n.toLocaleString('nl-NL')} ritten</span><button id="volgende" ${pag * P + P >= n ? 'disabled' : ''}>Oudere</button>` : n ? `<span>${n.toLocaleString('nl-NL')} ritten</span>` : '';
+  m.querySelector('#vorige')?.addEventListener('click', () => { huidig.rpag = pag - 1; tekenRitten(); });
+  m.querySelector('#volgende')?.addEventListener('click', () => { huidig.rpag = pag + 1; tekenRitten(); });
+}
+
+/* ---------- wedstrijd ---------- */
+const wbest = new Map();
+async function openWedstrijd(key) {
+  const [dag, bi, g, a] = key.split('|').map((v, i) => i === 2 ? v : +v);
+  toon('wedstrijd', false);
+  $('wd').innerHTML = '<div class="status">Uitslag laden…</div>';
+  const b = Math.floor(dag / 60);
+  if (!wbest.has(b)) wbest.set(b, gz(`w/${b}.txt`));
+  let races; try { races = await wbest.get(b); } catch (e) { $('wd').innerHTML = `<div class="leeg">Deze uitslag kon niet laden: ${esc(e.message)}</div>`; return; }
+  const rows = races[key] || [];
+  const win = rows.find(r => r[1] != null && !r[8]);
+  const soort = rows.find(r => r[5])?.[5];
+  const terug = huidig ? `<button class="mini" data-open="${huidig.r.id}">← ${esc(huidig.r.naam)}</button>` : '';
+  $('wd').innerHTML = `<div class="naamkop">${terug}</div>
+    <div class="naamkop" style="margin-top:6px"><h2>${AFN[a]} ${g === 'v' ? 'vrouwen' : 'mannen'}</h2><button class="knop" id="wd-sim" type="button">Simuleer met deze rijders</button></div>
+    <div class="feiten"><span><b>${datum(dag)}</b></span><span>${esc(META.banen[bi])}</span>${soort ? `<span><b>${SOORT[soort]}</b></span>` : ''}<span><b>${rows.length}</b> ritten</span></div>
+    <p class="uitleg" style="margin-top:10px">Alle ritten op deze baan, op deze dag en deze afstand, op volgorde van tijd. Ritten uit verschillende onderdelen of omlopen staan samen; 'Plaats' is de plaats in het eigen onderdeel. Eigen prestatie: hoeveel sneller (+) of trager (−) dan verwacht, met het ijs eruit gehaald.</p>
+    <div class="tabelbak" style="margin-top:10px"><table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th>Geboren</th><th>Tijd</th><th>Achter winnaar</th><th>Heerenveen nu</th><th>Plaats</th><th>Eigen prestatie</th><th class="l">Kans</th><th></th></tr>
+    ${rows.map((r, i) => { const rr = perId.get(r[0]) || {}; const sp = r[6], k = r[7];
+      const eig = sp == null ? '' : `<span class="${sp < 0 ? 'snel' : 'traag'}">${(sp < 0 ? '+' : '−') + Math.abs(sp).toFixed(1).replace('.', ',')}%</span>`;
+      const kk = k == null ? '' : k < 0.5 ? `1 op ${Math.round(1 / k).toLocaleString('nl-NL')} sneller` : `1 op ${Math.round(1 / (1 - k)).toLocaleString('nl-NL')} trager`;
+      const ach = win && r[1] != null ? (r[1] === win[1] ? '' : '+' + (r[1] - win[1]).toFixed(2).replace('.', ',')) : '';
+      return `<tr${huidig && r[0] === huidig.r.id ? ' class="titelrij"' : ''}><td class="nr">${i + 1}</td><td class="l">${naamCel(r[0])}</td><td class="l">${esc(rr.land || '')}</td><td class="c">${rr.geb || ''}</td>
+        <td class="c">${tijd(r[1])}${r[8] ? ' (verdacht)' : ''}</td><td class="c">${ach}</td><td class="c">${tijd(r[2])}</td><td class="c">${r[3] ? r[3] + '/' + r[4] : ''}</td><td class="c">${eig}</td><td class="kans l">${kk}</td><td>${vgKnop(r[0])}</td></tr>`; }).join('')}</table></div>`;
+  $('wd-sim').addEventListener('click', () => { sim = [...new Set(rows.map(r => r[0]))].slice(0, 24); bewaarSim(); $('sm-af').value = AFK[a]; $('sm-g').value = g; $('sm-sz').value = 'laatst'; toon('simuleren'); draaiSim(); });
+  window.scrollTo({ top: 0 });
+}
+
+/* ---------- simuleren ---------- */
+let sim = []; try { sim = JSON.parse(localStorage.getItem('sim') || '[]'); } catch (e) {}
+let schokRef = null;
+function bewaarSim() { try { localStorage.setItem('sim', JSON.stringify(sim)); } catch (e) {} }
+function tekenSimChips() {
+  $('sm-chips').innerHTML = sim.length ? sim.map(id => `<span class="chip" style="--k:var(--accent)"><button class="naamknop" data-open="${id}">${esc(perId.get(id)?.naam || id)}</button><button aria-label="Verwijderen" data-smx="${id}">×</button></span>`).join('')
+    : '<span class="status">Nog geen deelnemers. Voeg rijders toe, neem de vergelijklijst over of kies de top 12 van nu.</span>';
+}
+document.addEventListener('click', e => { const x = e.target.closest('[data-smx]'); if (x) { sim = sim.filter(i => i !== +x.dataset.smx); bewaarSim(); tekenSimChips(); } });
+let smSugg = [];
+$('sm-zoek').addEventListener('input', () => {
+  const q = norm($('sm-zoek').value.trim()), ul = $('sm-sugg');
+  if (q.length < 2) { ul.hidden = true; return; }
+  const best = r => r.best == null ? 99 : r.best;
+  smSugg = rijders.filter(r => r.z.includes(q)).sort((a, b) => (b.z.startsWith(q) - a.z.startsWith(q)) || best(a) - best(b)).slice(0, 8);
+  ul.innerHTML = smSugg.map((r, i) => `<li data-i="${i}"><span class="n">${esc(r.naam)}</span><span class="m">${esc(r.land)} · ${r.g === 'v' ? 'vrouw' : 'man'}${r.geb ? ' · ' + r.geb : ''}</span></li>`).join('') || '<li><span class="m">Geen rijder met die naam.</span></li>';
+  ul.hidden = false;
+});
+$('sm-sugg').addEventListener('mousedown', e => { const li = e.target.closest('li[data-i]'); if (!li) return; e.preventDefault();
+  const r = smSugg[+li.dataset.i]; if (!sim.includes(r.id) && sim.length < 24) sim.push(r.id); bewaarSim(); tekenSimChips(); $('sm-zoek').value = ''; $('sm-sugg').hidden = true; });
+$('sm-zoek').addEventListener('keydown', e => { if (e.key === 'Enter' && smSugg[0]) { e.preventDefault(); const r = smSugg[0]; if (!sim.includes(r.id) && sim.length < 24) sim.push(r.id); bewaarSim(); tekenSimChips(); $('sm-zoek').value = ''; $('sm-sugg').hidden = true; } });
+$('sm-zoek').addEventListener('blur', () => setTimeout(() => { $('sm-sugg').hidden = true; }, 150));
+$('sm-vg').addEventListener('click', () => { vergelijk.forEach(id => { if (!sim.includes(id) && sim.length < 24) sim.push(id); }); bewaarSim(); tekenSimChips(); });
+$('sm-leeg').addEventListener('click', () => { sim = []; bewaarSim(); tekenSimChips(); $('sm-tabel').innerHTML = ''; $('sm-voorbeeld').innerHTML = ''; $('sm-status').textContent = ''; });
+$('sm-top').addEventListener('click', async () => {
+  if ($('sm-af').value.startsWith('mk:')) return stelMeerkampSamen();
+  const g = $('sm-g').value, af = $('sm-af').value, vsz = $('sm-vsz').value, lmax = +$('sm-lft').value || 99, land = $('sm-land').value,
+        th = $('sm-thuis').value, n = +$('sm-n').value;
+  if (g === 'v' && af === '10000m') { $('sm-status').textContent = 'Bij de vrouwen is de 10.000 m geen officiële afstand.'; return; }
+  $('sm-status').textContent = 'Veld samenstellen…';
+  const rows = await lijst(`${g}_${af}`);
+  const m = new Map();
+  rows.filter(r => (vsz === 'nu' ? r[1] >= META.laatste - 1 : r[1] === +vsz) && r[6] >= 3 && r[4] != null && (r[2] ?? 99) <= lmax
+                   && (!land || perId.get(r[0])?.land === land) && (!th || String(perId.get(r[0])?.thuis) === th))
+      .forEach(r => { const o = m.get(r[0]); if (!o || r[4] < o[4]) m.set(r[0], r); });
+  sim = [...m.values()].sort((a, b) => a[4] - b[4]).slice(0, n).map(r => r[0]); bewaarSim(); tekenSimChips();
+  if (th && [...$('sm-baan').options].some(o => o.value === th)) $('sm-baan').value = th;
+  if (!sim.length) { $('sm-status').textContent = 'Geen rijders in deze categorieën. Verruim de leeftijd, het land of de thuisbaan.'; $('sm-tabel').innerHTML = ''; $('sm-voorbeeld').innerHTML = ''; return; }
+  draaiSim();
+});
+$('sm-start').addEventListener('click', draaiSim);
+
+function trek(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function normaal() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+
+async function draaiSim() {
+  if ($('sm-af').value.startsWith('mk:')) return draaiMeerkamp();
+  if (!sim.length) { $('sm-status').textContent = 'Kies eerst deelnemers.'; return; }
+  const af = $('sm-af').value, wijze = $('sm-sz').value, mod = $('sm-mod').value, c = +$('sm-soort').value, N = 10000;
+  $('sm-status').textContent = 'Rijders laden…';
+  if (!schokRef) { try { schokRef = (await (await fetch('schokref.json')).json()).q; } catch (e) { $('sm-status').textContent = 'De referentieverdeling kon niet laden.'; return; } }
+  const data = await Promise.all(sim.map(rijderData));
+  const deeln = [], weg = [];
+  sim.forEach((id, i) => {
+    const d = data[i]; if (!d) { weg.push(id); return; }
+    const lmax = +$('sm-lft').value || 99;
+    const kand = Object.entries(d.s).filter(([, e]) => (e.lft ?? 0) <= lmax).map(([s, e]) => [+s, e.af[af]]).filter(([, v]) => v && v[4] >= 2 && v[0] != null);
+    if (!kand.length) { weg.push(id); return; }
+    const vsz = $('sm-vsz').value;
+    const gekozen = wijze === 'sz' ? (vsz === 'nu' ? kand.filter(([s]) => s >= META.laatste - 1).sort((a, b) => b[0] - a[0])[0] : kand.find(([s]) => s === +vsz)) : null;
+    const [s, v] = gekozen ? gekozen : wijze === 'best' ? kand.filter(([, v]) => v[4] >= 3 && v[1] != null).sort((a, b) => a[1][1] - b[1][1])[0] || kand.sort((a, b) => b[0] - a[0])[0] : kand.sort((a, b) => b[0] - a[0])[0];
+    const niveau = mod === 'nu' ? v[2] : v[0];
+    const eigen = d.r.filter(x => x[8] != null && !x[10] && (() => { const q = seizoenVan(x[0]); return q <= s && q >= s - 1; })()).map(x => Math.log1p(x[8] / 100));
+    const tel = {}; d.r.forEach(x => tel[x[2]] = (tel[x[2]] || 0) + 1);
+    const thuis = Object.entries(tel).sort((a, b) => b[1] - a[1])[0];
+    deeln.push({ id, s, niveau, L: Math.log(niveau), eigen, w: eigen.length / (eigen.length + 20), thuis: thuis ? META.banen[+thuis[0]] : '', thuisN: thuis ? thuis[1] : 0, nRit: d.r.length });
+  });
+  if (!deeln.length) { $('sm-status').textContent = `Geen van de deelnemers heeft een niveau op de ${AFN[AFK.indexOf(af)]}.`; $('sm-tabel').innerHTML = ''; return; }
+  const baan = $('sm-baan').value, geen = [];
+  let ijsSd = 0.004;
+  deeln.forEach(p => { const g = perId.get(p.id)?.g, bp = baan ? META.baanpeil?.[baan]?.[`${g}|${af}`] : null;
+    if (baan && !bp) geen.push(perId.get(p.id)?.naam);
+    if (bp) { p.L += bp[0]; p.niveau = Math.exp(p.L); ijsSd = Math.max(ijsSd, bp[1]); } });
+  const n = deeln.length, winst = new Float64Array(n), pod = new Float64Array(n), top5 = new Float64Array(n), plaats = new Float64Array(n), tijden = deeln.map(() => new Float64Array(N));
+  const t = new Float64Array(n), idx = [...Array(n).keys()];
+  for (let k = 0; k < N; k++) {
+    const ijs = ijsSd * normaal();
+    for (let i = 0; i < n; i++) { const p = deeln[i]; const z = (p.eigen.length && Math.random() < p.w) ? trek(p.eigen) : trek(schokRef); t[i] = Math.exp(p.L + ijs + c * z); tijden[i][k] = t[i]; }
+    idx.sort((a, b) => t[a] - t[b]);
+    idx.forEach((i, r) => { plaats[i] += r + 1; if (r === 0) winst[i]++; if (r < 3) pod[i]++; if (r < 5) top5[i]++; });
+  }
+  const res = deeln.map((p, i) => { const ts = Array.from(tijden[i]).sort((a, b) => a - b); return { ...p, winst: winst[i] / N, pod: pod[i] / N, top5: top5[i] / N, pl: plaats[i] / N, med: ts[N >> 1], p10: ts[Math.floor(N * .1)], p90: ts[Math.floor(N * .9)] }; })
+    .sort((a, b) => a.pl - b.pl);
+  $('sm-status').textContent = `${N.toLocaleString('nl-NL')} keer gesimuleerd, ${AFN[AFK.indexOf(af)]}, ${baan ? 'normale dag in ' + META.banen[baan] + ` (ijs wisselt per wedstrijd ±${(100 * ijsSd).toFixed(1).replace('.', ',')}%)` : 'normale dag in Heerenveen'}${geen.length ? `. Geen peil voor deze baan en afstand bij: ${geen.join(', ')} (Heerenveen gebruikt)` : ''}${weg.length ? `. Zonder niveau op deze afstand: ${weg.map(id => perId.get(id)?.naam).join(', ')}` : ''}.`;
+  $('sm-tabel').innerHTML = `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th class="l">Thuisbaan</th><th class="l">Niveau uit</th><th>Niveau</th><th class="sort">Kans winst</th><th>Kans podium</th><th>Kans top 5</th><th>Verwachte plaats</th><th>Mediaan tijd</th><th>80% van de tijden</th><th>Eigen ritten</th></tr>` +
+    res.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td><td class="l" title="${r.thuisN} van ${r.nRit} ritten">${esc(r.thuis)}</td><td class="l">${sz(r.s)}</td><td class="c">${tijd(r.niveau)}</td><td class="c sort">${kans(r.winst)}</td><td class="c">${kans(r.pod)}</td><td class="c">${kans(r.top5)}</td>
+      <td class="c">${getal(r.pl, 1)}</td><td class="c">${tijd(r.med)}</td><td class="c">${tijd(r.p10)} – ${tijd(r.p90)}</td><td class="c">${r.eigen.length}</td></tr>`).join('') + '</table>';
+  // een voorbeelduitslag
+  const ijs = ijsSd * normaal();
+  const vb = deeln.map(p => ({ id: p.id, t: Math.exp(p.L + ijs + c * ((p.eigen.length && Math.random() < p.w) ? trek(p.eigen) : trek(schokRef))) })).sort((a, b) => a.t - b.t);
+  $('sm-voorbeeld').innerHTML = `<h3>Eén voorbeelduitslag</h3><div class="tabelbak"><table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th>Tijd</th><th>Achter</th></tr>${vb.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td><td class="c">${tijd(r.t)}</td><td class="c">${i ? '+' + (r.t - vb[0].t).toFixed(2).replace('.', ',') : ''}</td></tr>`).join('')}</table></div>
+    <div><button class="knop" id="sm-nog" type="button">Nog een voorbeelduitslag</button></div>`;
+  $('sm-nog').addEventListener('click', draaiSim);
+}
+
+/* ---------- kampioenen ---------- */
+let kpPag = 0;
+async function tekenKampioenen() {
+  const g = $('kp-g').value, van = +$('kp-van').value, tot = +$('kp-tot').value, szk = $('kp-sz').value, land = $('kp-land').value, sk = $('kp-sort').value;
+  $('kp-status').textContent = 'Laden…';
+  let rows; try { rows = await lijst('kans'); } catch (e) { $('kp-status').textContent = 'De kampioenen konden niet laden: ' + e.message; return; }
+  let x = rows.filter(r => (r[12] + r[13]) > 0 && (r[2] == null ? van <= 13 && tot >= 45 : r[2] >= van && r[2] <= tot) && (!g || perId.get(r[0])?.g === g) && (!land || perId.get(r[0])?.land === land)
+                       && (szk === 'nu' ? r[1] >= META.laatste - 1 : szk === 'ooit' || !szk || r[1] === +szk));
+  if (szk === 'nu' || szk === 'ooit') { const m = new Map(); x.forEach(r => { const o = m.get(r[0]); if (!o || r[1] > o[1]) m.set(r[0], r); }); x = [...m.values()]; }
+  const w = r => sk === 't' ? r[12] + r[13] : sk === 'tv' ? r[12] + (r[4] || 0) : sk === '10' ? -(r[10] ?? 99) : (r[+sk] || 0);
+  x.sort((a, b) => w(b) - w(a) || (a[10] ?? 99) - (b[10] ?? 99));
+  const n = x.length, P = 100, pag = Math.min(kpPag, Math.max(0, Math.ceil(n / P) - 1));
+  $('kp-status').textContent = n ? `${n.toLocaleString('nl-NL')} ${szk === 'nu' || szk === 'ooit' ? 'kampioenen' : 'kampioen-seizoenen'}` : '';
+  const k = c => sk === c ? ' sort' : '';
+  $('kp-tabel').innerHTML = n ? `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th class="l">Seizoen</th><th>Leeftijd</th><th class="l">Beste afstand</th><th class="${k('10')}">Achter top-10</th><th>Wereldrang</th>
+      <th class="${k('12')}${k('t')}">WK-titels</th><th class="${k('13')}${k('t')}">Olympisch</th><th class="${k('14')}">WC-zeges</th><th>Kans nog een WK-titel</th><th class="${k('4')}">Nog verwacht WK</th><th class="${k('tv')}">Verwacht totaal WK</th><th>Kans nog olympisch</th><th class="${k('6')}">Nog verwacht olympisch</th><th>Nog verwacht WC</th><th></th></tr>` +
+    x.slice(pag * P, pag * P + P).map((r, i) => `<tr><td class="nr">${pag * P + i + 1}</td><td class="l">${naamCel(r[0])}</td><td class="l">${esc(perId.get(r[0])?.land || '')}</td><td class="l">${sz(r[1])}</td><td class="c">${r[2] ?? ''}</td>
+      <td class="l">${r[11] != null ? AFN[AFK.indexOf(SEN[r[11]])] : ''}</td><td class="c${k('10')}">${pct(r[10])}</td><td class="c">${r[15] ?? ''}</td>
+      <td class="c${k('12')}${k('t')}">${r[12] || ''}</td><td class="c${k('13')}${k('t')}">${r[13] || ''}</td><td class="c${k('14')}">${r[14] || ''}</td>
+      <td class="c">${kans(r[3])}</td><td class="c${k('4')}">${getal(r[4], 2)}</td><td class="c${k('tv')}">${r[4] != null ? getal(r[12] + r[4], 1) : ''}</td><td class="c">${kans(r[5])}</td><td class="c${k('6')}">${getal(r[6], 2)}</td><td class="c">${getal(r[8], 1)}</td><td>${vgKnop(r[0])}</td></tr>`).join('') + '</table>'
+    : '<div class="leeg">Geen kampioenen met deze filters. Verruim de leeftijd of kies een ander seizoen.</div>';
+  pagina($('kp-meer'), n, pag, P, p => { kpPag = p; tekenKampioenen(); });
+}
+
+/* ---------- live wedstrijd ---------- */
+let live = { lijst: [], actief: null }; try { live = JSON.parse(localStorage.getItem('live') || 'null') || live; } catch (e) {}
+const bewaarLive = () => { try { localStorage.setItem('live', JSON.stringify(live)); } catch (e) {} };
+const huidigeLive = () => live.lijst.find(w => w.id === live.actief);
+function leesTijd(t) {
+  // 1:12,34 of 1.12,34 of 1.12.34 of 1 12,34 of 38,95 (komma of punt voor de honderdsten)
+  t = String(t || '').trim(); if (!t) return null;
+  let m = t.match(/^(\d{1,2})\s*[:;.\s]\s*(\d{1,2})\s*[.,]\s*(\d{1,3})$/);
+  if (m) return 60 * +m[1] + +m[2] + +('0.' + m[3]);
+  m = t.match(/^(\d{1,2})\s*[:;]\s*(\d{1,2})$/);
+  if (m) return 60 * +m[1] + +m[2];
+  m = t.match(/^(\d{1,3})(?:[.,](\d{1,3}))?$/);
+  if (m) return +m[1] + (m[2] ? +('0.' + m[2]) : 0);
+  return NaN;
+}
+function tekenLive() {
+  $('lv-kies').innerHTML = live.lijst.length ? live.lijst.map(w => `<option value="${w.id}">${esc(w.naam || 'Wedstrijd zonder naam')}</option>`).join('') : '<option value="">Nog geen wedstrijden</option>';
+  const w = huidigeLive(); $('lv-werk').hidden = !w; $('lv-weg').disabled = !w;
+  if (!w) return;
+  $('lv-kies').value = w.id; $('lv-naam').value = w.naam || ''; $('lv-baan').value = w.baan || ''; $('lv-g').value = w.g; $('lv-af').value = w.af; $('lv-soort').value = String(w.soort);
+  rekenLive();
+}
+$('lv-nieuw').addEventListener('click', () => {
+  const w = { id: Date.now(), naam: '', baan: '', g: 'v', af: '500m', soort: 1, deeln: [] };
+  live.lijst.push(w); live.actief = w.id; bewaarLive(); tekenLive(); $('lv-naam').focus();
+});
+$('lv-weg').addEventListener('click', () => {
+  const w = huidigeLive(); if (!w) return;
+  if ($('lv-weg').dataset.zeker !== '1') { $('lv-weg').dataset.zeker = '1'; $('lv-weg').textContent = 'Klik nogmaals om te verwijderen'; setTimeout(() => { $('lv-weg').dataset.zeker = ''; $('lv-weg').textContent = 'Wedstrijd verwijderen'; }, 4000); return; }
+  live.lijst = live.lijst.filter(x => x.id !== w.id); live.actief = live.lijst[0]?.id ?? null; $('lv-weg').dataset.zeker = ''; $('lv-weg').textContent = 'Wedstrijd verwijderen'; bewaarLive(); tekenLive();
+});
+$('lv-kies').addEventListener('input', () => { live.actief = +$('lv-kies').value; bewaarLive(); tekenLive(); });
+[['lv-naam', 'naam'], ['lv-baan', 'baan'], ['lv-g', 'g'], ['lv-af', 'af'], ['lv-soort', 'soort']].forEach(([id, k]) => $(id).addEventListener('input', () => {
+  const w = huidigeLive(); if (!w) return; w[k] = k === 'soort' ? +$(id).value : $(id).value; bewaarLive();
+  if (k === 'naam') { const o = $('lv-kies').selectedOptions[0]; if (o) o.textContent = w.naam || 'Wedstrijd zonder naam'; } else rekenLive();
+}));
+let lvSugg = [];
+$('lv-zoek').addEventListener('input', () => {
+  const q = norm($('lv-zoek').value.trim()), ul = $('lv-sugg'), w = huidigeLive();
+  if (q.length < 2 || !w) { ul.hidden = true; return; }
+  const best = r => r.best == null ? 99 : r.best;
+  lvSugg = rijders.filter(r => r.z.includes(q) && r.g === w.g).sort((a, b) => (b.z.startsWith(q) - a.z.startsWith(q)) || best(a) - best(b)).slice(0, 8);
+  ul.innerHTML = lvSugg.map((r, i) => `<li data-i="${i}"><span class="n">${esc(r.naam)}</span><span class="m">${esc(r.land)}${r.geb ? ' · ' + r.geb : ''}</span></li>`).join('') || '<li><span class="m">Geen rijder met die naam bij dit geslacht.</span></li>';
+  ul.hidden = false;
+});
+const voegLiveToe = r => { const w = huidigeLive(); if (!w || w.deeln.some(d => d.id === r.id)) return; w.deeln.push({ id: r.id, tijd: '' }); bewaarLive(); $('lv-zoek').value = ''; $('lv-sugg').hidden = true; rekenLive(); };
+$('lv-sugg').addEventListener('mousedown', e => { const li = e.target.closest('li[data-i]'); if (li) { e.preventDefault(); voegLiveToe(lvSugg[+li.dataset.i]); } });
+$('lv-zoek').addEventListener('keydown', e => { if (e.key === 'Enter' && lvSugg[0]) { e.preventDefault(); voegLiveToe(lvSugg[0]); } });
+$('lv-zoek').addEventListener('blur', () => setTimeout(() => { $('lv-sugg').hidden = true; }, 150));
+$('lv-sim').addEventListener('click', () => { const w = huidigeLive(); if (!w) return;
+  sim.forEach(id => { if (!w.deeln.some(d => d.id === id)) w.deeln.push({ id, tijd: '' }); });
+  w.g = $('sm-g').value; w.af = $('sm-af').value; w.baan = $('sm-baan').value; w.soort = +$('sm-soort').value; bewaarLive(); tekenLive(); });
+document.addEventListener('input', e => { const t = e.target.closest('[data-lvt]'); if (!t) return; const w = huidigeLive(); const d = w?.deeln.find(x => x.id === +t.dataset.lvt); if (!d) return;
+  d.tijd = t.value; bewaarLive(); clearTimeout(t._tm); t._tm = setTimeout(() => rekenLive(false), 250); });
+document.addEventListener('click', e => {
+  const x = e.target.closest('[data-lvx]'); if (x) { const w = huidigeLive(); w.deeln = w.deeln.filter(d => d.id !== +x.dataset.lvx); bewaarLive(); rekenLive(); return; }
+  const v = e.target.closest('[data-lvv]'); if (v) { const w = huidigeLive(); const d = w.deeln.find(d => d.id === +v.dataset.lvv); d.val = !d.val; bewaarLive(); rekenLive(); }
+});
+
+async function rekenLive(startOpnieuw = true) {
+  const w = huidigeLive(); if (!w) return;
+  if (!schokRef) { try { schokRef = (await (await fetch('schokref.json')).json()).q; } catch (e) { $('lv-ijs').textContent = 'De referentieverdeling kon niet laden.'; return; } }
+  const data = await Promise.all(w.deeln.map(d => rijderData(d.id)));
+  const bp = w.baan ? META.baanpeil?.[w.baan]?.[`${w.g}|${w.af}`] : null;
+  const ijsSd = bp ? bp[1] : 0.006, delta = bp ? bp[0] : 0;      // ijs per wedstrijd (Heerenveen: robuust ±0,55%)
+  const ppl = w.deeln.map((d, i) => {
+    const dd = data[i], kand = dd ? Object.entries(dd.s).map(([s, e]) => [+s, e.af[w.af]]).filter(([, v]) => v && v[4] >= 2 && v[0] != null).sort((a, b) => b[0] - a[0]) : [];
+    const lv = kand[0];
+    const eigen = dd ? dd.r.filter(x => x[8] != null && !x[10] && lv && seizoenVan(x[0]) >= lv[0] - 1).map(x => Math.log1p(x[8] / 100)) : [];
+    const t = leesTijd(d.tijd);
+    return { id: d.id, val: !!d.val, tijd: t, fout: Number.isNaN(t), L: lv ? Math.log(lv[1][0]) + delta : null, s: lv?.[0], eigen, w: eigen.length / (eigen.length + 20) };
+  });
+  // ijs van vandaag: robuust gemiddelde van (ln tijd - verwacht) van de gereden ritten, gekrompen naar 0 (prior: ijsspreiding van de baan)
+  const sdRit = 0.009, gereden = ppl.filter(p => p.tijd > 0 && p.L != null && !p.val);
+  const res = gereden.map(p => Math.max(-0.04, Math.min(0.04, Math.log(p.tijd) - p.L)));
+  const prec = 1 / (ijsSd * ijsSd) + res.length / (sdRit * sdRit);
+  const ijs = res.length ? (res.reduce((a, b) => a + b, 0) / (sdRit * sdRit)) / prec : 0, ijsOnz = Math.sqrt(1 / prec);
+  $('lv-ijs').textContent = `${w.baan ? 'Normale dag in ' + META.banen[w.baan] : 'Normale dag in Heerenveen'}${w.baan && !bp ? ' (geen gegevens voor deze afstand op deze baan: Heerenveen gebruikt)' : ''}. `
+    + (res.length ? `IJs vandaag, geschat uit ${res.length} ${res.length === 1 ? 'rit' : 'ritten'}: ${Math.abs(100 * (Math.exp(ijs) - 1)) < 0.05 ? 'normaal' : (100 * Math.abs(Math.exp(ijs) - 1)).toFixed(1).replace('.', ',') + '% ' + (ijs < 0 ? 'sneller' : 'trager') + ' dan normaal'} (onzekerheid ±${(100 * ijsOnz).toFixed(1).replace('.', ',')}%).`
+                  : 'Nog geen tijden: verwachting op een normale dag.');
+  // simulatie: gereden tijden vast, de rest getrokken met de geschatte ijssnelheid
+  const N = 4000, n = ppl.length, winst = new Float64Array(n), pod = new Float64Array(n), plaats = new Float64Array(n), tij = ppl.map(() => new Float64Array(N));
+  const c = w.soort || 1, t = new Float64Array(n), idx = [...Array(n).keys()];
+  for (let k = 0; k < N; k++) {
+    const ijsK = ijs + ijsOnz * normaal();
+    for (let i = 0; i < n; i++) { const p = ppl[i];
+      if (p.val) t[i] = Infinity; else if (p.tijd > 0) t[i] = p.tijd;
+      else if (p.L == null) t[i] = NaN;
+      else t[i] = Math.exp(p.L + ijsK + c * ((p.eigen.length && Math.random() < p.w) ? trek(p.eigen) : trek(schokRef)));
+      tij[i][k] = t[i]; }
+    const ok = idx.filter(i => Number.isFinite(t[i])).sort((a, b) => t[a] - t[b]);
+    ok.forEach((i, r) => { plaats[i] += r + 1; if (r === 0) winst[i]++; if (r < 3) pod[i]++; });
+  }
+  const uit = ppl.map((p, i) => { const ts = Array.from(tij[i]).filter(Number.isFinite).sort((a, b) => a - b);
+    return { ...p, winst: winst[i] / N, pod: pod[i] / N, pl: plaats[i] / N, med: ts.length ? ts[ts.length >> 1] : null, p10: ts[Math.floor(ts.length * .1)], p90: ts[Math.floor(ts.length * .9)] }; });
+  if (startOpnieuw || !$('lv-start').querySelector('table')) {
+    $('lv-start').innerHTML = uit.length ? `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th>Verwacht vooraf</th><th>Gereden tijd</th><th></th><th></th></tr>` +
+      uit.map((p, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(p.id)}</td><td class="l">${esc(perId.get(p.id)?.land || '')}</td><td class="c">${p.L != null ? tijd(Math.exp(p.L)) : 'geen niveau'}</td>
+        <td><input data-lvt="${p.id}" value="${esc(w.deeln[i].tijd || '')}" inputmode="text" autocomplete="off" placeholder="1:12,34" style="width:110px;text-align:right;font-family:var(--cijfer)" aria-label="Tijd van ${esc(perId.get(p.id)?.naam || '')}"></td>
+        <td><button class="mini" data-lvv="${p.id}" aria-pressed="${p.val}">Geen tijd</button></td><td><button class="mini" data-lvx="${p.id}" aria-label="Verwijderen">×</button></td></tr>`).join('') + '</table>'
+      : '<div class="leeg">Nog geen deelnemers. Zoek rijders hierboven of neem het veld van Simuleren over.</div>';
+  }
+  document.querySelectorAll('[data-lvt]').forEach(inp => { const p = ppl.find(x => x.id === +inp.dataset.lvt); inp.style.borderColor = p?.fout ? 'var(--slecht)' : ''; });
+  const st = uit.filter(p => !p.val && (p.tijd > 0 || p.L != null)).sort((a, b) => (a.tijd > 0 ? a.tijd : a.med) - (b.tijd > 0 ? b.tijd : b.med));
+  $('lv-stand').innerHTML = st.length ? `<table><tr><th>#</th><th class="l">Rijder</th><th>Tijd</th><th class="l">Status</th><th>80% van de verwachte tijden</th><th class="sort">Kans winst</th><th>Kans podium</th><th>Verwachte plaats</th></tr>` +
+    st.map((p, i) => `<tr${p.tijd > 0 ? '' : ' style="color:var(--zacht)"'}><td class="nr">${i + 1}</td><td class="l">${naamCel(p.id)}</td><td class="c">${tijd(p.tijd > 0 ? p.tijd : p.med)}</td><td class="l">${p.tijd > 0 ? 'gereden' : 'verwacht'}</td>
+      <td class="c">${p.tijd > 0 ? '' : tijd(p.p10) + ' – ' + tijd(p.p90)}</td><td class="c sort">${kans(p.winst)}</td><td class="c">${kans(p.pod)}</td><td class="c">${getal(p.pl, 1)}</td></tr>`).join('') + '</table>'
+    : '<div class="leeg">De verwachte uitslag verschijnt zodra er deelnemers met een niveau op deze afstand zijn.</div>';
+}
+
+/* ---------- meerkampen ---------- */
+// programma per dag; punten: samalog (tijd per 500 m, opgeteld, afgekapt op 3 decimalen)
+const MK = {
+  allround: { naam: 'Allround (grote vierkamp)', v: [['500m', '3000m'], ['1500m', '5000m']], m: [['500m', '5000m'], ['1500m', '10000m']] },
+  sprint: { naam: 'Sprintvierkamp', v: [['500m', '1000m'], ['500m', '1000m']], m: [['500m', '1000m'], ['500m', '1000m']] },
+  klein: { naam: 'Kleine vierkamp', v: [['500m', '1500m'], ['1000m', '3000m']], m: [['500m', '1500m'], ['1000m', '3000m']] },
+};
+// samenhang (dagcorrelatie.py): eigen vorm zelfde dag 0,12, volgende dag 0,05; ijs zelfde dag 0,38, volgende dag 0,15
+const RHO_RIT = 0.12, RHO_RIT_DAG = 0.05 / 0.12, RHO_IJS = 0.38, RHO_IJS_DAG = 0.15 / 0.38;
+const meters = af => +af.replace('m', '');
+const punten = (t, af) => Math.floor(1000 * t / (meters(af) / 500)) / 1000;
+function Phi(x) { const t = 1 / (1 + 0.2316419 * Math.abs(x)), d = 0.3989423 * Math.exp(-x * x / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; }
+function niveauOp(d, af, wijze, lmax, vsz) {
+  const kand = Object.entries(d.s).filter(([, e]) => (e.lft ?? 0) <= lmax).map(([s, e]) => [+s, e.af[af]]).filter(([, v]) => v && v[4] >= 2 && v[0] != null);
+  if (!kand.length) return null;
+  const gek = wijze === 'sz' ? (vsz === 'nu' ? kand.filter(([s]) => s >= META.laatste - 1).sort((a, b) => b[0] - a[0])[0] : kand.find(([s]) => s === +vsz)) : null;
+  return gek || (wijze === 'best' ? kand.filter(([, v]) => v[4] >= 3 && v[1] != null).sort((a, b) => a[1][1] - b[1][1])[0] : null) || kand.sort((a, b) => b[0] - a[0])[0];
+}
+async function stelMeerkampSamen() {
+  const g = $('sm-g').value, mk = MK[$('sm-af').value.slice(3)], vsz = $('sm-vsz').value, lmax = +$('sm-lft').value || 99, land = $('sm-land').value, th = $('sm-thuis').value, n = +$('sm-n').value;
+  const afs = [...new Set(mk[g].flat())];
+  $('sm-status').textContent = 'Veld samenstellen…';
+  const lijsten_ = await Promise.all(afs.map(af => lijst(`${g}_${af}`)));
+  const per = new Map();
+  afs.forEach((af, j) => lijsten_[j].filter(r => (vsz === 'nu' ? r[1] >= META.laatste - 1 : r[1] === +vsz) && r[6] >= 2 && r[3] != null && (r[2] ?? 99) <= lmax
+      && (!land || perId.get(r[0])?.land === land) && (!th || String(perId.get(r[0])?.thuis) === th))
+    .forEach(r => { const o = per.get(r[0]) || {}; if (!o[af] || r[1] > o[af][1]) o[af] = r; per.set(r[0], o); }));
+  const tot = [...per.entries()].filter(([, o]) => afs.every(af => o[af])).map(([id, o]) => [id, mk[g].flat().reduce((a, af) => a + punten(o[af][3], af), 0)]);
+  sim = tot.sort((a, b) => a[1] - b[1]).slice(0, n).map(x => x[0]); bewaarSim(); tekenSimChips();
+  if (th && [...$('sm-baan').options].some(o => o.value === th)) $('sm-baan').value = th;
+  if (!sim.length) { $('sm-status').textContent = 'Geen rijders met een niveau op alle afstanden van deze meerkamp in deze categorieën.'; $('sm-tabel').innerHTML = ''; $('sm-voorbeeld').innerHTML = ''; return; }
+  draaiMeerkamp();
+}
+async function draaiMeerkamp() {
+  if (!sim.length) { $('sm-status').textContent = 'Kies eerst deelnemers.'; return; }
+  const sleutel = $('sm-af').value.slice(3), mk = MK[sleutel], wijze = $('sm-sz').value, mod = $('sm-mod').value, c = +$('sm-soort').value, baan = $('sm-baan').value,
+        lmax = +$('sm-lft').value || 99, vsz = $('sm-vsz').value, N = 5000;
+  $('sm-status').textContent = 'Rijders laden…';
+  if (!schokRef) { try { schokRef = (await (await fetch('schokref.json')).json()).q; } catch (e) { $('sm-status').textContent = 'De referentieverdeling kon niet laden.'; return; } }
+  const data = await Promise.all(sim.map(rijderData));
+  const deeln = [], weg = [];
+  sim.forEach((id, i) => {
+    const d = data[i], g = perId.get(id)?.g; if (!d) { weg.push(id); return; }
+    const prog = mk[g]; const ritten = []; let ok = true;
+    prog.forEach((dagAf, dag) => dagAf.forEach(af => {
+      const nv = niveauOp(d, af, wijze, lmax, vsz); if (!nv) { ok = false; return; }
+      const bp = baan ? META.baanpeil?.[baan]?.[`${g}|${af}`] : null;
+      ritten.push({ dag, af, L: Math.log(mod === 'nu' ? nv[1][2] : nv[1][0]) + (bp ? bp[0] : 0), ijsSd: bp ? bp[1] : 0.004 });
+    }));
+    if (!ok) { weg.push(id); return; }
+    const eigen = d.r.filter(x => x[8] != null && !x[10] && seizoenVan(x[0]) >= META.laatste - 2).map(x => Math.log1p(x[8] / 100)).sort((a, b) => a - b);
+    deeln.push({ id, g, ritten, eigen, w: eigen.length / (eigen.length + 20) });
+  });
+  if (!deeln.length) { $('sm-status').textContent = 'Geen van de deelnemers heeft een niveau op alle afstanden van deze meerkamp.'; $('sm-tabel').innerHTML = ''; return; }
+  const n = deeln.length, R = deeln[0].ritten.length, nDag = 2;
+  const winst = new Float64Array(n), pod = new Float64Array(n), top5 = new Float64Array(n), plaats = new Float64Array(n), pt = deeln.map(() => new Float64Array(N));
+  const afWin = deeln.map(() => new Float64Array(R)), mediaanT = deeln.map(() => Array.from({ length: R }, () => new Float64Array(N)));
+  const tp = new Float64Array(n), idx = [...Array(n).keys()];
+  const kw = (p, u) => (p.eigen.length && Math.random() < p.w) ? p.eigen[Math.min(p.eigen.length - 1, Math.floor(u * p.eigen.length))] : schokRef[Math.min(200, Math.floor(u * 201))];
+  let voorbeeld = null;
+  for (let k = 0; k < N; k++) {
+    // ijs: per dag een gedeeld deel, per rit (afstand) een eigen deel; voor alle rijders gelijk
+    const Ievt = normaal(), Idag = [0, 1].map(() => Math.sqrt(RHO_IJS_DAG) * Ievt + Math.sqrt(1 - RHO_IJS_DAG) * normaal());
+    const ijsRit = deeln[0].ritten.map(r => Math.sqrt(RHO_IJS) * Idag[r.dag] + Math.sqrt(1 - RHO_IJS) * normaal());
+    const tijden = deeln.map(() => new Float64Array(R));
+    for (let i = 0; i < n; i++) {
+      const p = deeln[i], Zevt = normaal(), Zdag = [0, 1].map(() => Math.sqrt(RHO_RIT_DAG) * Zevt + Math.sqrt(1 - RHO_RIT_DAG) * normaal());
+      let som = 0;
+      p.ritten.forEach((r, j) => { const x = Math.sqrt(RHO_RIT) * Zdag[r.dag] + Math.sqrt(1 - RHO_RIT) * normaal();
+        const t = Math.exp(r.L + r.ijsSd * ijsRit[j] + c * kw(p, Phi(x))); tijden[i][j] = t; mediaanT[i][j][k] = t; som += punten(t, r.af); });
+      tp[i] = som; pt[i][k] = som;
+    }
+    idx.sort((a, b) => tp[a] - tp[b]);
+    idx.forEach((i, r) => { plaats[i] += r + 1; if (r === 0) winst[i]++; if (r < 3) pod[i]++; if (r < 5) top5[i]++; });
+    for (let j = 0; j < R; j++) { let b = 0; for (let i = 1; i < n; i++) if (tijden[i][j] < tijden[b][j]) b = i; afWin[b][j]++; }
+    if (k === 0) voorbeeld = { tijden, tp: Array.from(tp) };
+  }
+  const afs = deeln[0].ritten.map(r => r.af);
+  const res = deeln.map((p, i) => { const ps = Array.from(pt[i]).sort((a, b) => a - b);
+    return { ...p, i, winst: winst[i] / N, pod: pod[i] / N, top5: top5[i] / N, pl: plaats[i] / N, med: ps[N >> 1], p10: ps[Math.floor(N * .1)], p90: ps[Math.floor(N * .9)],
+      tmed: afs.map((_, j) => { const a = Array.from(mediaanT[i][j]).sort((x, y) => x - y); return a[N >> 1]; }), afw: afs.map((_, j) => afWin[i][j] / N) }; }).sort((a, b) => a.pl - b.pl);
+  $('sm-status').textContent = `${mk.naam}: ${N.toLocaleString('nl-NL')} keer gesimuleerd, ${baan ? 'normale dagen in ' + META.banen[baan] : 'normale dagen in Heerenveen'}${weg.length ? `. Zonder niveau op alle afstanden: ${weg.map(id => perId.get(id)?.naam).join(', ')}` : ''}.`;
+  const kop = afs.map((af, j) => `<th>${AFN[AFK.indexOf(af)]}${afs.indexOf(af) !== j ? ' (2)' : ''}</th>`).join('');
+  $('sm-tabel').innerHTML = `<table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th><th class="sort">Kans eindzege</th><th>Kans podium</th><th>Kans top 5</th><th>Verwachte plaats</th><th>Punten (mediaan)</th><th>80% van de punten</th>${kop}</tr>` +
+    res.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td><td class="c sort">${kans(r.winst)}</td><td class="c">${kans(r.pod)}</td><td class="c">${kans(r.top5)}</td>
+      <td class="c">${getal(r.pl, 1)}</td><td class="c">${r.med.toFixed(3).replace('.', ',')}</td><td class="c">${r.p10.toFixed(3).replace('.', ',')} – ${r.p90.toFixed(3).replace('.', ',')}</td>
+      ${r.tmed.map((t, j) => `<td class="c" title="Kans op de snelste tijd op deze afstand: ${kans(r.afw[j])}">${tijd(t)}</td>`).join('')}</tr>`).join('') + '</table>';
+  const vb = deeln.map((p, i) => ({ id: p.id, t: Array.from(voorbeeld.tijden[i]), pt: voorbeeld.tp[i] })).sort((a, b) => a.pt - b.pt);
+  $('sm-voorbeeld').innerHTML = `<h3>Eén voorbeelduitslag</h3><p class="uitleg">De tijden per afstand (verwachte mediaan in de grote tabel; houd de muis op een tijd voor de kans op de snelste tijd op die afstand). De ritten van een rijder op dezelfde dag hangen iets samen (dagvorm), net als het ijs op een dag.</p><div class="tabelbak"><table><tr><th>#</th><th class="l">Rijder</th><th class="l">Land</th>${kop}<th>Punten</th><th>Achter</th></tr>${vb.map((r, i) => `<tr><td class="nr">${i + 1}</td><td class="l">${naamCel(r.id)}</td><td class="l">${esc(perId.get(r.id)?.land || '')}</td>${r.t.map(t => `<td class="c">${tijd(t)}</td>`).join('')}<td class="c">${r.pt.toFixed(3).replace('.', ',')}</td><td class="c">${i ? '+' + (r.pt - vb[0].pt).toFixed(3).replace('.', ',') : ''}</td></tr>`).join('')}</table></div>
+    <div><button class="knop" id="sm-nog" type="button">Simuleer opnieuw</button></div>`;
+  $('sm-nog').addEventListener('click', draaiMeerkamp);
+}
+start();
+</script>
+
+</html>

@@ -657,3 +657,16 @@ Pearson 0,13 (Spearman 0,10), volgende dag 0,05; ijs zelfde dag andere afstand 0
 0,59, waarschijnlijk deels door de gedeelde ijscorrectie en dubbele registraties; niet gebruikt). In de simulatie een Gauss-copula: per rijder
 een dagvorm (correlatie 0,12 binnen de dag, 0,05 tussen de dagen) die de getrokken eigen afwijking (uit de eigen ritten of de referentie)
 kiest, en per dag een gedeeld ijs (0,38 binnen de dag, 0,15 tussen de dagen). Iedereen rijdt alle vier de afstanden (geen finaleafstand).
+
+## Wekelijkse websiteupdate zonder herfit (`aanvul.py`, `wekelijks_site.sh`)
+
+De workflow `scraper.yml` haalt elke maandag (september t/m maart) nieuwe wedstrijden op en bouwt daarna de website opnieuw (job `site`):
+basiswerkmap (branch `werkmap`: modeluitkomsten tot toernooi 32104) + alle scraperdata -> `aanvul.py` -> `site_bouw.sh` -> `site_pages.sh`
+(branch `gh-pages`, GitHub Pages). Parameters en lagen blijven vast; alleen de nieuwe informatie komt erbij:
+- racepeil per nieuwe race uit het veld (gewogen mediaan van ln tijd - wereldtop - Kalmanniveau vooraf), dag voor dag, daarna tellen de
+  ritten mee voor de niveaus; toets (ritten vanaf 2026-03-01 als nieuw): mediaan |verschil| met het peil van het volledige model 0,39%
+  (races >= 15 rijders), 0,66% (5-14), 0,93% (1-4);
+- het filter loopt alleen over de geschiedenis van de rijders in de nieuwe races, en alleen zij krijgen nieuwe seizoensstanden
+  (oktober 2026: 6.237 van 392.000 momentopnamen); de aanvulling kost ~25 s, de hele job ~6 min;
+- elke week opnieuw vanaf dezelfde basis (geen stapeling van benaderingen). Na een volledige herbouw van het model de branch `werkmap`
+  vervangen. Titelkansen worden niet bijgewerkt (die horen bij afgesloten seizoenen).

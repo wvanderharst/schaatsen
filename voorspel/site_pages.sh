@@ -5,6 +5,9 @@
 set -e
 S=$1; REMOTE=${2:-origin}; D=$(dirname "$(readlink -f "$0")"); REPO=$(cd "$D/.." && pwd)
 URL=$(git -C "$REPO" remote get-url "$REMOTE")
+if [ -n "$GITHUB_TOKEN" ] && [ -n "$GITHUB_REPOSITORY" ]; then        # in GitHub Actions
+  URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+fi
 T=$(mktemp -d)
 cp -r "$S/t/index.txt" "$S/t/schokref.json" "$S/t/l" "$S/t/r" "$S/t/w" "$T/"
 { printf '<!doctype html>\n<html lang="nl">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'

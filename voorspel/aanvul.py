@@ -9,14 +9,16 @@ te fitten: alle parameters en lagen blijven zoals ze zijn, alleen de nieuwe info
      Een hele race > 20% sneller dan het baanpeil, of een losse rit > 40% sneller dan verwacht, is verdacht (zoals onmogelijk.py).
   3. Uitvoer in een nieuwe werkmap (de oude blijft onaangetast; overige bestanden als koppeling): ritten_cat.parquet en
      voorspel2_uitkomst.parquet met de nieuwe ritten erbij (verwachting = filterniveau + racepeil, eigen spreiding van de laatste bekende rit),
-     en talent_momentopnamen.parquet met de standen van de seizoenen waarin nieuwe ritten vallen opnieuw berekend.
+     en talent_momentopnamen.parquet: alleen de rijders met nieuwe ritten krijgen nieuwe seizoensstanden (de rest blijft zoals in de basis).
+     Het filter loopt alleen over de geschiedenis van die rijders; wie niet reed, kost niets.
 Toets: --toets JJJJ-MM-DD behandelt de bestaande ritten vanaf die dag als nieuw en vergelijkt het geschatte racepeil met het opgeslagen.
 Gebruik: python aanvul.py <werkmap> <datamap met speedskating_nieuw.parquet> <nieuwe werkmap> <kalman_par.json> [--toets JJJJ-MM-DD]"""
 import os, sys, json, shutil, warnings; warnings.filterwarnings('ignore')
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'schaatsmodel'))
 import numpy as np, pandas as pd
-import kalman_mv2 as kf, baanfactor as bf
+import kalman_mv2 as kf, baanfactor as bf, talent as tal
+import time
 
 RACE_GRENS, RIT_GRENS = 0.20, 0.40
 NIEUW = ['speedskating_nieuw.parquet']
@@ -139,14 +141,25 @@ def schat_peil(R, N, par):
             else:
                 th_r[q] = t_
             z[q] = np.where(verd[q], np.nan, lt[q] - th_r[q] - inv['refq'][q])
-        inv['z'] = z
-        o2 = kf.pass_(inv, par)                                           # valpartijen volgens het filter (achteraf, met het peil)
-        uit['val'][dd] = o2['val'][dd]
     D['theta'] = th; D['v_theta'] = vth; D['theta_rijder'] = th_r; D['verdacht'] = verd
     D['refq'] = inv['refq']
     for k, v in uit.items():
         D['_' + k] = v
-    return D[nieuw].drop(columns=['_nieuw']).reset_index(drop=True)
+    # seizoensstanden (momentopnamen) van alleen deze rijders; wie niet reed, houdt de stand van de basis
+    inv['z'] = z; inv['vth'] = vth; o = kf.pass_(inv, par, snap=True); s = o['snap']
+    D['_val'] = np.where(nieuw, o['val'], False)                         # valpartijen volgens het filter (achteraf, met het peil)
+    _, uniq = pd.factorize(D['skater_id'])
+    S = pd.DataFrame({'skater_id': uniq[s['rid']], 'seizoen': s['seizoen'], 'n_seizoen': s['n'], 'lf': s['lf'], 'dag': s['dag']})
+    for j, a in enumerate(tal.AF):
+        S['x_' + a] = s['x'][:, j]; S['p_' + a] = s['p'][:, j]; S['na_' + a] = s['na'][:, j]
+    S['v'] = s['x'][:, 8]; S['pv'] = s['p'][:, 8]
+    info = D.sort_values('dag').groupby('skater_id').agg(naam=('skater_name', 'last'), gender=('gender', 'last'), land=('land', lambda x: x.mode().iloc[0]),
+                                                          geboren=('geboren', 'last'), exact=('leeftijd_exact', 'last'), eerste=('seizoen', 'min'))
+    S = tal.niveaus(S.join(info, on='skater_id').sort_values(['skater_id', 'seizoen']))
+    S['leeftijd'] = S['seizoen'] - S['geboren']
+    vorig = S.groupby('skater_id')[['L_jeugd', 'seizoen']].shift(1)                 # zoals talent.kenmerken
+    S['verbetering'] = np.where(vorig['seizoen'] == S['seizoen'] - 1, vorig['L_jeugd'] - S['L_jeugd'], np.nan)
+    return D[nieuw].drop(columns=['_nieuw']).reset_index(drop=True), S
 
 
 def uitkomst_rijen(N, V):
@@ -168,7 +181,7 @@ def main(w, datamap, w2, par_pad, toets=None):
     if toets:
         d0 = int((pd.Timestamp(toets) - pd.Timestamp('1970-01-01')).days)
         N = R[R['dag'] >= d0].drop(columns=['theta', 'v_theta', 'theta_rijder']); R = R[R['dag'] < d0]
-        Y = schat_peil(R, N, par)
+        Y, _ = schat_peil(R, N, par)
         X = Y.merge(pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'), columns=['skater_id', 'dag', 'afstand', 'tijd', 'theta']).astype({'afstand': str}),
                     on=['skater_id', 'dag', 'afstand', 'tijd'], suffixes=('', '_oud'))
         rc = X.drop_duplicates(['event_id', 'dag', 'gender', 'afstand_idx'])
@@ -186,8 +199,8 @@ def main(w, datamap, w2, par_pad, toets=None):
         print('geen nieuwe toernooien'); return
     print(f'nieuwe ritten {len(N)}, rijders {N["skater_id"].nunique()} (nieuw {(~N["skater_id"].isin(set(R["skater_id"]))).sum()} ritten van onbekende rijders),'
           f' {N["dag"].nunique()} dagen', flush=True)
-    N = schat_peil(R, N, par)
-    print(f'racepeil geschat; verdacht {int(N["verdacht"].sum())}, val {int(N["_val"].sum())}', flush=True)
+    t0 = time.time(); N, S = schat_peil(R, N, par)
+    print(f'racepeil geschat ({time.time() - t0:.0f} s); verdacht {int(N["verdacht"].sum())}, val {int(N["_val"].sum())}', flush=True)
     os.makedirs(w2, exist_ok=True)
     for f in os.listdir(w):                                               # overige bestanden als koppeling
         doel = os.path.join(w2, f)
@@ -209,18 +222,16 @@ def main(w, datamap, w2, par_pad, toets=None):
         V2[c] = V2[c].astype(bool)
     V2.to_parquet(os.path.join(w2, 'voorspel2_uitkomst.parquet')); del V, V2
     print('ritten en uitkomst geschreven', flush=True)
-    # seizoensstanden (momentopnamen) opnieuw voor de seizoenen met nieuwe ritten
-    import talent as tal
-    S, _ = tal.momentopnamen(w2, par); S = tal.niveaus(S)
-    best, _ = tal.uitkomst(S); S = S.join(best, on='skater_id'); S, _ = tal.kenmerken(S)
+    # seizoensstanden: de rijders met nieuwe ritten vanaf het eerste seizoen met nieuwe ritten; de rest blijft
     M = pd.read_parquet(os.path.join(w, 'talent_momentopnamen.parquet'))
-    s0 = int(N['seizoen'].min())
-    M2 = pd.concat([M[M['seizoen'] < s0], S[S['seizoen'] >= s0][[c for c in M.columns if c in S.columns]]], ignore_index=True)
+    s0 = int(N['seizoen'].min()); ids = set(N['skater_id'])
+    weg = M['skater_id'].isin(ids) & (M['seizoen'] >= s0)
+    M2 = pd.concat([M[~weg], S[S['skater_id'].isin(ids) & (S['seizoen'] >= s0)][[c for c in M.columns if c in S.columns]]], ignore_index=True)
     M2.to_parquet(os.path.join(w2, 'talent_momentopnamen.parquet'))
-    oud = M[M['seizoen'] == s0 - 1].set_index('skater_id')['x_500m']; nieuw_ = S[S['seizoen'] == s0 - 1].set_index('skater_id')['x_500m']
-    print(f'momentopnamen: seizoen {s0}+ opnieuw ({(M2["seizoen"] >= s0).sum()} rijders); controle seizoen {s0 - 1} 500 m oud vs nieuw: '
-          f'max |verschil| {np.nanmax(np.abs((oud - nieuw_.reindex(oud.index)).to_numpy())):.2e}', flush=True)
-
+    oud = M[M['seizoen'] == s0 - 1].set_index('skater_id')['x_500m']; nw = S[S['seizoen'] == s0 - 1].set_index('skater_id')['x_500m']
+    vg = (oud - nw.reindex(oud.index)).abs().dropna()
+    print(f'momentopnamen: {int((~weg).sum())} ongewijzigd, {len(M2) - int((~weg).sum())} opnieuw (seizoen {s0}+);'
+          f' controle seizoen {s0 - 1} 500 m oud vs nieuw: mediaan |verschil| {vg.median():.2e} ({time.time() - t0:.0f} s)', flush=True)
 
 BF_PAR = ''
 if __name__ == '__main__':

@@ -7,6 +7,8 @@ data/racedatum_map.parquet (gemaakt uit de oude data met `maak_map`):
   - meerdaagse toernooien: per rit (Event_ID, Atleet_ID, Afstand, Tijd_Raw), want bij sprinttoernooien is dezelfde afstand op twee dagen;
   - daarna per Event_ID x Geslacht x Afstand als daar maar een racedag bij hoort;
   - anders de startdag (nieuwe toernooien: racedag onbekend, zie kolom Race_Datum_bron).
+Wekelijkse aanvulling (data/speedskating_nieuw.parquet, schaatsmodel/scraper/wekelijks.py) wordt meegelezen; een toernooi daarin
+vervangt dezelfde Event_ID uit de historie, en de racedag komt dan rechtstreeks van de toernooipagina.
 Gebruik:
   python nieuwe_data.py maak_map <oude speedskating_historie_racedatum.csv> data/racedatum_map.parquet
   python nieuwe_data.py zet_om data <uit.csv>"""
@@ -19,6 +21,10 @@ K_RIT = ['Event_ID', 'Atleet_ID', 'Afstand', 'Tijd_Raw']
 def laad_nieuw(map_):
     delen = sorted(glob.glob(os.path.join(map_, 'speedskating_historie_1_tot_*_part*.parquet')))
     N = pd.concat([pd.read_parquet(f) for f in delen], ignore_index=True)
+    aanvul = os.path.join(map_, 'speedskating_nieuw.parquet')       # wekelijkse aanvulling (schaatsmodel/scraper/wekelijks.py)
+    if os.path.exists(aanvul):
+        A = pd.read_parquet(aanvul)
+        N = pd.concat([N[~N['Event_ID'].isin(A['Event_ID'].unique())], A], ignore_index=True)   # nieuwere versie van een toernooi gaat voor
     return N.drop_duplicates().reset_index(drop=True)                 # volledig dubbele rijen weg
 
 
@@ -46,6 +52,9 @@ def racedatum(N, M):
     af = M[M['niveau'] == 'afstand'][['Event_ID', 'Geslacht', 'Afstand', 'Race_Datum']].drop_duplicates(['Event_ID', 'Geslacht', 'Afstand'])
     y = N[['Event_ID', 'Geslacht', 'Afstand']].merge(af, on=['Event_ID', 'Geslacht', 'Afstand'], how='left')['Race_Datum'].to_numpy()
     ok2 = rd.isna().to_numpy() & ~pd.isna(y); rd[ok2] = y[ok2]; bron[ok2] = 'afstand'
+    if 'Race_Datum' in N:                                            # aanvulling: racedag rechtstreeks van de toernooipagina
+        eigen = N['Race_Datum'].notna() & rd.isna()
+        rd[eigen] = N.loc[eigen, 'Race_Datum']; bron[eigen] = 'scraper'
     rest = rd.isna(); rd[rest] = N.loc[rest, 'Datum']
     return rd, bron
 
@@ -53,7 +62,7 @@ def racedatum(N, M):
 def zet_om(map_, uit):
     N = laad_nieuw(map_); M = pd.read_parquet(os.path.join(map_, 'racedatum_map.parquet'))
     rd, bron = racedatum(N, M)
-    U = N.copy(); U.insert(3, 'Race_Datum', rd.dt.strftime('%d/%m/%Y')); U['Datum'] = U['Datum'].dt.strftime('%d/%m/%Y')
+    U = N.drop(columns=['Race_Datum'], errors='ignore'); U.insert(3, 'Race_Datum', rd.dt.strftime('%d/%m/%Y')); U['Datum'] = U['Datum'].dt.strftime('%d/%m/%Y')
     U.to_csv(uit, index=False)
     print(len(U), 'rijen ->', uit); print('racedag uit:', bron.value_counts().to_dict())
     print('toernooien met alleen de startdag:', N.loc[bron == 'startdag', 'Event_ID'].nunique())

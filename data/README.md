@@ -29,3 +29,13 @@ Daarna de gewone keten (`elite/prep.py`, `elite/theta_merge.py`, `voorspel/prep_
 
 `voorspel/weer/` (via `.github/workflows/luchtdruk.yml`, zie `voorspel/luchtdruk.py`): luchtdruk, temperatuur, wind en vocht per baan en
 wedstrijddag, op basis van deze data (racedagen; bij toernooien zonder racedagen de startdag en de 4 dagen erna).
+
+## Wekelijkse aanvulling
+
+`.github/workflows/scraper.yml` draait elke maandag (en met de hand) `schaatsmodel/scraper/wekelijks.py data`:
+- nieuwe toernooien vanaf het hoogste bekende Event_ID (stopt na 40 nummers zonder uitslagen);
+- opnieuw: toernooien die eerder nog leeg waren (tot 26 weken) en toernooien van de laatste 30 dagen (late of verbeterde uitslagen);
+- uitkomst in `speedskating_nieuw.parquet` (zelfde kolommen als de historie plus `Race_Datum`, de racedag van de toernooipagina),
+  `scraper_stand.json` en `scraper_log.md`. `voorspel/nieuwe_data.py` leest de aanvulling mee (nieuwere versie van een toernooi gaat voor).
+Het model en de website worden daarna opnieuw gebouwd met de gewone keten (zie `voorspel/README.md`); dat gebeurt niet in de workflow
+(te zwaar voor een GitHub-runner).

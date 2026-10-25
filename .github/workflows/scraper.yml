@@ -1,0 +1,55 @@
+# Elke week de nieuwe wedstrijden van SpeedskatingResults.com ophalen (schaatsmodel/scraper/wekelijks.py) en committen in data/:
+# speedskating_nieuw.parquet (nieuwe en opnieuw opgehaalde toernooien), scraper_stand.json en scraper_log.md.
+# Gepland elke maandag 06:17 UTC; ook met de hand (workflow_dispatch) en bij een push die de scraper of deze workflow wijzigt.
+# Let op: GitHub voert geplande runs alleen uit vanaf de standaardbranch; daarom staat de doelbranch hieronder vast.
+name: scraper
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+  push:
+    branches: [claude/new-session-tj1971]
+    paths:
+      - 'schaatsmodel/scraper/wekelijks.py'
+      - 'schaatsmodel/scraper/scraper_schaatsen.py'
+      - '.github/workflows/scraper.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: scraper
+  cancel-in-progress: false
+
+env:
+  DOEL: claude/new-session-tj1971
+
+jobs:
+  haal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DOEL }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pandas pyarrow requests beautifulsoup4
+      - name: Verbindingstest
+        timeout-minutes: 5
+        run: curl -sS -m 30 -A "Mozilla/5.0" -o /dev/null -w "speedskatingresults %{http_code} %{time_total}s\n" "https://speedskatingresults.com/index.php?p=2&e=32104"
+      - name: Nieuwe wedstrijden ophalen
+        run: python schaatsmodel/scraper/wekelijks.py data
+      - name: Uitkomst committen
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/speedskating_nieuw.parquet data/scraper_stand.json data/scraper_log.md 2>/dev/null || true
+          git status --short
+          git commit -m "Wekelijkse aanvulling van SpeedskatingResults (nieuwe wedstrijden)" || exit 0
+          for i in 1 2 3; do git pull --rebase --autostash origin "$DOEL" && git push origin "HEAD:$DOEL" && break; sleep 5; done

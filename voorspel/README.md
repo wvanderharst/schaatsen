@@ -662,7 +662,7 @@ kiest, en per dag een gedeeld ijs (0,38 binnen de dag, 0,15 tussen de dagen). Ie
 
 De workflow `scraper.yml` haalt elke maandag (september t/m maart) nieuwe wedstrijden op en bouwt daarna de website opnieuw (job `site`):
 basiswerkmap (branch `werkmap`: modeluitkomsten tot toernooi 32104) + alle scraperdata -> `aanvul.py` -> `site_bouw.sh` -> `site_pages.sh`
-(branch `gh-pages`, GitHub Pages). Parameters en lagen blijven vast; alleen de nieuwe informatie komt erbij:
+-> rechtstreeks op GitHub Pages (actions/deploy-pages; geen aparte branch, de wekelijkse data komt niet in de geschiedenis). Parameters en lagen blijven vast; alleen de nieuwe informatie komt erbij:
 - racepeil per nieuwe race uit het veld (gewogen mediaan van ln tijd - wereldtop - Kalmanniveau vooraf), dag voor dag, daarna tellen de
   ritten mee voor de niveaus; toets (ritten vanaf 2026-03-01 als nieuw): mediaan |verschil| met het peil van het volledige model 0,39%
   (races >= 15 rijders), 0,66% (5-14), 0,93% (1-4);

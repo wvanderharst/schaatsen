@@ -2,8 +2,8 @@
 # speedskating_nieuw.parquet (nieuwe en opnieuw opgehaalde toernooien), scraper_stand.json en scraper_log.md.
 # Gepland elke maandag 06:17 UTC, alleen september t/m maart (april t/m augustus geen wedstrijden van belang); ook met de hand (workflow_dispatch) en bij een push die de scraper of deze workflow wijzigt.
 # Daarna (job site) de website bijwerken zonder herfit: basiswerkmap (branch werkmap) + alle scraperdata -> voorspel/wekelijks_site.sh
-# -> GitHub Pages (branch gh-pages).
-# Let op: GitHub voert geplande runs alleen uit vanaf de standaardbranch; daarom staat de doelbranch hieronder vast.
+# -> GitHub Pages (rechtstreeks, actions/deploy-pages; instelling Settings -> Pages -> Source: GitHub Actions).
+# Alles werkt vanuit main: de scraperdata wordt op main gecommit, de basiswerkmap staat op de branch werkmap (vast, verandert niet wekelijks).
 name: scraper
 
 on:
@@ -11,7 +11,7 @@ on:
     - cron: '17 6 * 1-3,9-12 1'
   workflow_dispatch:
   push:
-    branches: [claude/new-session-tj1971]
+    branches: [main]
     paths:
       - 'schaatsmodel/scraper/wekelijks.py'
       - 'schaatsmodel/scraper/scraper_schaatsen.py'
@@ -29,7 +29,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  DOEL: claude/new-session-tj1971
+  DOEL: main
 
 jobs:
   haal:
@@ -65,9 +65,15 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     env:
       PYTHONUNBUFFERED: '1'
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -80,8 +86,13 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install pandas pyarrow numpy numba scipy
-      - name: Nieuwe wedstrijden toevoegen, website bouwen en publiceren
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          bash voorspel/wekelijks_site.sh basis data "$RUNNER_TEMP/wk"
+      - name: Nieuwe wedstrijden toevoegen en website bouwen
+        run: bash voorspel/wekelijks_site.sh basis data "$RUNNER_TEMP/wk"
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/wk/pages
+      - id: deploy
+        uses: actions/deploy-pages@v4

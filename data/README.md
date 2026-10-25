@@ -32,7 +32,7 @@ wedstrijddag, op basis van deze data (racedagen; bij toernooien zonder racedagen
 
 ## Wekelijkse aanvulling
 
-`.github/workflows/scraper.yml` draait elke maandag (en met de hand) `schaatsmodel/scraper/wekelijks.py data`:
+`.github/workflows/scraper.yml` draait elke maandag van september t/m maart (en met de hand) `schaatsmodel/scraper/wekelijks.py data`:
 - nieuwe toernooien vanaf het hoogste bekende Event_ID (stopt na 40 nummers zonder uitslagen);
 - opnieuw: toernooien die eerder nog leeg waren (tot 26 weken) en toernooien van de laatste 30 dagen (late of verbeterde uitslagen);
 - uitkomst in `speedskating_nieuw.parquet` (zelfde kolommen als de historie plus `Race_Datum`, de racedag van de toernooipagina),

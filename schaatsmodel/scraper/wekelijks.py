@@ -71,7 +71,7 @@ def main(map_, droog=False):
     hoogste = max(stand['hoogste'], hoogste_hist, int(nieuw['Event_ID'].max()) if len(nieuw) else 0)
     vandaag = date.today()
     # oude open nummers laten vallen
-    stand['open'] = {k: v for k, v in stand['open'].items() if date.fromisoformat(v) >= vandaag - timedelta(weeks=OPEN_WEKEN)}
+    stand['open'] = {k: v for k, v in stand['open'].items() if date.fromisoformat(v) >= vandaag - timedelta(weeks=OPEN_WEKEN) and int(k) < hoogste}
     print(f'hoogste bekende toernooi {hoogste}, open {len(stand["open"])}, al aangevuld {nieuw["Event_ID"].nunique() if len(nieuw) else 0} toernooien', flush=True)
     if droog:
         recent = sorted(nieuw.loc[nieuw['Datum'] >= pd.Timestamp(vandaag - timedelta(days=HERHAAL_DAGEN)), 'Event_ID'].unique()) if len(nieuw) else []
@@ -91,8 +91,9 @@ def main(map_, droog=False):
                 leeg.append(eid)
         time.sleep(0.3)
     nieuwe_hoogste = max(gevonden) if gevonden else hoogste
-    for e in leeg:                                   # bestaat maar nog zonder uitslagen: de komende weken opnieuw kijken
-        stand['open'].setdefault(str(e), vandaag.isoformat())
+    for e in leeg:                                   # tussen gevonden toernooien maar nog zonder uitslagen: de komende weken opnieuw kijken
+        if e < nieuwe_hoogste:                       # (lege nummers erboven bekijkt de volgende zoektocht toch al)
+            stand['open'].setdefault(str(e), vandaag.isoformat())
     # 2. opnieuw: open nummers die nu uitslagen hebben, en recente toernooien
     nu_vol = [int(e) for e in list(stand['open']) if int(e) not in gevonden and heeft_uitslagen(session, int(e))]
     recent = sorted(nieuw.loc[nieuw['Datum'] >= pd.Timestamp(vandaag - timedelta(days=HERHAAL_DAGEN)), 'Event_ID'].unique().tolist()) if len(nieuw) else []

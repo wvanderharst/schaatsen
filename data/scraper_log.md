@@ -7,3 +7,4 @@
 | 2026-10-25 | 0 | 0 | 111 | 32217 | 0 |  |
 | 2026-10-25 | 0 | 0 | 111 | 32217 | 0 |  |
 | 2026-10-25 | 0 | 0 | 111 | 32217 | 0 |  |
+| 2026-10-26 | 12 | 1828 | 111 | 32229 | 0 | Inzell (GER) 23-10, Inzell (GER) 23-10, Seoul (KOR) 24-10, Amsterdam (NED) 25-10, Utrecht (NED) 25-10, Kolomna 20-10, Enschede (NED) 25-10, Breda (NED) 25-10, Amsterdam (NED) 25-10, Alkmaar (NED) 25-10, Hoorn (NED) 25-10, Haarlem (NED) 25-10 |

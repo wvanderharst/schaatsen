@@ -4,7 +4,7 @@ te fitten: alle parameters en lagen blijven zoals ze zijn, alleen de nieuwe info
      context voor de onmogelijk-snel-regels); geboortejaar uit de historie van de rijder, anders uit de categoriecode (zoals prep_cat.py).
   2. Racepeil theta van elke nieuwe race uit het veld, dag voor dag: het Kalmanfilter (kalman_mv2, vaste parameters) loopt over de
      geschiedenis van de rijders in de nieuwe races; per race is theta de gewogen mediaan van ln tijd - wereldtop - verwacht niveau (gewicht
-     1 / (onzekerheid niveau + ritruis)). Minder dan 3 rijders met een niveau: het gewone peil van die baan (laatste vier seizoenen).
+     1 / (onzekerheid niveau + ritruis)). Minder dan 14 rijders met een niveau: het gewone peil van die baan (laatste vier seizoenen).
      Daarna tellen de ritten van die dag mee voor de niveaus van de volgende dagen. Universele baanfactor per rijder als in maak_baanfactor.py.
      Een hele race > 20% sneller dan het baanpeil, of een losse rit > 40% sneller dan verwacht, is verdacht (zoals onmogelijk.py).
   3. Uitvoer in een nieuwe werkmap (de oude blijft onaangetast; overige bestanden als koppeling): ritten_cat.parquet en
@@ -23,6 +23,7 @@ import time, functools
 RACE_GRENS, RIT_GRENS = 0.20, 0.40
 KRIMP = os.environ.get('AANVUL_KRIMP', 'precisie')
 SNEL_AANVUL = 1.55
+MIN_RIJDERS = int(os.environ.get('AANVUL_MIN', 14))     # minder rijders met een niveau: het gewone peil van de baan (kleine velden overcorrigeren)
 ASYM = os.environ.get('AANVUL_ASYM', '')               # toets: 'snel0.5' / 'trag0.5' (gewicht van ritten aan die kant van het peil)     # racepeil bij weinig rijders: precisie (glad naar het baanpeil), geen, n3/n5/n8 (harde grens)
 NIEUW = ['speedskating_nieuw.parquet']
 EXACT = {'YF': 7, 'YE': 8, 'YD': 9, 'YC': 10, 'YB': 11, 'YA': 12, 'C1': 13, 'C2': 14, 'B1': 15, 'B2': 16, 'A1': 17, 'A2': 18,
@@ -149,7 +150,7 @@ def schat_peil(R, N, par):
             g_, a_, b_ = D.at[q[0], 'gender'], int(D.at[q[0], 'afstand_idx']), D.at[q[0], 'baan']
             prior = gb.get((b_, g_, a_), hv.get((g_, a_), 0.0) + gbaan.get(b_, 0.0)); v_p = gbsd.get((b_, g_, a_), 0.01) ** 2
             n_ok = int(ok.sum())
-            if n_ok >= 1 and not (KRIMP.startswith('n') and n_ok < int(KRIMP[1:])):
+            if n_ok >= MIN_RIJDERS and not (KRIMP.startswith('n') and n_ok < int(KRIMP[1:])):
                 wv = 1.0 / np.maximum(o['vl'][q][ok] + o['r'][q][ok] + rvar[q][ok], 1e-6)
                 t_ = gewogen_mediaan(e[ok], wv)
                 if ASYM:                                                     # alleen voor de toets: snelle of trage ritten minder gewicht

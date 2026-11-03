@@ -21,6 +21,7 @@ import kalman_mv2 as kf, baanfactor as bf, talent as tal
 import time, functools
 
 RACE_GRENS, RIT_GRENS = 0.20, 0.40
+KRIMP = os.environ.get('AANVUL_KRIMP', 'precisie')     # racepeil bij weinig rijders: precisie (glad naar het baanpeil), geen, n3/n5/n8 (harde grens)
 NIEUW = ['speedskating_nieuw.parquet']
 EXACT = {'YF': 7, 'YE': 8, 'YD': 9, 'YC': 10, 'YB': 11, 'YA': 12, 'C1': 13, 'C2': 14, 'B1': 15, 'B2': 16, 'A1': 17, 'A2': 18,
          'N1': 19, 'N2': 20, 'N3': 21, 'N4': 22}
@@ -91,17 +92,21 @@ def gewogen_mediaan(x, w):
 def _rust_raster():
     from scipy.interpolate import RegularGridInterpolator
     J = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aanvul_rust.json')))
-    LG, CG, M = np.array(J['LG']), np.array(J['CG']), np.array(J['M'])
-    return RegularGridInterpolator((LG, CG), M), LG, CG
+    LG, CG, M, S = np.array(J['LG']), np.array(J['CG']), np.array(J['M']), np.array(J['S'])
+    return RegularGridInterpolator((LG, CG), M), RegularGridInterpolator((LG, CG), S), LG, CG
 
 
 def rust_tekort(gap, c):
     """Hoeveel trager dan het filterniveau een rijder is na gap rustdagen (sinds de vorige racedag), bij niveau vooraf c: gladde
     kernel-mediaan uit de basis (aanvul_rust.json). Zonder deze correctie leest het veldpeil het vormtekort aan het begin van het seizoen
-    als traag ijs (oktober 2026 in Heerenveen ~1%), en worden de omgerekende tijden te snel."""
-    f, LG, CG = _rust_raster()
+    als traag ijs (oktober 2026 in Heerenveen ~1%), en worden de omgerekende tijden te snel. Ook de spreiding is na een pauze groter
+    (toprijders 0,73% na 1 dag, 1,2% na 7 maanden): die extra variantie geeft zulke ritten minder gewicht in het racepeil."""
+    if os.environ.get('AANVUL_RUST') == '0':                            # alleen voor de toets: zonder rustcorrectie
+        return np.zeros(len(gap)), np.zeros(len(gap))
+    f, fs, LG, CG = _rust_raster()
     lg = np.clip(np.log(np.maximum(np.nan_to_num(gap, nan=1.0), 1.0)), LG[0], LG[-1]); cc = np.clip(np.nan_to_num(c, nan=CG[-1]), CG[0], CG[-1])
-    return f(np.c_[lg, cc])
+    X = np.c_[lg, cc]; X1 = np.c_[np.full(len(lg), LG[0]), cc]
+    return f(X), np.maximum(fs(X) ** 2 - fs(X1) ** 2, 0.0)     # tekort en extra variantie (meer uitschieters na een pauze)
 
 
 def schat_peil(R, N, par):
@@ -112,7 +117,8 @@ def schat_peil(R, N, par):
     hv = bf.hv_peil(R); bpar = json.load(open(BF_PAR)) if os.path.exists(BF_PAR) else None
     # gewoon peil per baan x geslacht x afstand (laatste vier seizoenen, >= 3 races), anders per baan, anders Heerenveen
     rr = R[R['seizoen'] >= R['seizoen'].max() - 4].drop_duplicates(['event_id', 'dag', 'gender', 'afstand_idx'])
-    gb = rr.groupby(['baan', 'gender', 'afstand_idx'])['theta'].agg(['median', 'size']); gb = gb[gb['size'] >= 3]['median']
+    gb = rr.groupby(['baan', 'gender', 'afstand_idx'])['theta'].agg(['median', 'size', lambda v: 1.4826 * np.median(np.abs(v - np.median(v)))])
+    gb.columns = ['median', 'size', 'sd']; gb = gb[gb['size'] >= 3]; gbsd = gb['sd'].clip(0.003, 0.03); gb = gb['median']
     gbaan = (rr['theta'] - rr.set_index(['gender', 'afstand_idx']).index.map(hv).to_numpy(float)).groupby(rr['baan']).median()
     N = N.copy(); N['theta'] = np.nan; N['v_theta'] = 0.0; N['theta_rijder'] = np.nan; N['_nieuw'] = True
     keep = set(N['skater_id'])
@@ -121,7 +127,7 @@ def schat_peil(R, N, par):
     lt = np.log(D['tijd'].to_numpy(float)); nieuw = D['_nieuw'].to_numpy()
     dd_ = D[['skater_id', 'dag']].drop_duplicates(); dd_['gap'] = dd_.groupby('skater_id')['dag'].diff()   # rustdagen sinds de vorige racedag
     gap = D[['skater_id', 'dag']].merge(dd_, on=['skater_id', 'dag'], how='left')['gap'].to_numpy(float)
-    rust = np.zeros(len(D))
+    rust = np.zeros(len(D)); rvar = np.zeros(len(D))
     verd = D['verdacht'].to_numpy().copy()
     th_r = D['theta_rijder'].to_numpy(float).copy()
     z = np.where(verd | nieuw, np.nan, lt - th_r - inv['refq'])
@@ -135,18 +141,24 @@ def schat_peil(R, N, par):
             uit[k][dd] = o[k][dd]
         for r_ in np.unique(inv['rk'][dd]):
             q = dd[inv['rk'][dd] == r_]
-            rust[q] = rust_tekort(gap[q], o['c'][q])
+            rust[q], rvar[q] = rust_tekort(gap[q], o['c'][q])
             e = lt[q] - inv['refq'][q] - o['zh'][q] - rust[q]
             ok = np.isfinite(e) & ~verd[q]
             g_, a_, b_ = D.at[q[0], 'gender'], int(D.at[q[0], 'afstand_idx']), D.at[q[0], 'baan']
-            prior = gb.get((b_, g_, a_), hv.get((g_, a_), 0.0) + gbaan.get(b_, 0.0))
-            if ok.sum() >= 3:
-                wv = 1.0 / np.maximum(o['vl'][q][ok] + o['r'][q][ok], 1e-6)
+            prior = gb.get((b_, g_, a_), hv.get((g_, a_), 0.0) + gbaan.get(b_, 0.0)); v_p = gbsd.get((b_, g_, a_), 0.01) ** 2
+            n_ok = int(ok.sum())
+            if n_ok >= 1 and not (KRIMP.startswith('n') and n_ok < int(KRIMP[1:])):
+                wv = 1.0 / np.maximum(o['vl'][q][ok] + o['r'][q][ok] + rvar[q][ok], 1e-6)
                 t_ = gewogen_mediaan(e[ok], wv)
-                mad = 1.4826 * np.median(np.abs(e[ok] - t_))
-                v_ = max(mad, 0.005) ** 2 * (np.pi / 2) / ok.sum()
+                mad = 1.4826 * np.median(np.abs(e[ok] - t_)) if n_ok >= 3 else 0.0
+                sig2 = max(mad ** 2, n_ok / np.sum(wv), 0.005 ** 2)          # niet kleiner dan de verwachte spreiding per rit
+                v_ = sig2 * (np.pi / 2) / n_ok                                   # variantie van een mediaan
+                if KRIMP == 'precisie':                                      # glad naar het gewone baanpeil, naar onzekerheid
+                    t_, v_ = (t_ / v_ + prior / v_p) / (1 / v_ + 1 / v_p), 1 / (1 / v_ + 1 / v_p)
+                elif KRIMP == 'geen' and n_ok < 3:
+                    t_, v_ = prior, v_p
             else:
-                t_, v_ = prior, 0.01 ** 2
+                t_, v_ = prior, v_p
             th[q] = t_; vth[q] = v_
             if t_ - prior < -RACE_GRENS:                                  # hele race onmogelijk snel: verkeerde afstand of tijdwaarneming
                 verd[q] = True
@@ -163,7 +175,7 @@ def schat_peil(R, N, par):
                 th_r[q] = t_
             z[q] = np.where(verd[q], np.nan, lt[q] - th_r[q] - inv['refq'][q])
     D['theta'] = th; D['v_theta'] = vth; D['theta_rijder'] = th_r; D['verdacht'] = verd
-    D['refq'] = inv['refq']; D['_rust'] = rust
+    D['refq'] = inv['refq']; D['_rust'] = rust; D['_rvar'] = rvar
     for k, v in uit.items():
         D['_' + k] = v
     # seizoensstanden (momentopnamen) van alleen deze rijders; wie niet reed, houdt de stand van de basis
@@ -189,7 +201,7 @@ def uitkomst_rijen(N, V):
     X = pd.DataFrame({'skater_id': N['skater_id'], 'skater_name': N['skater_name'], 'gender': N['gender'], 'groep': N['groep'], 'dag': N['dag'],
                       'jaar': N['jaar'], 'seizoen': N['seizoen'], 'baan': N['baan'], 'afstand': N['afstand'], 'tijd': N['tijd'],
                       'pred': N['refq'] + N['_zh'] + N['_rust'] + N['theta_rijder'], 'theta': N['theta'], 'k_c': N['_c'], 'k_val': N['_val'].astype(bool),
-                      'sd': np.sqrt(N['_vl'] + N['_r'] + N['v_theta']), 'sd_rijder': N['skater_id'].map(sdr)})
+                      'sd': np.sqrt(N['_vl'] + N['_r'] + N['_rvar'] + N['v_theta']), 'sd_rijder': N['skater_id'].map(sdr)})
     X['ok'] = np.isfinite(X['pred']) & ~N['verdacht'].to_numpy()
     return X
 
@@ -201,7 +213,8 @@ def main(w, datamap, w2, par_pad, toets=None):
         R[c] = R[c].astype(str)
     if toets:
         d0 = int((pd.Timestamp(toets) - pd.Timestamp('1970-01-01')).days)
-        N = R[R['dag'] >= d0].drop(columns=['theta', 'v_theta', 'theta_rijder']); R = R[R['dag'] < d0]
+        d1 = int((pd.Timestamp(os.environ.get('TOETS_TOT', '2100-01-01')) - pd.Timestamp('1970-01-01')).days)
+        N = R[(R['dag'] >= d0) & (R['dag'] < d1)].drop(columns=['theta', 'v_theta', 'theta_rijder']); R = R[R['dag'] < d0]
         Y, _ = schat_peil(R, N, par)
         X = Y.merge(pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'), columns=['skater_id', 'dag', 'afstand', 'tijd', 'theta']).astype({'afstand': str}),
                     on=['skater_id', 'dag', 'afstand', 'tijd'], suffixes=('', '_oud'))

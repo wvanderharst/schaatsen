@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'schaatsmodel'))
 import numpy as np, pandas as pd
 import kalman_mv2 as kf, baanfactor as bf, talent as tal
-import time
+import time, functools
 
 RACE_GRENS, RIT_GRENS = 0.20, 0.40
 NIEUW = ['speedskating_nieuw.parquet']
@@ -87,6 +87,23 @@ def gewogen_mediaan(x, w):
     return x[np.searchsorted(c, 0.5 * c[-1])]
 
 
+@functools.lru_cache(1)
+def _rust_raster():
+    from scipy.interpolate import RegularGridInterpolator
+    J = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'aanvul_rust.json')))
+    LG, CG, M = np.array(J['LG']), np.array(J['CG']), np.array(J['M'])
+    return RegularGridInterpolator((LG, CG), M), LG, CG
+
+
+def rust_tekort(gap, c):
+    """Hoeveel trager dan het filterniveau een rijder is na gap rustdagen (sinds de vorige racedag), bij niveau vooraf c: gladde
+    kernel-mediaan uit de basis (aanvul_rust.json). Zonder deze correctie leest het veldpeil het vormtekort aan het begin van het seizoen
+    als traag ijs (oktober 2026 in Heerenveen ~1%), en worden de omgerekende tijden te snel."""
+    f, LG, CG = _rust_raster()
+    lg = np.clip(np.log(np.maximum(np.nan_to_num(gap, nan=1.0), 1.0)), LG[0], LG[-1]); cc = np.clip(np.nan_to_num(c, nan=CG[-1]), CG[0], CG[-1])
+    return f(np.c_[lg, cc])
+
+
 def schat_peil(R, N, par):
     """Racepeil per nieuwe race, dag voor dag. R: basis (met theta), N: nieuwe ritten (zonder theta). Geeft N met theta, v_theta,
     theta_rijder, verdacht bijgewerkt en de filteruitvoer per nieuwe rit (niveau vooraf c, verwachting zh, onzekerheid, val)."""
@@ -102,6 +119,9 @@ def schat_peil(R, N, par):
     B = R[R['skater_id'].isin(keep)].copy(); B['_nieuw'] = False
     D, inv = invoer(pd.concat([B, N], ignore_index=True), refq_tab)
     lt = np.log(D['tijd'].to_numpy(float)); nieuw = D['_nieuw'].to_numpy()
+    dd_ = D[['skater_id', 'dag']].drop_duplicates(); dd_['gap'] = dd_.groupby('skater_id')['dag'].diff()   # rustdagen sinds de vorige racedag
+    gap = D[['skater_id', 'dag']].merge(dd_, on=['skater_id', 'dag'], how='left')['gap'].to_numpy(float)
+    rust = np.zeros(len(D))
     verd = D['verdacht'].to_numpy().copy()
     th_r = D['theta_rijder'].to_numpy(float).copy()
     z = np.where(verd | nieuw, np.nan, lt - th_r - inv['refq'])
@@ -115,7 +135,8 @@ def schat_peil(R, N, par):
             uit[k][dd] = o[k][dd]
         for r_ in np.unique(inv['rk'][dd]):
             q = dd[inv['rk'][dd] == r_]
-            e = lt[q] - inv['refq'][q] - o['zh'][q]
+            rust[q] = rust_tekort(gap[q], o['c'][q])
+            e = lt[q] - inv['refq'][q] - o['zh'][q] - rust[q]
             ok = np.isfinite(e) & ~verd[q]
             g_, a_, b_ = D.at[q[0], 'gender'], int(D.at[q[0], 'afstand_idx']), D.at[q[0], 'baan']
             prior = gb.get((b_, g_, a_), hv.get((g_, a_), 0.0) + gbaan.get(b_, 0.0))
@@ -142,7 +163,7 @@ def schat_peil(R, N, par):
                 th_r[q] = t_
             z[q] = np.where(verd[q], np.nan, lt[q] - th_r[q] - inv['refq'][q])
     D['theta'] = th; D['v_theta'] = vth; D['theta_rijder'] = th_r; D['verdacht'] = verd
-    D['refq'] = inv['refq']
+    D['refq'] = inv['refq']; D['_rust'] = rust
     for k, v in uit.items():
         D['_' + k] = v
     # seizoensstanden (momentopnamen) van alleen deze rijders; wie niet reed, houdt de stand van de basis
@@ -167,7 +188,7 @@ def uitkomst_rijen(N, V):
     sdr = V.sort_values('dag').groupby('skater_id')['sd_rijder'].last()
     X = pd.DataFrame({'skater_id': N['skater_id'], 'skater_name': N['skater_name'], 'gender': N['gender'], 'groep': N['groep'], 'dag': N['dag'],
                       'jaar': N['jaar'], 'seizoen': N['seizoen'], 'baan': N['baan'], 'afstand': N['afstand'], 'tijd': N['tijd'],
-                      'pred': N['refq'] + N['_zh'] + N['theta_rijder'], 'theta': N['theta'], 'k_c': N['_c'], 'k_val': N['_val'].astype(bool),
+                      'pred': N['refq'] + N['_zh'] + N['_rust'] + N['theta_rijder'], 'theta': N['theta'], 'k_c': N['_c'], 'k_val': N['_val'].astype(bool),
                       'sd': np.sqrt(N['_vl'] + N['_r'] + N['v_theta']), 'sd_rijder': N['skater_id'].map(sdr)})
     X['ok'] = np.isfinite(X['pred']) & ~N['verdacht'].to_numpy()
     return X
@@ -188,6 +209,12 @@ def main(w, datamap, w2, par_pad, toets=None):
         dif = 100 * (rc['theta'] - rc['theta_oud'])
         print(f'toets vanaf {toets}: {len(rc)} races, {len(X)} ritten | racepeil nieuw - opgeslagen (%): mediaan {dif.median():+.3f},'
               f' mediaan |verschil| {dif.abs().median():.3f}, p90 |verschil| {dif.abs().quantile(0.9):.3f}, sd {dif.std():.3f}')
+        rc = rc.assign(maand=pd.to_datetime(rc['dag'], unit='D').dt.to_period('M'), dif=100 * (rc['theta'] - rc['theta_oud']))
+        print('  per maand (nieuw - opgeslagen, %; mediaan alle races | races >= 15 rijders):')
+        n15 = X.groupby(['event_id', 'dag', 'gender', 'afstand_idx'])['tijd'].size().rename('n')
+        rc = rc.join(n15, on=['event_id', 'dag', 'gender', 'afstand_idx'])
+        for m, x in rc.groupby('maand'):
+            print(f'    {m}: {x["dif"].median():+.3f} ({len(x)}) | {x.loc[x["n"] >= 15, "dif"].median():+.3f} ({int((x["n"] >= 15).sum())})')
         n_ = X.groupby(['event_id', 'dag', 'gender', 'afstand_idx'])['tijd'].transform('size')
         for lo_, hi_ in ((1, 5), (5, 15), (15, 1000)):
             m = (n_ >= lo_) & (n_ < hi_); r_ = X[m].drop_duplicates(['event_id', 'dag', 'gender', 'afstand_idx'])

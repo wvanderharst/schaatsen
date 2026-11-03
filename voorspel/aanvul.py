@@ -23,6 +23,7 @@ import time, functools
 RACE_GRENS, RIT_GRENS = 0.20, 0.40
 KRIMP = os.environ.get('AANVUL_KRIMP', 'precisie')
 SNEL_AANVUL = 1.55
+TRIM = int(os.environ.get('AANVUL_TRIM', 2))            # racepeil: de 2 snelste en 2 traagste ritten van het veld weglaten
 MIN_RIJDERS = int(os.environ.get('AANVUL_MIN', 14))     # minder rijders met een niveau: het gewone peil van de baan (kleine velden overcorrigeren)
 ASYM = os.environ.get('AANVUL_ASYM', '')               # toets: 'snel0.5' / 'trag0.5' (gewicht van ritten aan die kant van het peil)     # racepeil bij weinig rijders: precisie (glad naar het baanpeil), geen, n3/n5/n8 (harde grens)
 NIEUW = ['speedskating_nieuw.parquet']
@@ -151,6 +152,9 @@ def schat_peil(R, N, par):
             prior = gb.get((b_, g_, a_), hv.get((g_, a_), 0.0) + gbaan.get(b_, 0.0)); v_p = gbsd.get((b_, g_, a_), 0.01) ** 2
             n_ok = int(ok.sum())
             if n_ok >= MIN_RIJDERS and not (KRIMP.startswith('n') and n_ok < int(KRIMP[1:])):
+                if TRIM:                                                     # de TRIM snelste en traagste ritten tellen niet mee
+                    iq = np.flatnonzero(ok); iq = iq[np.argsort(e[iq])]
+                    ok = ok.copy(); ok[iq[:TRIM]] = False; ok[iq[-TRIM:]] = False; n_ok = int(ok.sum())
                 wv = 1.0 / np.maximum(o['vl'][q][ok] + o['r'][q][ok] + rvar[q][ok], 1e-6)
                 t_ = gewogen_mediaan(e[ok], wv)
                 if ASYM:                                                     # alleen voor de toets: snelle of trage ritten minder gewicht

@@ -22,6 +22,7 @@ import time, functools
 
 RACE_GRENS, RIT_GRENS = 0.20, 0.40
 KRIMP = os.environ.get('AANVUL_KRIMP', 'precisie')
+SNEL_AANVUL = 1.55
 ASYM = os.environ.get('AANVUL_ASYM', '')               # toets: 'snel0.5' / 'trag0.5' (gewicht van ritten aan die kant van het peil)     # racepeil bij weinig rijders: precisie (glad naar het baanpeil), geen, n3/n5/n8 (harde grens)
 NIEUW = ['speedskating_nieuw.parquet']
 EXACT = {'YF': 7, 'YE': 8, 'YD': 9, 'YC': 10, 'YB': 11, 'YA': 12, 'C1': 13, 'C2': 14, 'B1': 15, 'B2': 16, 'A1': 17, 'A2': 18,
@@ -213,8 +214,10 @@ def uitkomst_rijen(N, V):
 
 def main(w, datamap, w2, par_pad, toets=None):
     par = json.load(open(par_pad))
-    if os.environ.get('AANVUL_SNEL'):                                    # toets: gewicht van snelle ritten in het filter
-        par['SNEL'] = float(os.environ['AANVUL_SNEL'])
+    # snelle ritten tellen in de aanvulling iets minder zwaar dan in het volledige model (1,55 i.p.v. 1,68): hier komen racepeil en niveau
+    # uit dezelfde ritten, en het extra gewicht maakte de niveaus te optimistisch, waardoor het veldpeil in de loop van het seizoen naar
+    # traag ijs wegdreef (toets 2025-26: feb/mrt +0,3%; met 1,55 +0,2% / 2024-25 binnen +-0,19%, mediaan |verschil| 0,38%)
+    par['SNEL'] = float(os.environ.get('AANVUL_SNEL', SNEL_AANVUL))
     R = pd.read_parquet(os.path.join(w, 'ritten_cat.parquet'))
     for c in ('afstand', 'skater_name', 'categorie', 'baan', 'land', 'groep', 'gender'):
         R[c] = R[c].astype(str)

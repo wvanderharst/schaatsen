@@ -25,6 +25,7 @@ KRIMP = os.environ.get('AANVUL_KRIMP', 'precisie')
 SNEL_AANVUL = 1.55
 TRIM = int(os.environ.get('AANVUL_TRIM', 2))            # racepeil: de 2 snelste en 2 traagste ritten van het veld weglaten
 MIN_RIJDERS = int(os.environ.get('AANVUL_MIN', 14))
+HOLDOUT = os.environ.get('AANVUL_HOLDOUT') == '1'; HOUT = []
 DAGPOST = os.environ.get('AANVUL_DAGPOST', '1') == '1'   # nabewerking: races van dezelfde dag en baan delen het ijs
 SD_DAG, TAU_RACE = 0.0073, 0.0035                       # gedeeld ijs per dag x baan en race-eigen ijs (sd, model 2015-2025; ware correlatie 0,82)     # minder rijders met een niveau: het gewone peil van de baan (kleine velden overcorrigeren)
 ASYM = os.environ.get('AANVUL_ASYM', '')               # toets: 'snel0.5' / 'trag0.5' (gewicht van ritten aan die kant van het peil)     # racepeil bij weinig rijders: precisie (glad naar het baanpeil), geen, n3/n5/n8 (harde grens)
@@ -153,6 +154,12 @@ def schat_peil(R, N, par):
             rust[q], rvar[q] = rust_tekort(gap[q], o['c'][q])
             e = lt[q] - inv['refq'][q] - o['zh'][q] - rust[q]
             ok = np.isfinite(e) & ~verd[q]
+            eB = None
+            if HOLDOUT:                                                      # toets: de helft van de rijders apart houden
+                B = ok & ((D['skater_id'].to_numpy()[q] * 7919 + int(d)) % 2 == 1)
+                if B.sum() >= 3:
+                    eB = (e[B], 1.0 / np.maximum(o['vl'][q][B] + o['r'][q][B] + rvar[q][B], 1e-6))
+                ok = ok & ~B
             g_, a_, b_ = D.at[q[0], 'gender'], int(D.at[q[0], 'afstand_idx']), D.at[q[0], 'baan']
             prior = gb.get((b_, g_, a_), hv.get((g_, a_), 0.0) + gbaan.get(b_, 0.0)); v_p = gbsd.get((b_, g_, a_), 0.01) ** 2
             n_ok = int(ok.sum()); t_ = v_ = None
@@ -169,7 +176,7 @@ def schat_peil(R, N, par):
                 mad = 1.4826 * np.median(np.abs(e[ok] - t_)) if n_ok >= 3 else 0.0
                 sig2 = max(mad ** 2, n_ok / np.sum(wv), 0.005 ** 2)          # niet kleiner dan de verwachte spreiding per rit
                 v_ = sig2 * (np.pi / 2) / n_ok                                   # variantie van een mediaan
-            races.append(dict(q=q, e=e, g=g_, a=a_, b=b_, prior=prior, v_p=v_p, t=t_, v=v_))
+            races.append(dict(q=q, e=e, g=g_, a=a_, b=b_, prior=prior, v_p=v_p, t=t_, v=v_, eB=eB, nA=n_ok))
         for b_ in {r['b'] for r in races}:
             rb = [r for r in races if r['b'] == b_]
             if DAGPOST:
@@ -191,6 +198,8 @@ def schat_peil(R, N, par):
                         r['t'], r['v'] = (r['t'] / r['v'] + r['prior'] / r['v_p']) / (1 / r['v'] + 1 / r['v_p']), 1 / (1 / r['v'] + 1 / r['v_p'])
         for r in races:
             q, e, g_, a_, t_, prior = r['q'], r['e'], r['g'], r['a'], r['t'], r['prior']
+            if r['eB'] is not None:
+                HOUT.append((r['nA'], len(r['eB'][0]), t_, float(gewogen_mediaan(*r['eB']))))
             th[q] = t_; vth[q] = r['v']
             if t_ - prior < -RACE_GRENS:                                  # hele race onmogelijk snel: verkeerde afstand of tijdwaarneming
                 verd[q] = True
@@ -264,6 +273,14 @@ def main(w, datamap, w2, par_pad, toets=None):
         rc = rc.join(n15, on=['event_id', 'dag', 'gender', 'afstand_idx'])
         for m, x in rc.groupby('maand'):
             print(f'    {m}: {x["dif"].median():+.3f} ({len(x)}) | {x.loc[x["n"] >= 15, "dif"].median():+.3f} ({int((x["n"] >= 15).sum())})')
+        if HOUT:
+            H = pd.DataFrame(HOUT, columns=['nA', 'nB', 't', 'tB']); H['f'] = 100 * (H['t'] - H['tB'])
+            print('  uitgestelde rijders (helft apart): peil uit de andere helft min mediaan van de apart gehouden helft (%):')
+            for lo_, hi_ in ((0, 7), (7, 15), (15, 1000)):
+                h = H[(H['nA'] >= lo_) & (H['nA'] < hi_)]
+                if len(h):
+                    print(f'    schattende helft {lo_}-{hi_ - 1} rijders: {len(h)} races | mediaan |fout| {h["f"].abs().median():.3f} | rms {np.sqrt((h["f"] ** 2).mean()):.3f} | gemiddeld {h["f"].mean():+.3f}')
+            print(f'    alle: mediaan |fout| {H["f"].abs().median():.3f} | rms {np.sqrt((H["f"] ** 2).mean()):.3f}')
         n_ = X.groupby(['event_id', 'dag', 'gender', 'afstand_idx'])['tijd'].transform('size')
         for lo_, hi_ in ((1, 5), (5, 15), (15, 1000)):
             m = (n_ >= lo_) & (n_ < hi_); r_ = X[m].drop_duplicates(['event_id', 'dag', 'gender', 'afstand_idx'])

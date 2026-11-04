@@ -3,7 +3,8 @@ Per seizoen (eind van het seizoen, Kalman-momentopname): per afstand het niveau 
 (exp(wereldtop-referentie + niveau + peil Heerenveen)), de achterstand op de top-10 van DAT seizoen (stijgend niveau over de jaren),
 hetzelfde niveau omgerekend naar het niveau van nu (achterstand op de top-10 + top-10 van het laatste seizoen), de wereldrang, aantal ritten;
 titels (WK, Spelen) en World Cup-zeges; bij junioren (15-19) de groei t.o.v. vorig seizoen en de titelkansen (titels.py, buiten de steekproef).
-Per rit: datum, afstand, baan, tijd, tijd omgerekend naar een normale dag in Heerenveen (exp(ln t - peil van de race + peil Heerenveen)),
+Per rit: datum, afstand, baan, tijd, tijd omgerekend naar een normale dag in Heerenveen (exp(ln t - peil van de race - baancorrectie voor
+de top (baan_top.json) + peil Heerenveen)),
 plaats in de race, soort wedstrijd (Spelen, WK, World Cup) en de prestatie van alleen de rijder (rijderschok: ijs achteraf via de
 veldmediaan; nooit de gecombineerde schok).
 Gebruik: python site_data.py <werkmap> <uitmap>"""
@@ -37,8 +38,14 @@ def main(w, uit):
     V = pq.read_table(os.path.join(w, 'voorspel2_uitkomst.parquet'), columns=['skater_id', 'gender', 'dag', 'afstand', 'tijd', 'baan', 'seizoen', 'theta', 'k_c']).to_pandas()
     for c in ('afstand', 'baan', 'gender'):
         V[c] = V[c].astype(str)
-    thv = peil_hv(R, V); del V
-    R['tijd_hv'] = np.exp(np.log(R['tijd']) - R['theta'] + R.set_index(['gender', 'afstand']).index.map(thv).to_numpy(float))
+    thv = peil_hv(R, V)
+    # baancorrectie voor de top (baan_top.py): op hoogland winnen toprijders meer dan het veld waaruit het racepeil komt
+    BT = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'baan_top.json')))
+    kc = V.drop_duplicates(['skater_id', 'dag', 'afstand', 'tijd']).set_index(['skater_id', 'dag', 'afstand', 'tijd'])['k_c']; del V
+    R['k_c'] = pd.MultiIndex.from_frame(R[['skater_id', 'dag', 'afstand', 'tijd']]).map(kc).to_numpy(float)
+    cb = R['baan'].map({b: v['c'] for b, v in BT['banen'].items()}).fillna(0.0).to_numpy()
+    top = cb * np.exp(-np.clip(np.nan_to_num(R['k_c'].to_numpy(), nan=1.0), 0, None) / BT['TW'])
+    R['tijd_hv'] = np.exp(np.log(R['tijd']) - R['theta'] - top + R.set_index(['gender', 'afstand']).index.map(thv).to_numpy(float))
     # soort wedstrijd
     Tn = pk.toernooien(R); soort = dict(zip(Tn['eid'], Tn['soort'])); wc = pk.internationaal(R, set(Tn['eid']))
     eid = R['event_id'] % 1000000

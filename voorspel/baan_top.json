@@ -1,0 +1,186 @@
+{
+ "TW": 0.05,
+ "banen": {
+  "Almaty (KAZ)": {
+   "c": -0.00343,
+   "ruw": -0.0106,
+   "paren": 20,
+   "krimp": 0.32
+  },
+  "Amsterdam-Olympic (NED)": {
+   "c": 0.00846,
+   "ruw": 0.01465,
+   "paren": 62,
+   "krimp": 0.58
+  },
+  "Astana (KAZ)": {
+   "c": 0.00182,
+   "ruw": 0.00184,
+   "paren": 776,
+   "krimp": 0.99
+  },
+  "Baselga di Pinè (ITA)": {
+   "c": 8e-05,
+   "ruw": 0.00012,
+   "paren": 52,
+   "krimp": 0.71
+  },
+  "Beijing-National (CHN)": {
+   "c": 0.00043,
+   "ruw": 0.00045,
+   "paren": 347,
+   "krimp": 0.96
+  },
+  "Berlin (GER)": {
+   "c": -0.00103,
+   "ruw": -0.00104,
+   "paren": 1159,
+   "krimp": 0.99
+  },
+  "Calgary (CAN)": {
+   "c": -0.00434,
+   "ruw": -0.00437,
+   "paren": 2623,
+   "krimp": 0.99
+  },
+  "Changchun (CHN)": {
+   "c": 0.00369,
+   "ruw": 0.00393,
+   "paren": 187,
+   "krimp": 0.94
+  },
+  "Chelyabinsk": {
+   "c": 0.00361,
+   "ruw": 0.0038,
+   "paren": 273,
+   "krimp": 0.95
+  },
+  "Collalbo (ITA)": {
+   "c": 0.00117,
+   "ruw": 0.00252,
+   "paren": 45,
+   "krimp": 0.47
+  },
+  "Erfurt (GER)": {
+   "c": -0.00407,
+   "ruw": -0.00419,
+   "paren": 636,
+   "krimp": 0.97
+  },
+  "Gangneung (KOR)": {
+   "c": -0.00044,
+   "ruw": -0.00047,
+   "paren": 321,
+   "krimp": 0.94
+  },
+  "Hamar (NOR)": {
+   "c": -0.00016,
+   "ruw": -0.00016,
+   "paren": 1213,
+   "krimp": 0.99
+  },
+  "Harbin (CHN)": {
+   "c": 0.00246,
+   "ruw": 0.00255,
+   "paren": 377,
+   "krimp": 0.97
+  },
+  "Inzell (GER)": {
+   "c": -0.0013,
+   "ruw": -0.00132,
+   "paren": 1243,
+   "krimp": 0.99
+  },
+  "Kolomna": {
+   "c": 0.00456,
+   "ruw": 0.00473,
+   "paren": 307,
+   "krimp": 0.96
+  },
+  "Lake Placid (USA)": {
+   "c": 0.00186,
+   "ruw": 0.00303,
+   "paren": 36,
+   "krimp": 0.61
+  },
+  "Milano (ITA)": {
+   "c": 0.00095,
+   "ruw": 0.00101,
+   "paren": 218,
+   "krimp": 0.95
+  },
+  "Milwaukee (USA)": {
+   "c": -0.00523,
+   "ruw": -0.00549,
+   "paren": 277,
+   "krimp": 0.95
+  },
+  "Minsk": {
+   "c": 0.0025,
+   "ruw": 0.00264,
+   "paren": 185,
+   "krimp": 0.95
+  },
+  "Moscow": {
+   "c": -0.00046,
+   "ruw": -0.00049,
+   "paren": 284,
+   "krimp": 0.95
+  },
+  "Nagano (JPN)": {
+   "c": 0.00285,
+   "ruw": 0.00289,
+   "paren": 690,
+   "krimp": 0.98
+  },
+  "Obihiro (JPN)": {
+   "c": -0.00059,
+   "ruw": -0.0006,
+   "paren": 728,
+   "krimp": 0.98
+  },
+  "Salt Lake City (USA)": {
+   "c": -0.00622,
+   "ruw": -0.00628,
+   "paren": 1583,
+   "krimp": 0.99
+  },
+  "Seinäjoki (FIN)": {
+   "c": -0.00129,
+   "ruw": -0.00378,
+   "paren": 32,
+   "krimp": 0.34
+  },
+  "Seoul (KOR)": {
+   "c": -0.00094,
+   "ruw": -0.00097,
+   "paren": 312,
+   "krimp": 0.97
+  },
+  "Sochi": {
+   "c": -0.00224,
+   "ruw": -0.00231,
+   "paren": 301,
+   "krimp": 0.97
+  },
+  "Stavanger (NOR)": {
+   "c": 0.00325,
+   "ruw": 0.00329,
+   "paren": 897,
+   "krimp": 0.99
+  },
+  "Tomakomai (JPN)": {
+   "c": 0.00095,
+   "ruw": 0.00101,
+   "paren": 275,
+   "krimp": 0.94
+  },
+  "Tomaszów-Mazowiecki (POL)": {
+   "c": 1e-05,
+   "ruw": 1e-05,
+   "paren": 999,
+   "krimp": 0.99
+  }
+ },
+ "uitleg": "Baancorrectie voor de top bij het omrekenen naar Heerenveen. Het racepeil komt uit het hele veld; op sommige banen (vooral hoogland:"
+}

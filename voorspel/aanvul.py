@@ -24,7 +24,8 @@ RACE_GRENS, RIT_GRENS = 0.20, 0.40
 KRIMP = os.environ.get('AANVUL_KRIMP', 'precisie')
 SNEL_AANVUL = 1.55
 TRIM = int(os.environ.get('AANVUL_TRIM', 2))            # racepeil: de 2 snelste en 2 traagste ritten van het veld weglaten
-MIN_RIJDERS = int(os.environ.get('AANVUL_MIN', 14))     # minder rijders met een niveau: het gewone peil van de baan (kleine velden overcorrigeren)
+MIN_RIJDERS = int(os.environ.get('AANVUL_MIN', 14))
+RHO_DAG = float(os.environ.get('AANVUL_RHO', 0.45))     # correlatie van het ijs van twee races op dezelfde dag en baan (ijs_kwaliteit.py: 0,43-0,69)     # minder rijders met een niveau: het gewone peil van de baan (kleine velden overcorrigeren)
 ASYM = os.environ.get('AANVUL_ASYM', '')               # toets: 'snel0.5' / 'trag0.5' (gewicht van ritten aan die kant van het peil)     # racepeil bij weinig rijders: precisie (glad naar het baanpeil), geen, n3/n5/n8 (harde grens)
 NIEUW = ['speedskating_nieuw.parquet']
 EXACT = {'YF': 7, 'YE': 8, 'YD': 9, 'YC': 10, 'YB': 11, 'YA': 12, 'C1': 13, 'C2': 14, 'B1': 15, 'B2': 16, 'A1': 17, 'A2': 18,
@@ -143,14 +144,18 @@ def schat_peil(R, N, par):
         dd = np.flatnonzero(nieuw & (inv['dag'] == d))
         for k in ('c', 'zh', 'vl', 'r'):
             uit[k][dd] = o[k][dd]
-        for r_ in np.unique(inv['rk'][dd]):
+        # grote races eerst: kleine races (< MIN_RIJDERS) lenen het ijs van de grote races die dag op die baan
+        rks = np.unique(inv['rk'][dd])
+        nr_ = {r_: int((np.isfinite(o['zh'][dd[inv['rk'][dd] == r_]]) & ~verd[dd[inv['rk'][dd] == r_]]).sum()) for r_ in rks}
+        dag_afw = {}                                                     # baan -> afwijkingen van het baanpeil van de grote races van deze dag
+        for r_ in sorted(rks, key=lambda x: -nr_[x]):
             q = dd[inv['rk'][dd] == r_]
             rust[q], rvar[q] = rust_tekort(gap[q], o['c'][q])
             e = lt[q] - inv['refq'][q] - o['zh'][q] - rust[q]
             ok = np.isfinite(e) & ~verd[q]
             g_, a_, b_ = D.at[q[0], 'gender'], int(D.at[q[0], 'afstand_idx']), D.at[q[0], 'baan']
             prior = gb.get((b_, g_, a_), hv.get((g_, a_), 0.0) + gbaan.get(b_, 0.0)); v_p = gbsd.get((b_, g_, a_), 0.01) ** 2
-            n_ok = int(ok.sum())
+            n_ok = int(ok.sum()); groot = n_ok >= MIN_RIJDERS
             if n_ok >= MIN_RIJDERS and not (KRIMP.startswith('n') and n_ok < int(KRIMP[1:])):
                 if TRIM:                                                     # de TRIM snelste en traagste ritten tellen niet mee
                     iq = np.flatnonzero(ok); iq = iq[np.argsort(e[iq])]
@@ -170,6 +175,12 @@ def schat_peil(R, N, par):
                     t_, v_ = prior, v_p
             else:
                 t_, v_ = prior, v_p
+                afw = dag_afw.get(b_, [])
+                if afw and RHO_DAG > 0:                                      # ijs van de andere races van deze dag op deze baan
+                    k_ = len(afw); bw = k_ * RHO_DAG / (1 + (k_ - 1) * RHO_DAG)
+                    t_, v_ = prior + bw * float(np.mean(afw)), v_p * (1 - bw * RHO_DAG)
+            if groot:
+                dag_afw.setdefault(b_, []).append(t_ - prior)
             th[q] = t_; vth[q] = v_
             if t_ - prior < -RACE_GRENS:                                  # hele race onmogelijk snel: verkeerde afstand of tijdwaarneming
                 verd[q] = True

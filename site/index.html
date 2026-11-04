@@ -610,7 +610,7 @@ async function openWedstrijd(key) {
   const med = v => { const s = v.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
   const ijs = qs.length ? { hv: med(qs.map(q => q.hv)), baan: qs[0].baan == null ? null : med(qs.map(q => q.baan)), sd: qs[0].sd } : null;
   const ijsZin = ijs ? `<p class="uitleg" style="margin-top:6px"><b>IJs:</b> ${ijsTekst(ijs, true)}; ${ijsPct(ijs.hv)} ${ijs.hv > 0 ? 'trager' : 'sneller'} dan een normale dag in Heerenveen nu.`
-    + (ijs.baan != null && Math.abs(ijs.baan) < 0.02 && qs.length < 14 ? ' Minder dan 14 rijders met een bekend niveau: het gewone peil van de baan is aangenomen.' : '')
+    + (qs.length < 14 ? ' Weinig rijders: dit ijspeil leunt op het gewone peil van de baan en op de andere races van die dag op deze baan, en is onzekerder.' : '')
     + (ijs.sd ? ` De gewone spreiding per wedstrijd op deze baan is ${ijsPct(ijs.sd)}.` : '') + '</p>' : '';
   const terug = huidig ? `<button class="mini" data-open="${huidig.r.id}">← ${esc(huidig.r.naam)}</button>` : '';
   $('wd').innerHTML = `<div class="naamkop">${terug}</div>

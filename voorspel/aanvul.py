@@ -25,7 +25,8 @@ KRIMP = os.environ.get('AANVUL_KRIMP', 'precisie')
 SNEL_AANVUL = 1.55
 TRIM = int(os.environ.get('AANVUL_TRIM', 2))            # racepeil: de 2 snelste en 2 traagste ritten van het veld weglaten
 MIN_RIJDERS = int(os.environ.get('AANVUL_MIN', 14))
-RHO_DAG = float(os.environ.get('AANVUL_RHO', 0.45))     # correlatie van het ijs van twee races op dezelfde dag en baan (ijs_kwaliteit.py: 0,43-0,69)     # minder rijders met een niveau: het gewone peil van de baan (kleine velden overcorrigeren)
+DAGPOST = os.environ.get('AANVUL_DAGPOST', '1') == '1'   # nabewerking: races van dezelfde dag en baan delen het ijs
+SD_DAG, TAU_RACE = 0.0073, 0.0035                       # gedeeld ijs per dag x baan en race-eigen ijs (sd, model 2015-2025; ware correlatie 0,82)     # minder rijders met een niveau: het gewone peil van de baan (kleine velden overcorrigeren)
 ASYM = os.environ.get('AANVUL_ASYM', '')               # toets: 'snel0.5' / 'trag0.5' (gewicht van ritten aan die kant van het peil)     # racepeil bij weinig rijders: precisie (glad naar het baanpeil), geen, n3/n5/n8 (harde grens)
 NIEUW = ['speedskating_nieuw.parquet']
 EXACT = {'YF': 7, 'YE': 8, 'YD': 9, 'YC': 10, 'YB': 11, 'YA': 12, 'C1': 13, 'C2': 14, 'B1': 15, 'B2': 16, 'A1': 17, 'A2': 18,
@@ -144,18 +145,17 @@ def schat_peil(R, N, par):
         dd = np.flatnonzero(nieuw & (inv['dag'] == d))
         for k in ('c', 'zh', 'vl', 'r'):
             uit[k][dd] = o[k][dd]
-        # grote races eerst: kleine races (< MIN_RIJDERS) lenen het ijs van de grote races die dag op die baan
-        rks = np.unique(inv['rk'][dd])
-        nr_ = {r_: int((np.isfinite(o['zh'][dd[inv['rk'][dd] == r_]]) & ~verd[dd[inv['rk'][dd] == r_]]).sum()) for r_ in rks}
-        dag_afw = {}                                                     # baan -> afwijkingen van het baanpeil van de grote races van deze dag
-        for r_ in sorted(rks, key=lambda x: -nr_[x]):
+        # 1. per race de eigen schatting uit het veld (alleen grote races), 2. nabewerking per dag x baan: alle races van die dag delen
+        # het ijs grotendeels (ware correlatie 0,82), 3. per race verdacht, baanfactor per rijder en de meting voor het filter
+        races = []
+        for r_ in np.unique(inv['rk'][dd]):
             q = dd[inv['rk'][dd] == r_]
             rust[q], rvar[q] = rust_tekort(gap[q], o['c'][q])
             e = lt[q] - inv['refq'][q] - o['zh'][q] - rust[q]
             ok = np.isfinite(e) & ~verd[q]
             g_, a_, b_ = D.at[q[0], 'gender'], int(D.at[q[0], 'afstand_idx']), D.at[q[0], 'baan']
             prior = gb.get((b_, g_, a_), hv.get((g_, a_), 0.0) + gbaan.get(b_, 0.0)); v_p = gbsd.get((b_, g_, a_), 0.01) ** 2
-            n_ok = int(ok.sum()); groot = n_ok >= MIN_RIJDERS
+            n_ok = int(ok.sum()); t_ = v_ = None
             if n_ok >= MIN_RIJDERS and not (KRIMP.startswith('n') and n_ok < int(KRIMP[1:])):
                 if TRIM:                                                     # de TRIM snelste en traagste ritten tellen niet mee
                     iq = np.flatnonzero(ok); iq = iq[np.argsort(e[iq])]
@@ -169,19 +169,29 @@ def schat_peil(R, N, par):
                 mad = 1.4826 * np.median(np.abs(e[ok] - t_)) if n_ok >= 3 else 0.0
                 sig2 = max(mad ** 2, n_ok / np.sum(wv), 0.005 ** 2)          # niet kleiner dan de verwachte spreiding per rit
                 v_ = sig2 * (np.pi / 2) / n_ok                                   # variantie van een mediaan
-                if KRIMP == 'precisie':                                      # glad naar het gewone baanpeil, naar onzekerheid
-                    t_, v_ = (t_ / v_ + prior / v_p) / (1 / v_ + 1 / v_p), 1 / (1 / v_ + 1 / v_p)
-                elif KRIMP == 'geen' and n_ok < 3:
-                    t_, v_ = prior, v_p
+            races.append(dict(q=q, e=e, g=g_, a=a_, b=b_, prior=prior, v_p=v_p, t=t_, v=v_))
+        for b_ in {r['b'] for r in races}:
+            rb = [r for r in races if r['b'] == b_]
+            if DAGPOST:
+                # afwijking van het baanpeil x_r = D + u_r + ruis_r; D ~ N(0, SD_DAG^2) gedeeld door de dag x baan, u_r ~ N(0, TAU_RACE^2)
+                m = [r for r in rb if r['t'] is not None]
+                P = 1 / SD_DAG ** 2 + sum(1 / (TAU_RACE ** 2 + r['v']) for r in m)
+                mD = sum((r['t'] - r['prior']) / (TAU_RACE ** 2 + r['v']) for r in m) / P
+                for r in rb:
+                    if r['t'] is None:                                       # geen eigen schatting: het ijs van de dag op deze baan
+                        r['t'], r['v'] = r['prior'] + mD, 1 / P + TAU_RACE ** 2
+                    else:
+                        lam = TAU_RACE ** 2 / (TAU_RACE ** 2 + r['v'])
+                        r['t'], r['v'] = r['prior'] + mD + lam * (r['t'] - r['prior'] - mD), (1 - lam) ** 2 / P + lam * r['v']
             else:
-                t_, v_ = prior, v_p
-                afw = dag_afw.get(b_, [])
-                if afw and RHO_DAG > 0:                                      # ijs van de andere races van deze dag op deze baan
-                    k_ = len(afw); bw = k_ * RHO_DAG / (1 + (k_ - 1) * RHO_DAG)
-                    t_, v_ = prior + bw * float(np.mean(afw)), v_p * (1 - bw * RHO_DAG)
-            if groot:
-                dag_afw.setdefault(b_, []).append(t_ - prior)
-            th[q] = t_; vth[q] = v_
+                for r in rb:
+                    if r['t'] is None:
+                        r['t'], r['v'] = r['prior'], r['v_p']
+                    elif KRIMP == 'precisie':                                # glad naar het gewone baanpeil, naar onzekerheid
+                        r['t'], r['v'] = (r['t'] / r['v'] + r['prior'] / r['v_p']) / (1 / r['v'] + 1 / r['v_p']), 1 / (1 / r['v'] + 1 / r['v_p'])
+        for r in races:
+            q, e, g_, a_, t_, prior = r['q'], r['e'], r['g'], r['a'], r['t'], r['prior']
+            th[q] = t_; vth[q] = r['v']
             if t_ - prior < -RACE_GRENS:                                  # hele race onmogelijk snel: verkeerde afstand of tijdwaarneming
                 verd[q] = True
             verd[q] |= np.isfinite(e) & (e - t_ < -RIT_GRENS)

@@ -675,7 +675,8 @@ Correcties in de aanvulling (november 2026, na te snelle omgerekende tijden in o
 - vormtekort na een pauze (`aanvul_rust.json`: kernel-mediaan van de filterfout naar ln rustdagen x niveau, 2010-2025; toprijders na de
   zomer ~+0,7%) en extra spreiding na een pauze (0,73% na 1 dag, 1,2% na 7 maanden) als lager gewicht in het racepeil;
 - racepeil uit het veld pas vanaf 14 rijders met een niveau (kleinere velden overcorrigeren), anders het gewone baanpeil (mediaan laatste
-  vier seizoenen per baan x geslacht x afstand); vanaf 14 rijders zonder de 2 snelste en 2 traagste ritten, glad naar het baanpeil gewogen naar onzekerheid;
+  vier seizoenen per baan x geslacht x afstand), bijgesteld met de grote races van die dag op die baan (gewicht k x 0,45 / (1 + (k - 1) x 0,45)
+  bij k grote races; kleine races 5-14 rijders: mediaan |verschil| 0,60% -> 0,55%); vanaf 14 rijders zonder de 2 snelste en 2 traagste ritten, glad naar het baanpeil gewogen naar onzekerheid;
 - SNEL 1,55 in het filter van de aanvulling.
 Toets sep-dec 2025 (mediaan |verschil| met het volledige model): oud 0,68% (oktober +0,43%), nu 0,41% (oktober -0,06%). Hele seizoenen:
 2025-26 0,43%, 2024-25 0,38%; per maand binnen -0,18 tot +0,19% (resterend seizoensverloop: vroeg in het seizoen iets snel, laat iets traag).

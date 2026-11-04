@@ -684,3 +684,11 @@ Toets sep-dec 2025 (mediaan |verschil| met het volledige model): oud 0,68% (okto
   het volledige model: ware correlatie tussen races op dezelfde dag en baan 0,82 (gemeten 0,54, door meetruis). Toets met de helft van de
   rijders apart gehouden (sep-dec 2025), fout in het peil van de andere helft: zonder nabewerking mediaan 0,70% / rms 2,75%, met 0,67% / 2,63%
   (kleine velden 0,98 -> 0,96%, grote 0,39 -> 0,38%).
+
+## Baancorrectie voor de top (`baan_top.py`, `baan_top.json`)
+
+Het racepeil komt uit het hele veld; op hoogland winnen toprijders meer dan het veld. Dezelfde rijder, hetzelfde seizoen en dezelfde afstand
+op een baan en in Heerenveen, alleen WK, Spelen en World Cups (geen verschil in motivatie: met alle wedstrijden leek ook Inzell +0,26%, met
+alleen internationaal -0,11%): Salt Lake City -0,62%, Milwaukee -0,52%, Calgary -0,43%, Erfurt -0,41%; trager voor de top: Kolomna +0,46%,
+Changchun +0,37%, Chelyabinsk +0,36%. Op de site: Heerenveen-tijd = exp(ln t - racepeil - c_baan x exp(-niveau / 5%) + peil Heerenveen);
+gekrompen naar 0 bij weinig paren (prior-sd 0,3%).

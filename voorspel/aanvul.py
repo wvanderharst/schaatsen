@@ -27,7 +27,7 @@ TRIM = int(os.environ.get('AANVUL_TRIM', 2))            # racepeil: de 2 snelste
 MIN_RIJDERS = int(os.environ.get('AANVUL_MIN', 14))
 HOLDOUT = os.environ.get('AANVUL_HOLDOUT') == '1'; HOUT = []
 DAGPOST = os.environ.get('AANVUL_DAGPOST', '1') == '1'   # nabewerking: races van dezelfde dag en baan delen het ijs
-SD_DAG, TAU_RACE = 0.0073, 0.0035                       # gedeeld ijs per dag x baan en race-eigen ijs (sd, model 2015-2025; ware correlatie 0,82)     # minder rijders met een niveau: het gewone peil van de baan (kleine velden overcorrigeren)
+SD_DAG, TAU_RACE = float(os.environ.get('AANVUL_SDDAG', 0.0073)), float(os.environ.get('AANVUL_TAU', 0.0035))                       # gedeeld ijs per dag x baan en race-eigen ijs (sd, model 2015-2025; ware correlatie 0,82)     # minder rijders met een niveau: het gewone peil van de baan (kleine velden overcorrigeren)
 ASYM = os.environ.get('AANVUL_ASYM', '')               # toets: 'snel0.5' / 'trag0.5' (gewicht van ritten aan die kant van het peil)     # racepeil bij weinig rijders: precisie (glad naar het baanpeil), geen, n3/n5/n8 (harde grens)
 NIEUW = ['speedskating_nieuw.parquet']
 EXACT = {'YF': 7, 'YE': 8, 'YD': 9, 'YC': 10, 'YB': 11, 'YA': 12, 'C1': 13, 'C2': 14, 'B1': 15, 'B2': 16, 'A1': 17, 'A2': 18,

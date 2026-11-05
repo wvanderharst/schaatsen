@@ -1,7 +1,7 @@
 """Peil per baan voor de simulatie van regionale wedstrijden: per baan x geslacht x afstand het typische peil van een race (mediaan van het
 racepeil theta, uit het veld) t.o.v. een normale dag in Heerenveen (meta.peil_hv), en de spreiding van het racepeil (hoe sterk het ijs per
 wedstrijd wisselt; robuust: 1,4826 x MAD). Laatste vier seizoenen als er >= 5 races zijn, anders alle seizoenen (>= 5 races).
-Schrijft meta.baanpeil = {baan-index: {"g|afstand": [ln-verschil, spreiding, races]}} in de index. Gebruik: python site_baanpeil.py <werkmap> <sitemap>"""
+Heerenveen is per definitie 0 (zelfde normaal als 'Heerenveen nu'). Schrijft meta.baanpeil = {baan-index: {"g|afstand": [ln-verschil, spreiding, races]}} in de index. Gebruik: python site_baanpeil.py <werkmap> <sitemap>"""
 import gzip, json, base64, os, sys
 import numpy as np, pandas as pd
 
@@ -27,6 +27,16 @@ for (b, g, a), x in X.groupby(['baan', 'gender', 'afstand']):
         continue
     t = r['theta'].to_numpy(); med = float(np.median(t)); sd = float(1.4826 * np.median(np.abs(t - med)))
     uit.setdefault(str(bidx[b]), {})[f'{g}|{a}'] = [round(med - h, 5), round(max(sd, 0.002), 5), int(len(r))]
+# Heerenveen per definitie 0: alle banen t.o.v. hetzelfde gewone peil van Heerenveen (zelfde maat: mediaan van alle races). Anders
+# rekenen 'Heerenveen nu' (normale dag met topveld, meta.peil_hv) en de kolom IJs of de simulatie in Heerenveen met twee verschillende
+# normalen (10 km mannen 0,51% verschil).
+hvk = uit.get(str(bidx.get('Heerenveen (NED)', -1)), {})
+for k_, v_ in uit.items():
+    for ga, d in v_.items():
+        if ga in hvk and k_ != str(bidx.get('Heerenveen (NED)', -1)):
+            d[0] = round(d[0] - hvk[ga][0], 5)
+for ga in hvk:
+    hvk[ga][0] = 0.0
 I['meta']['baanpeil'] = uit
 open(os.path.join(S, 'index.json.gz'), 'wb').write(gzip.compress(json.dumps(I, ensure_ascii=False, separators=(',', ':')).encode()))
 open(os.path.join(S, 't', 'index.txt'), 'w').write(base64.b64encode(open(os.path.join(S, 'index.json.gz'), 'rb').read()).decode())

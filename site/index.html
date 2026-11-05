@@ -498,6 +498,7 @@ function tekenBlad() {
       <span>Actief <b>${sz(r.van)} – ${sz(r.tot)}</b></span><span><b>${r.ritten.toLocaleString('nl-NL')}</b> ritten</span>
       <span>WK-titels <b>${r.wk}</b></span><span>Olympische titels <b>${r.os}</b></span><span>World Cup-zeges <b>${r.wc}</b></span></div>
     ${titels.length ? `<div class="titels">${titels.map(t => `<span class="pil goud">${esc(t)}</span>`).join('')}</div>` : ''}
+    ${huidigeStand(r, d)}
     <section class="sectie"><h3>Loopbaan</h3>
       <p class="uitleg">Hoe ver deze rijder per seizoen achter de nummer 10 van de wereld zat, per afstand (alleen seizoenen met minstens drie ritten op die afstand). 0% is precies het niveau van de nummer 10; hoger in de grafiek is beter. Omdat elk seizoen met de top van dat jaar wordt vergeleken, tellen sneller ijs en beter materiaal niet mee.</p>
       <div class="grafiek" id="grafiek"></div></section>
@@ -517,6 +518,33 @@ function tekenBlad() {
   document.getElementById('rsz').addEventListener('input', e => { huidig.rsz = e.target.value; huidig.rpag = 0; tekenRitten(); });
   document.getElementById('raf').addEventListener('input', e => { huidig.raf = e.target.value; huidig.rpag = 0; tekenRitten(); });
   tekenGrafiek(); tekenSeizoenen(); tekenRitten();
+}
+// Huidige stand: per afstand de stand na de laatste rit (de Kalman-stand van het meest recente seizoen met ritten op die afstand),
+// met seizoensbeste, PR en de laatste rit; bovenaan de datum van de laatste rit van de rijder (laatste update).
+function huidigeStand(r, d) {
+  const ritten = d.r.filter(v => v[3] != null && !v[10]);
+  if (!ritten.length) return '';
+  const laatst = d.r.reduce((m, v) => v[0] > m[0] ? v : m, d.r[0]);
+  const rijen = AFK.map((a, ai) => {
+    const sz_ = Object.keys(d.s).map(Number).filter(s => d.s[s].af[a]).sort((x, y) => y - x)[0];
+    const op = ritten.filter(v => v[1] === ai);
+    if (sz_ == null && !op.length) return null;
+    const v = sz_ != null ? d.s[sz_].af[a] : null;
+    const pr = op.reduce((m, x) => m == null || x[3] < m[3] ? x : m, null);
+    const sb = op.filter(x => seizoenVan(x[0]) === META.laatste).reduce((m, x) => m == null || x[3] < m[3] ? x : m, null);
+    const lr = op.reduce((m, x) => m == null || x[0] > m[0] ? x : m, null);
+    const ls = lr ? seizoenVan(lr[0]) : null, oud = sz_ != null && sz_ < META.laatste;
+    const afgeleid = sz_ != null && ls != null && ls < sz_ - 1, nogNiet = sz_ != null && ls === sz_ - 1;
+    const noot = oud ? ' <span class="status">niet meer gereden</span>' : afgeleid ? ` <span class="status">afgeleid, laatst ${sz(ls)}</span>`
+      : nogNiet ? ' <span class="status">nog niet gereden dit seizoen</span>' : '';
+    return `<tr${afgeleid ? ' style="opacity:.7"' : ''}><td class="l">${AFN[ai]}</td><td class="l" style="white-space:normal;min-width:9em">${sz_ != null ? sz(sz_) + (noot ? '<br>' + noot : '') : ''}</td>
+      <td class="c">${v ? tijd(v[0]) : ''}</td><td class="c">${v && v[1] != null ? (v[1] >= 0 ? '+' : '−') + Math.abs(v[1]).toFixed(1).replace('.', ',') + '%' : ''}</td><td class="c">${v && v[3] ? v[3] : ''}</td><td class="c">${v ? v[4] : ''}</td>
+      <td class="c">${sb ? tijd(sb[3]) : ''}</td><td class="c">${pr ? tijd(pr[3]) + ` <span class="status">${datum(pr[0])}</span>` : ''}</td>
+      <td class="l">${lr ? `<button class="naamknop" style="font-weight:400;font-family:var(--cijfer)" data-race="${lr[0]}|${lr[2]}|${r.g}|${lr[1]}" title="Hele uitslag">${datum(lr[0])}</button> ${esc(META.banen[lr[2]])}` : ''}</td></tr>`;
+  }).filter(Boolean);
+  return `<section class="sectie"><h3>Huidige stand</h3>
+    <p class="uitleg">Laatste update: <b>${datum(laatst[0])}</b>, ${AFN[laatst[1]]} in ${esc(META.banen[laatst[2]])}. Niveau: de stand na de laatste rit op die afstand, als tijd op een normale dag in Heerenveen met het ijs en materiaal van nu; achter top-10 en wereldrang ten opzichte van dat seizoen. Op afstanden die de rijder lang niet reed, schat het model de stand uit de andere afstanden (grijs). Ritten: alle ritten op die afstand in de loopbaan. Seizoensbeste en PR zijn echte tijden.</p>
+    <div class="tabelbak"><table><tr><th class="l">Afstand</th><th class="l">Stand van</th><th>Niveau Heerenveen nu</th><th>Achter top-10</th><th>Wereldrang</th><th>Ritten op afstand</th><th>Seizoensbeste ${sz(META.laatste)}</th><th>PR</th><th class="l">Laatste rit</th></tr>${rijen.join('')}</table></div></section>`;
 }
 const toen = (t, s) => t == null ? null : t * Math.exp((META.era && (META.era[s] ?? (s < 2007 ? META.era[2007] : 0))) || 0);
 const seizoenVan = d => { const x = new Date(d * 864e5); return x.getUTCMonth() >= 6 ? x.getUTCFullYear() : x.getUTCFullYear() - 1; };

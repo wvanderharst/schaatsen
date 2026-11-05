@@ -494,11 +494,11 @@ function tekenBlad() {
   const afIn = AFK.filter(a => Object.values(d.s).some(e => e.af[a]));
   blad.innerHTML = `
     <div class="naamkop"><h2>${esc(r.naam)}</h2><button class="knop" data-vg="${r.id}" aria-pressed="${vergelijk.includes(r.id)}">Vergelijk</button></div>
-    <div class="feiten"><span><b>${esc(r.land)}</b></span><span>${r.g === 'v' ? 'Vrouw' : 'Man'}</span>${r.geb ? `<span>Geboren <b>${r.geb}</b></span>` : ''}
+    ${huidigeStand(r, d)}
+    <div class="feiten" style="margin-top:14px"><span><b>${esc(r.land)}</b></span><span>${r.g === 'v' ? 'Vrouw' : 'Man'}</span>${r.geb ? `<span>Geboren <b>${r.geb}</b></span>` : ''}
       <span>Actief <b>${sz(r.van)} – ${sz(r.tot)}</b></span><span><b>${r.ritten.toLocaleString('nl-NL')}</b> ritten</span>
       <span>WK-titels <b>${r.wk}</b></span><span>Olympische titels <b>${r.os}</b></span><span>World Cup-zeges <b>${r.wc}</b></span></div>
     ${titels.length ? `<div class="titels">${titels.map(t => `<span class="pil goud">${esc(t)}</span>`).join('')}</div>` : ''}
-    ${huidigeStand(r, d)}
     <section class="sectie"><h3>Loopbaan</h3>
       <p class="uitleg">Hoe ver deze rijder per seizoen achter de nummer 10 van de wereld zat, per afstand (alleen seizoenen met minstens drie ritten op die afstand). 0% is precies het niveau van de nummer 10; hoger in de grafiek is beter. Omdat elk seizoen met de top van dat jaar wordt vergeleken, tellen sneller ijs en beter materiaal niet mee.</p>
       <div class="grafiek" id="grafiek"></div></section>
@@ -542,7 +542,7 @@ function huidigeStand(r, d) {
       <td class="c">${sb ? tijd(sb[3]) : ''}</td><td class="c">${pr ? tijd(pr[3]) + ` <span class="status">${datum(pr[0])}</span>` : ''}</td>
       <td class="l">${lr ? `<button class="naamknop" style="font-weight:400;font-family:var(--cijfer)" data-race="${lr[0]}|${lr[2]}|${r.g}|${lr[1]}" title="Hele uitslag">${datum(lr[0])}</button> ${esc(META.banen[lr[2]])}` : ''}</td></tr>`;
   }).filter(Boolean);
-  return `<section class="sectie"><h3>Huidige stand</h3>
+  return `<section class="sectie" style="margin-top:10px"><h3>Huidige stand</h3>
     <p class="uitleg">Laatste update: <b>${datum(laatst[0])}</b>, ${AFN[laatst[1]]} in ${esc(META.banen[laatst[2]])}. Niveau: de stand na de laatste rit op die afstand, als tijd op een normale dag in Heerenveen met het ijs en materiaal van nu; achter top-10 en wereldrang ten opzichte van dat seizoen. Op afstanden die de rijder lang niet reed, schat het model de stand uit de andere afstanden (grijs). Ritten: alle ritten op die afstand in de loopbaan. Seizoensbeste en PR zijn echte tijden.</p>
     <div class="tabelbak"><table><tr><th class="l">Afstand</th><th class="l">Stand van</th><th>Niveau Heerenveen nu</th><th>Achter top-10</th><th>Wereldrang</th><th>Ritten op afstand</th><th>Seizoensbeste ${sz(META.laatste)}</th><th>PR</th><th class="l">Laatste rit</th></tr>${rijen.join('')}</table></div></section>`;
 }

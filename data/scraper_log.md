@@ -20,3 +20,4 @@
 | 2026-11-05 | 2 | 154 | 153 | 32287 | 0 | Dresden (GER) 04-11, Chemnitz (GER) 04-11 |
 | 2026-11-05 | 0 | 0 | 155 | 32287 | 0 |  |
 | 2026-11-05 | 0 | 0 | 155 | 32287 | 0 |  |
+| 2026-11-09 | 37 | 7512 | 149 | 32324 | 0 | Kristiansund (NOR) 18-03, Kristiansund (NOR) 04-11, Chelyabinsk 02-11, Obihiro (JPN) 07-11, Nagano (JPN) 06-11, Seoul (KOR) 05-11, Chemnitz (GER) 07-11, Tomaszów-Mazowiecki (POL) 07-11, Tomaszów-Mazowiecki (POL) 07-11, Erfurt (GER) 07-11, Berlin (GER) 07-11, Heerenveen (NED) 07-11, Deventer (NED) 07-11, Kolomna 05-11, Kolomna 28-10, Groningen (NED) 07-11, Groningen (NED) 07-11, Enschede (NED) 07-11, Alkmaar (NED) 07-11, Amsterdam (NED) 07-11, Breda (NED) 07-11, Nijmegen (NED) 07-11, Haarlem (NED) 07-11, Grefrath (GER) 07-11, Tilburg (NED) 07-11, Amsterdam (NED) 08-11, Leiden (NED) 31-10, Leide |
